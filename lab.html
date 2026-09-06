@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab · Experiencias de anuncio</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;500&family=Roboto+Serif:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --paper: #ffffff;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #0b8f78;
+      --ad-w: 300px;
+      --ad-h: 250px;
+      --sticky-bottom-gap: 28px;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .toast {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 80;
+      padding: 0.55rem 0.8rem;
+      border-radius: 8px;
+      background: #123;
+      color: #e8fff8;
+      font-size: 0.82rem;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+    .settings-btn {
+      border: 1px solid var(--neon);
+      background: transparent;
+      color: var(--neon);
+      font: inherit;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .settings-btn:hover { background: rgba(11, 143, 120, 0.1); }
+    .settings-modal {
+      width: min(420px, calc(100vw - 2rem));
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 18px 48px rgba(26, 35, 48, 0.18);
+    }
+    .settings-modal::backdrop { background: rgba(26, 35, 48, 0.38); }
+    .settings-panel { padding: 1rem 1.1rem 1.15rem; }
+    .settings-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .settings-panel h2 {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+    .settings-close {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0.1rem 0.35rem;
+    }
+    .settings-close:hover { color: var(--ink); }
+    .settings-panel .check-row { margin: 0 0 0.65rem; }
+    .settings-panel .check-row:last-child { margin-bottom: 0; }
+    h1 { font-size: 0.95rem; margin: 0; font-weight: 600; }
+    .lab {
+      display: grid;
+      grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(240px, 300px);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .lab.hide-ad-settings { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+    .lab.hide-cost { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
+    .lab.hide-cost.hide-ad-settings { grid-template-columns: minmax(0, 1fr); }
+    .lab.hide-ad-settings .config-ad { display: none; }
+    .lab.hide-cost .config-cost { display: none; }
+    .config {
+      overflow: auto;
+      background: var(--paper);
+      padding: 1rem 1.1rem 1.5rem;
+      min-width: 0;
+      z-index: 2;
+      position: relative;
+    }
+    .config-ad { border-left: 1px solid var(--line); }
+    .config-cost { border-right: 1px solid var(--line); }
+    .config h2 {
+      margin: 0 0 0.55rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .config h2:not(:first-child) { margin-top: 1.25rem; }
+    .choice-list { display: grid; gap: 0.35rem; }
+    .choice {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.84rem;
+    }
+    .choice:hover { border-color: #b7c4d0; }
+    .choice:has(input:checked) {
+      border-color: var(--neon);
+      background: rgba(11, 143, 120, 0.06);
+    }
+    .choice input { margin-top: 0.2rem; accent-color: var(--neon); }
+    .choice span { display: block; }
+    .choice small { display: block; color: var(--muted); font-size: 0.72rem; }
+    .blurb {
+      margin: 1rem 0 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .preview {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      overflow: hidden;
+    }
+    .preview-label {
+      flex-shrink: 0;
+      padding: 0.45rem 1rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.7);
+    }
+    .stage { flex: 1; min-height: 0; overflow: auto; background: #fff; }
+    .copy { max-width: 800px; margin: 0; padding: 0 0 4rem; }
+    .copy p { margin: 0 0 1.15rem; font-family: "PT Serif", Georgia, serif; font-size: 1.15rem; line-height: 1.6; color: #000; }
+    .copy .kicker {
+      margin: 0 0 0.55rem;
+      font-family: Roboto, "Segoe UI", sans-serif;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #326EAB;
+    }
+    .copy .headline {
+      margin: 0 0 0.7rem;
+      font-family: "Roboto Serif", Georgia, serif;
+      font-size: clamp(1.55rem, 2.4vw, 2rem);
+      font-weight: 600;
+      line-height: 1.25;
+      color: #000;
+    }
+    .copy .dek {
+      font-size: 1.15rem;
+      color: #333;
+    }
+    .copy .timestamp {
+      margin: 0 0 1.1rem;
+      padding-bottom: 0.55rem;
+      border-bottom: 1px solid #ccc;
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 0.875rem;
+      color: #000;
+    }
+    .copy h2:not(.headline) {
+      font-family: "Roboto Serif", Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 1.6rem 0 0.7rem;
+    }
+
+    .field { display: grid; gap: 0.3rem; margin: 0 0 0.7rem; }
+    .field span {
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field select, .field input[type="number"] {
+      width: 100%;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.84rem;
+    }
+    .field input[type="range"] { width: 100%; accent-color: var(--neon); }
+    .field-row { display: flex; align-items: center; gap: 0.5rem; }
+    .color-field {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+    .ph-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.32rem;
+      margin: 0 0 0.7rem;
+    }
+    .ph-shots {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.32rem;
+      margin: 0 0 0.7rem;
+    }
+    .ph-shot {
+      appearance: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #eceff2;
+      cursor: pointer;
+      aspect-ratio: 1;
+    }
+    .ph-shot img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .ph-shot-none {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-size: 0.62rem;
+      font-weight: 650;
+      color: var(--muted);
+    }
+    .ph-shot.is-on { outline: 2px solid var(--neon); }
+    .ph-pill {
+      appearance: none;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 650;
+      margin: 0;
+      padding: 0.28rem 0.58rem;
+      border: 0;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .ph-pill:hover,
+    .ph-pill:focus-visible {
+      color: var(--neon);
+      outline: none;
+    }
+    .ph-pill.is-on {
+      color: #fff;
+      background: var(--neon);
+    }
+    .ph-swatch {
+      display: grid;
+      place-items: center;
+      height: 4.4rem;
+      margin: 0.55rem 0 0.15rem;
+      border-radius: 8px;
+      overflow: hidden;
+      color: var(--ph-ink, #3d2a18);
+      background:
+        radial-gradient(120% 90% at 10% 0%, color-mix(in srgb, var(--ph-paper, #efe0c4) 70%, transparent), transparent 52%),
+        radial-gradient(90% 80% at 100% 110%, color-mix(in srgb, var(--ph-accent, #8b5a2b) 58%, transparent), transparent 56%),
+        var(--ph-bg, #b89a6e);
+    }
+    .ph-swatch .ad-ph-art { grid-area: 1 / 1; width: 100%; height: 100%; display: grid; place-items: center; }
+    .ph-swatch .ad-ph-size { grid-area: 1 / 1; font-size: 0.78rem; }
+    .ph-swatch .ad-ph-icon {
+      width: 2.6rem;
+      height: auto;
+    }
+    .field input[type="file"] { font-size: 0.75rem; }
+    .file-clear {
+      justify-self: start;
+      margin-top: 0.2rem;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      font: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .cost-hint {
+      display: block;
+      margin: 0.2rem 0 0;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.84rem;
+      margin: 0 0 0.4rem;
+    }
+    .rail-box {
+      padding: 0.7rem 0.65rem 0.35rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafbfc;
+    }
+
+    .mag-page { min-height: 100%; background: #fff; }
+    .page-preview {
+      display: grid;
+      grid-template-columns: minmax(0, 800px);
+      justify-content: center;
+      align-items: start;
+      gap: 2rem;
+      max-width: 1400px;
+      width: 100%;
+      min-width: 0;
+      margin: 0 auto;
+      padding: 1.5rem 5.5% 3rem;
+      min-height: 100%;
+      background: #fff;
+    }
+    .page-preview.has-left.has-right { justify-content: stretch; }
+    .side-rail {
+      min-width: 0;
+      min-height: 100%;
+      padding: 0;
+      background: #fff;
+    }
+    .rail-pin {
+      position: sticky;
+      top: var(--preview-sticky-top, 0.75rem);
+      z-index: 20;
+    }
+    .site-nav { position: sticky; top: 0; z-index: 28; background: #fff; }
+    .site-nav-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 66px;
+      padding: 0.55rem 5.5%;
+      border-bottom: 1px solid #ccc;
+    }
+    .site-nav-brand {
+      font-family: "Roboto Serif", Georgia, serif;
+      font-weight: 600;
+      font-size: 1.35rem;
+      letter-spacing: 0.04em;
+      color: #000;
+    }
+    .site-nav-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 17px;
+      background: #eee;
+      display: grid;
+      place-items: center;
+      color: #000;
+      font-size: 0.85rem;
+    }
+    .site-nav-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 1.1rem;
+      min-height: 50px;
+      padding: 0.4rem 5.5%;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .site-nav-bar a {
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 0.875rem;
+      color: #000;
+      text-decoration: none;
+    }
+    .site-nav-bar a.is-section { font-weight: 600; }
+    .site-nav-bar a.is-sub { color: #326EAB; font-weight: 600; }
+    .site-nav-bar a:hover { color: #326EAB; }
+    .article-covers { display: grid; gap: 1.1rem; margin: 0 0 1.35rem; }
+    .cover-media {
+      margin: 0;
+      border-radius: 0;
+      overflow: hidden;
+      background: #eee;
+    }
+    .cover-media svg, .cover-media video, .cover-media img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .cover-media figcaption,
+    .cover-media .cover-cap {
+      padding: 0.55rem 0 0;
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 0.875rem;
+      color: #666;
+    }
+    .cover-gallery { position: relative; }
+    .cover-gallery-slide { display: none; }
+    .cover-gallery-slide.is-on { display: block; }
+    .cover-gallery-nav {
+      position: absolute;
+      top: 42%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.92);
+      color: var(--ink);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(26, 35, 48, 0.16);
+    }
+    .cover-gallery-nav.prev { left: 8px; }
+    .cover-gallery-nav.next { right: 8px; }
+    .cover-gallery-dots {
+      display: flex;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0 0.15rem;
+    }
+    .cover-gallery-dots button {
+      width: 7px;
+      height: 7px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #c5d0dc;
+      cursor: pointer;
+    }
+    .cover-gallery-dots button.is-on { background: #326EAB; }
+    .cover-video video { aspect-ratio: 16 / 9; object-fit: cover; background: #0b1520; }
+    .side-rail .ad-slot {
+      margin: 0 auto;
+      padding: 1.1rem 0.8rem 1.25rem;
+      background: #eee;
+    }
+    .page-main { min-width: 0; }
+    .page-main .ad-slot {
+      padding: 1.2rem 0 1.4rem;
+      background: #eee;
+    }
+
+    .ad-slot {
+      --ad-w: 300px;
+      --ad-h: 250px;
+      width: min(100%, var(--ad-w));
+      max-width: 100%;
+      margin: 1.5rem auto;
+    }
+    .page-preview .ad-label {
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #000;
+      opacity: 0.7;
+      text-align: center;
+      margin-bottom: 0.55rem;
+    }
+    .ad-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 0.35rem;
+    }
+    .ad-frame {
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: var(--ad-ratio, var(--ad-w) / var(--ad-h));
+      padding-bottom: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .page-preview .ad-frame:has(.is-visible) { outline: 1px solid #326EAB; }
+    .ad-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      overflow: clip;
+      isolation: isolate;
+      background: #05080f;
+      border: 0;
+      cursor: pointer;
+    }
+    .page-preview .ad-container.is-visible { outline: none; }
+    .ad-clock-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .ad-clock {
+      appearance: none;
+      position: absolute;
+      z-index: 41;
+      top: 0.38rem;
+      right: 0.38rem;
+      width: calc(2.2rem * var(--clock-size, 1));
+      height: calc(2.2rem * var(--clock-size, 1));
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .ad-slot.is-in .ad-clock,
+    .ad-container.is-visible .ad-clock {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    body.clock-off .ad-clock,
+    body.clock-off .ad-clock-layer { display: none; }
+    .ad-container canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 0;
+    }
+    .ad-fallback { display: none; }
+    .ad-container.is-error .ad-fallback { display: grid; place-items: center; height: 100%; color: var(--muted); }
+    .ad-hint {
+      position: absolute; left: 8px; bottom: 6px; z-index: 3;
+      font-size: 0.65rem; color: rgba(215, 226, 242, 0.75); pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .ad-container.is-climax .ad-hint,
+    .ad-container.is-ad-in .ad-hint { opacity: 0; }
+    .ad-container.is-climax canvas { opacity: 0.42; }
+    .ad-container[data-play="horizon"].is-climax canvas,
+    .ad-container[data-play="sundown"].is-climax canvas,
+    .ad-container[data-play="storm"].is-climax canvas,
+    .ad-container[data-play="aurora"].is-climax canvas,
+    .ad-container[data-play="erupt"].is-climax canvas,
+    .ad-container[data-play="migrate"].is-climax canvas,
+    .ad-container[data-play="breaker"].is-climax canvas,
+    .ad-container[data-play="calve"].is-climax canvas,
+    .ad-container[data-play="prop"].is-climax canvas { opacity: 0.72; }
+    .ad-container canvas {
+      transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
+    }
+    .ad-container[data-play="pre-enter"].is-pre-exit canvas {
+      opacity: 0;
+      transform: scale(1.14);
+      filter: blur(10px);
+    }
+    .ad-creative {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: var(--ph-ink, #6f5d45);
+      background: var(--ph-bg, #c4b191);
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+      transition: opacity 0.65s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .ad-ph {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: var(--ph-ink, #3d2a18);
+      background:
+        radial-gradient(120% 85% at 12% 8%, color-mix(in srgb, var(--ph-paper, #efe0c4) 78%, transparent) 0%, transparent 46%),
+        radial-gradient(82% 72% at 94% 100%, color-mix(in srgb, var(--ph-accent, #8b5a2b) 64%, transparent) 0%, transparent 54%),
+        linear-gradient(165deg, var(--ph-paper, #efe0c4) 0%, var(--ph-bg, #b89a6e) 48%, color-mix(in srgb, var(--ph-ink, #3d2a18) 24%, var(--ph-bg, #b89a6e)) 100%);
+    }
+    .ad-ph::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--ph-ink, #3d2a18) 18%, transparent),
+        inset 0 -34% 50% color-mix(in srgb, var(--ph-accent, #8b5a2b) 26%, transparent);
+    }
+    .ad-ph-art {
+      grid-area: 1 / 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .ad-ph-shot {
+      display: block;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: var(--ph-fit, cover);
+      object-position: var(--ph-fit-x, 50%) var(--ph-fit-y, 50%);
+      transform: scale(var(--ph-fit-z, 1));
+      transform-origin: var(--ph-fit-x, 50%) var(--ph-fit-y, 50%);
+    }
+    .ad-ph[data-fit="contain"] .ad-ph-shot { object-fit: contain; }
+    .ad-ph[data-fit="fill"] .ad-ph-shot { object-fit: fill; }
+    .ad-ph[data-fit="cover"] .ad-ph-shot { object-fit: cover; }
+    .ad-ph:has(.ad-ph-shot),
+    .ad-ph-art:has(.ad-ph-shot),
+    .ad-ph-shot { background: var(--ph-fit-mat, #111); }
+    .ad-ph:has(.ad-ph-shot)::after { display: none; }
+    .ad-ph-size {
+      grid-area: 1 / 1;
+      z-index: 1;
+      font-size: clamp(0.72rem, 5.6cqw, 1.2rem);
+      font-weight: 750;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      white-space: nowrap;
+      color: var(--ph-ink, #6f5d45);
+      pointer-events: none;
+    }
+    .ad-ph-icon {
+      display: block;
+      width: min(46%, 7.2rem);
+      height: auto;
+      max-height: 58%;
+      opacity: 0.55;
+    }
+    .ad-ph-frame {
+      width: 72%;
+      height: 72%;
+      border: 2px solid var(--ph-ink, #3d2a18);
+      background: var(--ph-paper, #efe0c4);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ph-accent, #8b5a2b) 55%, transparent);
+      border-radius: 4px;
+    }
+    .ad-ph-bars {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+    .ad-ph-bars i { flex: 1; display: block; }
+    .ad-ph-bars i:nth-child(1) { background: var(--ph-bg, #c4b191); }
+    .ad-ph-bars i:nth-child(2) { background: var(--ph-paper, #d6c6ab); }
+    .ad-ph-bars i:nth-child(3) { background: var(--ph-accent, #8b5a2b); }
+    .ad-ph-grid {
+      width: 100%;
+      height: 100%;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 18px, color-mix(in srgb, var(--ph-accent, #8b5a2b) 42%, transparent) 18px 19px),
+        repeating-linear-gradient(90deg, transparent 0 18px, color-mix(in srgb, var(--ph-ink, #3d2a18) 28%, transparent) 18px 19px),
+        var(--ph-paper, #efe0c4);
+    }
+    .ad-container.is-climax .ad-creative {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+      animation: ad-climax-arrive 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes ad-climax-arrive {
+      0% { opacity: 0; transform: scale(0.78); filter: brightness(2.4); }
+      52% { opacity: 1; transform: scale(1.03); filter: brightness(1.12); }
+      100% { opacity: 1; transform: none; filter: none; }
+    }
+    .ad-container[data-play="pre-enter"] .ad-creative {
+      opacity: 0;
+      transform: none;
+    }
+    .ad-container[data-play="pre-enter"].is-ad-in .ad-creative {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ad-container[data-layout="wide"] .ad-creative,
+    .ad-container[data-layout="tall"] .ad-creative {
+      display: grid;
+      place-items: center;
+      padding: 0;
+      background: var(--ph-bg, #c4b191);
+    }
+    .ad-wave { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 56px; overflow: hidden; pointer-events: none; border-radius: 0 0 9px 9px; }
+    .ad-wave-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ad-wave-logo {
+      position: relative; z-index: 1; height: 100%;
+      display: flex; align-items: flex-end; justify-content: center; gap: 0.45rem;
+      padding-bottom: 10px; transform: translateY(var(--wave-bob, 0px));
+    }
+    .ad-brand-mark {
+      width: 13px; height: 13px; margin-bottom: 2px; background: #04110e;
+      transform: rotate(calc(45deg + var(--logo-spin, 0deg)));
+    }
+    .ad-brand-name { font-weight: 800; letter-spacing: 0.22em; font-size: 0.78rem; color: #04110e; }
+    .ad-2d { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; }
+
+    .ad-slot[data-in]:not([data-in="none"]) .ad-frame { will-change: transform, opacity, filter; }
+    .ad-slot.is-in[data-in="fade"] .ad-frame { animation: ad-in-fade 0.45s ease both; }
+    .ad-slot.is-in[data-in="fade-up"] .ad-frame { animation: ad-in-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="fade-down"] .ad-frame { animation: ad-in-fade-down 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="scale"] .ad-frame { animation: ad-in-scale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="pop"] .ad-frame { animation: ad-in-pop 0.7s ease both; }
+    .ad-slot.is-in[data-in="slide-left"] .ad-frame { animation: ad-in-slide-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="slide-right"] .ad-frame { animation: ad-in-slide-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="blur"] .ad-frame { animation: ad-in-blur 0.55s ease both; }
+    .ad-slot[data-play="pre-enter"] .ad-frame { animation: none !important; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="fade"] .ad-creative { animation: ad-in-fade 0.45s ease both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="fade-up"] .ad-creative { animation: ad-in-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="fade-down"] .ad-creative { animation: ad-in-fade-down 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="scale"] .ad-creative { animation: ad-in-scale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="pop"] .ad-creative { animation: ad-in-pop 0.7s ease both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="slide-left"] .ad-creative { animation: ad-in-slide-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="slide-right"] .ad-creative { animation: ad-in-slide-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-container[data-play="pre-enter"].is-ad-in[data-in="blur"] .ad-creative { animation: ad-in-blur 0.55s ease both; }
+    @keyframes ad-in-fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes ad-in-fade-up { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-fade-down { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-scale { from { opacity: 0; transform: scale(0.84); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-pop {
+      0% { opacity: 0; transform: scale(0.72); filter: brightness(1.8); }
+      45% { opacity: 1; transform: scale(1.04); filter: brightness(1.08); }
+      100% { opacity: 1; transform: none; filter: none; }
+    }
+    @keyframes ad-in-slide-left { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-slide-right { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-blur { from { opacity: 0; filter: blur(14px); } to { opacity: 1; filter: none; } }
+
+    .xp-band { display: flex; justify-content: center; padding: 1rem 0 1.4rem; background: #eee; }
+    .xp-band .ad-slot { margin: 0; }
+
+    .sticky-ad {
+      position: sticky;
+      z-index: 20;
+    }
+    .sticky-ad.xp-bottom { bottom: var(--sticky-bottom-gap); top: auto; }
+    .sticky-ad.xp-top { top: var(--preview-sticky-top, 0.75rem); }
+
+    .xp-fixed-bottom {
+      position: absolute;
+      left: 0; right: 0; bottom: 0; z-index: 45;
+      display: flex; justify-content: center;
+      padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+      background: rgba(255,255,255,0.94);
+      border-top: 1px solid var(--line);
+    }
+    .xp-fixed-bottom .ad-slot { margin: 0; }
+    .xp-fixed-corner {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      z-index: 45;
+    }
+    .xp-fixed-corner .ad-slot { margin: 0; }
+
+    @media (max-width: 1180px) {
+      .lab,
+      .lab.hide-cost { grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); }
+      .lab.hide-ad-settings,
+      .lab.hide-cost.hide-ad-settings { grid-template-columns: minmax(0, 1fr); }
+      .config-cost {
+        grid-column: 1 / -1;
+        max-height: 22vh;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+    @media (max-width: 900px) {
+      .lab,
+      .lab.hide-ad-settings,
+      .lab.hide-cost,
+      .lab.hide-cost.hide-ad-settings { grid-template-columns: 1fr; }
+      .config-cost { grid-column: auto; max-height: 28vh; }
+      .config { border-left: none; border-right: none; border-top: 1px solid var(--line); max-height: 42vh; }
+      .page-preview { gap: 1rem; padding: 1rem 4% 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Lab de experiencias</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+      <a class="app-quiet" href="index.html">Sitio</a>
+      <button type="button" class="app-tool" id="save-gallery">Guardar en galería</button>
+      <button type="button" class="app-tool" id="open-settings">Ajustes</button>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="toast" id="gallery-toast" role="status"></div>
+  <dialog class="settings-modal" id="settings-modal" aria-labelledby="settings-title">
+    <div class="settings-panel">
+      <header>
+        <h2 id="settings-title">Ajustes de previsualización</h2>
+        <button type="button" class="settings-close" id="close-settings" aria-label="Cerrar">×</button>
+      </header>
+      <label class="check-row"><input id="opt-nav" type="checkbox" /> Agregar nav a la previsualización</label>
+      <label class="check-row"><input id="opt-cover" type="checkbox" /> Agregar imagen de portada al artículo</label>
+      <label class="check-row"><input id="opt-gallery" type="checkbox" /> Agregar galería de portada al artículo</label>
+      <label class="check-row"><input id="opt-video" type="checkbox" /> Agregar video de portada al artículo</label>
+      <label class="check-row"><input id="opt-hide-cost" type="checkbox" /> Esconder el coste de animación (columna izquierda)</label>
+      <label class="check-row"><input id="opt-hide-settings" type="checkbox" /> Esconder los settings de anuncios (columna derecha)</label>
+      <label class="check-row"><input id="opt-clock" type="checkbox" checked /> Reloj del anuncio</label>
+      <label class="field" id="clock-style-row">
+        <span>Estilo del reloj</span>
+        <select id="opt-clock-style"></select>
+      </label>
+      <label class="field" id="clock-tone-row">
+        <span>Tono del reloj</span>
+        <select id="opt-clock-tone"></select>
+      </label>
+      <label class="field" id="clock-size-row">
+        <span>Tamaño del reloj <output id="opt-clock-size-val">100%</output></span>
+        <input id="opt-clock-size" type="range" min="50" max="200" step="5" value="100" />
+      </label>
+    </div>
+  </dialog>
+  <div class="lab" id="lab">
+    <aside class="config config-cost" id="cost-panel">
+      <h2>Coste de la animación</h2>
+      <label class="field">
+        <span>Mostrar ajustes de</span>
+        <select id="cost-view">
+          <option value="water">Gota · Agua</option>
+          <option value="prop">Objeto</option>
+        </select>
+      </label>
+      <p class="blurb" id="cost-blurb" style="margin-top:0">Subir estos valores gasta más GPU y memoria.</p>
+      <div id="cost-water">
+        <label class="field">
+          <span>Subdivisión del agua</span>
+          <div class="field-row">
+            <input id="cost-sub" type="range" min="40" max="320" step="20" value="180" />
+            <output id="cost-sub-val">180</output>
+          </div>
+          <p class="cost-hint">Vértices por fotograma: <span id="cost-sub-verts">32761</span></p>
+        </label>
+        <label class="field">
+          <span>Espejo (reflejos)</span>
+          <div class="field-row">
+            <input id="cost-mir" type="range" min="256" max="2048" step="128" value="768" />
+            <output id="cost-mir-val">768 px</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Blur del reflejo</span>
+          <div class="field-row">
+            <input id="cost-blur" type="range" min="0" max="24" step="1" value="6" />
+            <output id="cost-blur-val">6</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Segmentos de la gota</span>
+          <div class="field-row">
+            <input id="cost-drop" type="range" min="6" max="48" step="2" value="16" />
+            <output id="cost-drop-val">16</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Segmentos del cielo</span>
+          <div class="field-row">
+            <input id="cost-sky" type="range" min="8" max="48" step="2" value="20" />
+            <output id="cost-sky-val">20</output>
+          </div>
+        </label>
+      </div>
+      <div id="cost-prop" hidden>
+        <label class="field">
+          <span>Sombras</span>
+          <select id="cost-pshad">
+            <option value="0">Apagadas</option>
+            <option value="256">Bajas (256)</option>
+            <option value="512" selected>Completas (512)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Blur de sombra</span>
+          <div class="field-row">
+            <input id="cost-psblur" type="range" min="0" max="16" step="1" value="8" />
+            <output id="cost-psblur-val">8</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Niebla</span>
+          <div class="field-row">
+            <input id="cost-pfog" type="range" min="0" max="0.04" step="0.002" value="0.018" />
+            <output id="cost-pfog-val">0.018</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Luces</span>
+          <select id="cost-plights">
+            <option value="full">Completas</option>
+            <option value="simple">Solo ambiente</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Suelo (caja del modelo)</span>
+          <select id="cost-pbound">
+            <option value="1" selected>Cada fotograma</option>
+            <option value="2">Cada 2</option>
+            <option value="4">Cada 4</option>
+            <option value="8">Cada 8</option>
+          </select>
+        </label>
+        <label class="check-row"><input id="cost-pcont" type="checkbox" checked /> Sombra de contacto</label>
+      </div>
+      <label class="field">
+        <span>Resolución de blit (DPR)</span>
+        <div class="field-row">
+          <input id="cost-dpr" type="range" min="1" max="3" step="0.25" value="2.5" />
+          <output id="cost-dpr-val">2.5×</output>
+        </div>
+      </label>
+      <label class="field">
+        <span>Dibujo</span>
+        <select id="cost-fps">
+          <option value="0" selected>Vsync (monitor)</option>
+          <option value="60">Tope 60</option>
+          <option value="30">Tope 30</option>
+        </select>
+        <p class="cost-hint">La lógica del objeto va a 60 Hz. El dibujo sigue la pantalla e interpola poses.</p>
+      </label>
+    </aside>
+    <section class="preview">
+      <div class="preview-label">Previsualización</div>
+      <div id="stage" class="stage"></div>
+    </section>
+    <aside class="config config-ad">
+      <h2>Anuncio</h2>
+      <label class="field">
+        <select id="sel-ad"></select>
+      </label>
+      <h2>Anuncio</h2>
+      <div class="ph-shots" id="ph-shots"></div>
+      <h2>Placeholder</h2>
+      <div class="ph-pills" id="ph-styles"></div>
+      <div class="ph-pills" id="ph-pills"></div>
+      <div id="ph-color-fields"></div>
+      <div class="ph-swatch" id="ph-swatch" aria-hidden="true"></div>
+      <h2>Experiencia</h2>
+      <label class="field">
+        <select id="sel-xp"></select>
+      </label>
+      <h2>Play</h2>
+      <label class="field">
+        <select id="sel-play"></select>
+      </label>
+      <div id="play-colors">
+        <h2>Colores del play</h2>
+        <div id="play-color-fields"></div>
+      </div>
+      <div id="prop-settings" hidden>
+        <h2>Objeto</h2>
+        <label class="field">
+          <span>Acción</span>
+          <select id="sel-prop-act"></select>
+        </label>
+        <label class="field">
+          <span>Distancia de cámara</span>
+          <div class="field-row">
+            <input id="sel-prop-cam" type="range" min="2.2" max="8" step="0.1" value="4.1" />
+            <output id="sel-prop-cam-val">4.1</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Ancho</span>
+          <div class="field-row">
+            <input id="sel-prop-sx" type="range" min="0.2" max="2.2" step="0.05" value="0.72" />
+            <output id="sel-prop-sx-val">0.72</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Alto</span>
+          <div class="field-row">
+            <input id="sel-prop-sy" type="range" min="0.2" max="2.2" step="0.05" value="0.72" />
+            <output id="sel-prop-sy-val">0.72</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Profundidad</span>
+          <div class="field-row">
+            <input id="sel-prop-sz" type="range" min="0.2" max="2.2" step="0.05" value="0.72" />
+            <output id="sel-prop-sz-val">0.72</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Rotar objeto horizontal</span>
+          <div class="field-row">
+            <input id="sel-prop-rhrot" type="range" min="-180" max="180" step="5" value="0" />
+            <output id="sel-prop-rhrot-val">0°</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Rotar objeto vertical</span>
+          <div class="field-row">
+            <input id="sel-prop-rvrot" type="range" min="-180" max="180" step="5" value="0" />
+            <output id="sel-prop-rvrot-val">0°</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Luces al objeto</span>
+          <select id="sel-prop-light"></select>
+          <p class="blurb" style="margin-top:0.35rem">Foco: un haz. Varias: key, fill y rim apuntando al objeto.</p>
+        </label>
+        <label class="field">
+          <span>Intensidad de las luces</span>
+          <div class="field-row">
+            <input id="sel-prop-lint" type="range" min="0.05" max="1" step="0.05" value="0.35" />
+            <output id="sel-prop-lint-val">35%</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Color de las luces</span>
+          <input id="sel-prop-lcol" type="color" value="#fff0d1" />
+        </label>
+        <label class="field">
+          <span>Distancia de las luces</span>
+          <div class="field-row">
+            <input id="sel-prop-ldist" type="range" min="1.2" max="7" step="0.1" value="3.3" />
+            <output id="sel-prop-ldist-val">3.3</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Lugar del foco</span>
+          <select id="sel-prop-lpos"></select>
+          <p class="blurb" style="margin-top:0.35rem">Arriba, frente o detrás del objeto. Los sliders rotan alrededor del objeto.</p>
+        </label>
+        <label class="field">
+          <span>Rotar horizontal</span>
+          <div class="field-row">
+            <input id="sel-prop-lhrot" type="range" min="-180" max="180" step="5" value="0" />
+            <output id="sel-prop-lhrot-val">0°</output>
+          </div>
+        </label>
+        <label class="field">
+          <span>Rotar vertical</span>
+          <div class="field-row">
+            <input id="sel-prop-lvrot" type="range" min="-70" max="70" step="2" value="0" />
+            <output id="sel-prop-lvrot-val">0°</output>
+          </div>
+        </label>
+        <label class="check-row"><input id="sel-prop-floor" type="checkbox" checked /> Suelo</label>
+        <label class="check-row"><input id="sel-prop-flat" type="checkbox" /> Fondo 2D</label>
+        <label class="field">
+          <span>Modelo 3D</span>
+          <input id="sel-prop-file" type="file" multiple accept=".glb,.gltf,.obj,.mtl,.png,.jpg,.jpeg,.webp,.bmp,.tga,.bin,model/gltf-binary,model/gltf+json,model/obj,text/plain" />
+          <p class="blurb" id="prop-file-name" style="margin-top:0.35rem">Cubo de prueba. Subí un .glb / .gltf, o un .obj con su .mtl (y texturas).</p>
+          <button type="button" class="file-clear" id="prop-file-clear" hidden>Quitar modelo</button>
+        </label>
+      </div>
+      <h2>Transición in</h2>
+      <label class="field">
+        <select id="sel-in"></select>
+      </label>
+      <h2>Franja izquierda</h2>
+      <div class="rail-box">
+        <label class="field">
+          <span>Anuncio</span>
+          <select id="left-ad"></select>
+        </label>
+        <label class="field">
+          <span>Ancho</span>
+          <div class="field-row">
+            <input id="left-w" type="range" min="120" max="360" step="10" />
+            <output id="left-w-val">160 px</output>
+          </div>
+        </label>
+        <label class="check-row"><input id="left-sticky" type="checkbox" /> Sticky (esquina superior)</label>
+        <p class="blurb" style="margin-top:0.35rem">Ninguno oculta esta columna. Una o dos laterales, según elijas.</p>
+      </div>
+      <h2>Franja derecha</h2>
+      <div class="rail-box">
+        <label class="field">
+          <span>Anuncio</span>
+          <select id="right-ad"></select>
+        </label>
+        <label class="field">
+          <span>Ancho</span>
+          <div class="field-row">
+            <input id="right-w" type="range" min="120" max="360" step="10" />
+            <output id="right-w-val">300 px</output>
+          </div>
+        </label>
+        <label class="check-row"><input id="right-sticky" type="checkbox" /> Sticky (esquina superior)</label>
+      </div>
+      <p class="blurb" id="xp-blurb"></p>
+    </aside>
+  </div>
+
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
+      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module">
+    import { FORMATS, EXPERIENCES, IN_TRANSITIONS, PLAY_MODES, PROP_ACTIONS, PROP_AIM_LIGHTS, PROP_AIM_PLACES, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, formatById, experienceById, transitionById, playById, propActionById, propAimLightById, propAimPlaceById, normalizePropLint, normalizePropFloor, normalizePropFlat, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, DEFAULT_PROP_LCOL, DEFAULT_PROP_LDIST, adPlaceById, adPlaceFromPlay, adMarkup, playPaletteKey, playPaletteFields, resolvePalette, parsePlayColorState, serializePlayColorState, resolveAdPlace, serializeAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceVars, adImageSrc, listAdImages, normalizeAdImg, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, normHex } from "./ad-catalog.js?v=cam22";
+    import { bootContainers, disposeAds, applyAnimCost, setPropModelFile, setPropModelFiles, preparePropSource, getPropModel, playDurationMs, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop41";
+    import { loadGalleryStore, addComboToActive, activeProfile } from "./ad-profile.js";
+
+    const selAd = document.getElementById("sel-ad");
+    const selXp = document.getElementById("sel-xp");
+    const selIn = document.getElementById("sel-in");
+    const selPlay = document.getElementById("sel-play");
+    const playColorFields = document.getElementById("play-color-fields");
+    const phStyles = document.getElementById("ph-styles");
+    const phShots = document.getElementById("ph-shots");
+    const phPills = document.getElementById("ph-pills");
+    const phColorFields = document.getElementById("ph-color-fields");
+    const phSwatch = document.getElementById("ph-swatch");
+    const propSettings = document.getElementById("prop-settings");
+    const selPropAct = document.getElementById("sel-prop-act");
+    const selPropCam = document.getElementById("sel-prop-cam");
+    const selPropCamVal = document.getElementById("sel-prop-cam-val");
+    const selPropSx = document.getElementById("sel-prop-sx");
+    const selPropSy = document.getElementById("sel-prop-sy");
+    const selPropSz = document.getElementById("sel-prop-sz");
+    const selPropSxVal = document.getElementById("sel-prop-sx-val");
+    const selPropSyVal = document.getElementById("sel-prop-sy-val");
+    const selPropSzVal = document.getElementById("sel-prop-sz-val");
+    const selPropRhrot = document.getElementById("sel-prop-rhrot");
+    const selPropRhrotVal = document.getElementById("sel-prop-rhrot-val");
+    const selPropRvrot = document.getElementById("sel-prop-rvrot");
+    const selPropRvrotVal = document.getElementById("sel-prop-rvrot-val");
+    const selPropLight = document.getElementById("sel-prop-light");
+    const selPropLint = document.getElementById("sel-prop-lint");
+    const selPropLintVal = document.getElementById("sel-prop-lint-val");
+    const selPropLcol = document.getElementById("sel-prop-lcol");
+    const selPropLdist = document.getElementById("sel-prop-ldist");
+    const selPropLdistVal = document.getElementById("sel-prop-ldist-val");
+    const selPropLpos = document.getElementById("sel-prop-lpos");
+    const selPropLhrot = document.getElementById("sel-prop-lhrot");
+    const selPropLhrotVal = document.getElementById("sel-prop-lhrot-val");
+    const selPropLvrot = document.getElementById("sel-prop-lvrot");
+    const selPropLvrotVal = document.getElementById("sel-prop-lvrot-val");
+    const selPropFloor = document.getElementById("sel-prop-floor");
+    const selPropFlat = document.getElementById("sel-prop-flat");
+    const selPropFile = document.getElementById("sel-prop-file");
+    const propFileName = document.getElementById("prop-file-name");
+    const propFileClear = document.getElementById("prop-file-clear");
+    const blurb = document.getElementById("xp-blurb");
+    const stage = document.getElementById("stage");
+    const leftAd = document.getElementById("left-ad");
+    const rightAd = document.getElementById("right-ad");
+    const leftW = document.getElementById("left-w");
+    const rightW = document.getElementById("right-w");
+    const leftWVal = document.getElementById("left-w-val");
+    const rightWVal = document.getElementById("right-w-val");
+    const leftSticky = document.getElementById("left-sticky");
+    const rightSticky = document.getElementById("right-sticky");
+    const lab = document.getElementById("lab");
+    const settingsModal = document.getElementById("settings-modal");
+    const optNav = document.getElementById("opt-nav");
+    const optCover = document.getElementById("opt-cover");
+    const optGallery = document.getElementById("opt-gallery");
+    const optVideo = document.getElementById("opt-video");
+    const optHideSettings = document.getElementById("opt-hide-settings");
+    const optHideCost = document.getElementById("opt-hide-cost");
+    const optClock = document.getElementById("opt-clock");
+    const optClockStyle = document.getElementById("opt-clock-style");
+    const optClockTone = document.getElementById("opt-clock-tone");
+    const optClockSize = document.getElementById("opt-clock-size");
+    const optClockSizeVal = document.getElementById("opt-clock-size-val");
+    const clockStyleRow = document.getElementById("clock-style-row");
+    const clockToneRow = document.getElementById("clock-tone-row");
+    const clockSizeRow = document.getElementById("clock-size-row");
+    optClockStyle.innerHTML = CLOCK_STYLES.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+    optClockTone.innerHTML = CLOCK_TONES.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+    const costView = document.getElementById("cost-view");
+    const costWater = document.getElementById("cost-water");
+    const costProp = document.getElementById("cost-prop");
+    const costBlurb = document.getElementById("cost-blurb");
+    const costSub = document.getElementById("cost-sub");
+    const costMir = document.getElementById("cost-mir");
+    const costBlur = document.getElementById("cost-blur");
+    const costDpr = document.getElementById("cost-dpr");
+    const costFps = document.getElementById("cost-fps");
+    const costDrop = document.getElementById("cost-drop");
+    const costSky = document.getElementById("cost-sky");
+    const costPshad = document.getElementById("cost-pshad");
+    const costPsblur = document.getElementById("cost-psblur");
+    const costPfog = document.getElementById("cost-pfog");
+    const costPlights = document.getElementById("cost-plights");
+    const costPbound = document.getElementById("cost-pbound");
+    const costPcont = document.getElementById("cost-pcont");
+    const costSubVal = document.getElementById("cost-sub-val");
+    const costSubVerts = document.getElementById("cost-sub-verts");
+    const costMirVal = document.getElementById("cost-mir-val");
+    const costBlurVal = document.getElementById("cost-blur-val");
+    const costDprVal = document.getElementById("cost-dpr-val");
+    const costDropVal = document.getElementById("cost-drop-val");
+    const costSkyVal = document.getElementById("cost-sky-val");
+    const costPsblurVal = document.getElementById("cost-psblur-val");
+    const costPfogVal = document.getElementById("cost-pfog-val");
+    let costTimer = 0;
+    let renderGen = 0;
+    let inIo = null;
+
+    const coverSvg = (title, a, b, c) => `<figure class="cover-media">
+      <svg viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${title}">
+        <rect width="960" height="420" fill="${a}"/>
+        <polygon points="0,280 960,220 960,420 0,420" fill="${b}"/>
+        <circle cx="760" cy="92" r="38" fill="${c}"/>
+        <rect x="70" y="72" width="420" height="18" rx="6" fill="#ffffff" opacity="0.72"/>
+        <rect x="70" y="106" width="280" height="12" rx="5" fill="#ffffff" opacity="0.45"/>
+      </svg>
+      <figcaption>${title}</figcaption>
+    </figure>`;
+
+    function fillSelect(select, items, value) {
+      select.replaceChildren();
+      items.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.label;
+        if (item.blurb) opt.title = item.blurb;
+        select.append(opt);
+      });
+      const ok = items.some((item) => item.id === value);
+      select.value = ok ? value : items[0]?.id;
+    }
+
+    function selected(name) {
+      const map = { ad: selAd, xp: selXp, in: selIn, play: selPlay };
+      return map[name]?.value;
+    }
+
+    let playColorState = {};
+    let colorFieldsKey = "";
+
+    function currentPaletteMap(playId = selected("play")) {
+      const key = playPaletteKey(playId);
+      return resolvePalette(playId, playColorState[key]);
+    }
+
+    function fillPlayColors() {
+      const playId = selected("play");
+      const key = playPaletteKey(playId);
+      if (colorFieldsKey === key && playColorFields.childElementCount) return;
+      colorFieldsKey = key;
+      playColorFields.replaceChildren();
+      const current = currentPaletteMap(playId);
+      playPaletteFields(playId).forEach((field) => {
+        const label = document.createElement("label");
+        label.className = "field color-field";
+        const span = document.createElement("span");
+        span.textContent = field.label;
+        const input = document.createElement("input");
+        input.type = "color";
+        input.dataset.palKey = field.id;
+        input.value = current[field.id];
+        input.addEventListener("input", () => {
+          playColorState[key] ??= {};
+          playColorState[key][field.id] = normHex(input.value);
+          applyPalLive();
+          syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+        });
+        label.append(span, input);
+        playColorFields.append(label);
+      });
+    }
+
+    function applyPalLive() {
+      const pal = JSON.stringify(currentPaletteMap());
+      stage.querySelectorAll(".ad-container").forEach((el) => {
+        el.dataset.pal = pal;
+      });
+      if (currentAdPlace().style === "play") applyPlaceLive();
+    }
+
+    let placeColors = resolveAdPlace();
+
+    function currentAdPlace() {
+      return resolveAdPlace(placeColors);
+    }
+
+    function liveAdPlace() {
+      const ph = currentAdPlace();
+      if (ph.style !== "play") return ph;
+      return { ...adPlaceFromPlay(selected("play"), currentPaletteMap()), img: ph.img, fit: ph.fit, fx: ph.fx, fy: ph.fy, fz: ph.fz, fm: ph.fm };
+    }
+
+    function applyPlaceLive() {
+      const ph = liveAdPlace();
+      const vars = adPlaceVars(ph);
+      const id = matchAdPlaceId(ph) || "custom";
+      stage.querySelectorAll(".ad-container").forEach((el) => {
+        el.dataset.ph = id;
+        el.dataset.phStyle = ph.style;
+        el.style.setProperty("--ph-bg", ph.bg);
+        el.style.setProperty("--ph-paper", ph.paper);
+        el.style.setProperty("--ph-ink", ph.ink);
+        el.style.setProperty("--ph-accent", ph.accent);
+        el.style.setProperty("--ph-fit", ph.fit);
+        el.style.setProperty("--ph-fit-x", `${ph.fx}%`);
+        el.style.setProperty("--ph-fit-y", `${ph.fy}%`);
+        el.style.setProperty("--ph-fit-z", String(Number(ph.fz) / 100));
+        el.style.setProperty("--ph-fit-mat", ph.fm);
+        const box = el.querySelector(".ad-ph");
+        if (box) {
+          box.dataset.style = ph.style;
+          box.dataset.fit = ph.fit;
+          box.innerHTML = adPlaceInnerMarkup(ph.style, formatById(selected("ad")), ph.img, ph);
+        }
+      });
+      phSwatch.style.cssText = vars;
+      phSwatch.innerHTML = adPlaceInnerMarkup(ph.style, formatById(selected("ad")), ph.img, ph);
+      phPills.querySelectorAll(".ph-pill").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.id === id);
+      });
+      phStyles.querySelectorAll(".ph-pill").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.style === ph.style);
+      });
+      phColorFields.querySelectorAll("input[type=color]").forEach((input) => {
+        if (ph[input.dataset.phKey]) input.value = ph[input.dataset.phKey];
+      });
+      phShots.querySelectorAll(".ph-shot").forEach((btn) => {
+        btn.classList.toggle("is-on", (btn.dataset.img || "") === (ph.img || ""));
+      });
+    }
+
+    async function fillPlaceColors() {
+      phStyles.innerHTML = AD_PLACE_STYLES.map((item) => (
+        `<button type="button" class="ph-pill" data-style="${item.id}">${item.label}</button>`
+      )).join("");
+      phPills.innerHTML = AD_PLACE_PALETTES.map((item) => (
+        `<button type="button" class="ph-pill" data-id="${item.id}" title="${item.label}">${item.label}</button>`
+      )).join("");
+      phColorFields.replaceChildren();
+      AD_PLACE_FIELDS.forEach((field) => {
+        const label = document.createElement("label");
+        label.className = "field color-field";
+        const span = document.createElement("span");
+        span.textContent = field.label;
+        const input = document.createElement("input");
+        input.type = "color";
+        input.dataset.phKey = field.id;
+        input.value = currentAdPlace()[field.id];
+        input.addEventListener("input", () => {
+          const style = currentAdPlace().style === "play" ? "photo" : currentAdPlace().style;
+          placeColors = { ...currentAdPlace(), [field.id]: normHex(input.value), style };
+          applyPlaceLive();
+          syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+        });
+        label.append(span, input);
+        phColorFields.append(label);
+      });
+      const cur = currentAdPlace().img || "";
+      const files = await listAdImages();
+      phShots.innerHTML = [
+        `<button type="button" class="ph-shot${!cur ? " is-on" : ""}" data-img=""><span class="ph-shot-none">Ninguna</span></button>`,
+        ...files.map((name) => `<button type="button" class="ph-shot${cur === name ? " is-on" : ""}" data-img="${name}"><img src="${adImageSrc(name)}" alt=""></button>`),
+      ].join("");
+      applyPlaceLive();
+    }
+
+    function setAdPlace(id) {
+      const style = currentAdPlace().style === "play" ? "photo" : currentAdPlace().style;
+      placeColors = resolveAdPlace({ ...adPlaceById(id), style, img: currentAdPlace().img });
+      applyPlaceLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    }
+
+    function setAdPlaceStyle(id) {
+      placeColors = resolveAdPlace({ ...currentAdPlace(), style: id });
+      applyPlaceLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    }
+
+    function propExtras() {
+      return {
+        propAct: selPropAct.value,
+        propCam: selPropCam.value,
+        propSx: selPropSx.value,
+        propSy: selPropSy.value,
+        propSz: selPropSz.value,
+        propLight: propAimLightById(selPropLight.value).id,
+        propLint: normalizePropLint(selPropLint.value),
+        propFloor: normalizePropFloor(selPropFloor.checked),
+        propFlat: normalizePropFlat(selPropFlat.checked),
+        propLcol: normalizePropLcol(selPropLcol.value),
+        propLdist: normalizePropLdist(selPropLdist.value),
+        propLpos: propAimPlaceById(selPropLpos.value).id,
+        propLhrot: normalizePropLhrot(selPropLhrot.value),
+        propLvrot: normalizePropLvrot(selPropLvrot.value),
+        propRhrot: normalizePropSpin(selPropRhrot.value),
+        propRvrot: normalizePropSpin(selPropRvrot.value),
+        pal: currentPaletteMap(),
+        ph: liveAdPlace(),
+      };
+    }
+
+    function playBlurb(play) {
+      if (play.id !== "prop") return play.blurb;
+      return `${play.blurb} ${propActionById(selPropAct.value).blurb}`;
+    }
+
+    function updatePropFileLabel() {
+      const model = getPropModel();
+      const on = Boolean(model.url);
+      propFileName.textContent = on
+        ? model.name
+        : "Cubo de prueba. Subí un .glb / .gltf, o un .obj con su .mtl (y texturas).";
+      if (on && model.extras?.length) {
+        propFileName.textContent = `${model.name} + ${model.extras.join(", ")}`;
+      }
+      propFileClear.hidden = !on;
+    }
+
+    function applyPropCamLive() {
+      const cam = selPropCam.value;
+      selPropCamVal.textContent = Number(cam).toFixed(1);
+      stage.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
+        el.dataset.propCam = cam;
+      });
+    }
+
+    function applyPropLintLive() {
+      const lint = normalizePropLint(selPropLint.value);
+      selPropLint.value = lint;
+      selPropLintVal.textContent = `${Math.round(Number(lint) * 100)}%`;
+      const none = propAimLightById(selPropLight.value).id === "none";
+      selPropLint.disabled = none;
+      selPropLcol.disabled = none;
+      selPropLdist.disabled = none;
+      selPropLpos.disabled = none;
+      selPropLhrot.disabled = none;
+      selPropLvrot.disabled = none;
+      const floor = normalizePropFloor(selPropFloor.checked);
+      const flat = normalizePropFlat(selPropFlat.checked);
+      const lcol = normalizePropLcol(selPropLcol.value);
+      const ldist = normalizePropLdist(selPropLdist.value);
+      const lpos = propAimPlaceById(selPropLpos.value).id;
+      const lhrot = normalizePropLhrot(selPropLhrot.value);
+      const lvrot = normalizePropLvrot(selPropLvrot.value);
+      selPropLcol.value = lcol;
+      selPropLdist.value = ldist;
+      selPropLpos.value = lpos;
+      selPropLhrot.value = lhrot;
+      selPropLvrot.value = lvrot;
+      selPropLdistVal.textContent = Number(ldist).toFixed(1);
+      selPropLhrotVal.textContent = `${lhrot}°`;
+      selPropLvrotVal.textContent = `${lvrot}°`;
+      stage.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
+        el.dataset.propLint = lint;
+        el.dataset.propLight = propAimLightById(selPropLight.value).id;
+        el.dataset.propFloor = floor;
+        el.dataset.propFlat = flat;
+        el.dataset.propLcol = lcol;
+        el.dataset.propLdist = ldist;
+        el.dataset.propLpos = lpos;
+        el.dataset.propLhrot = lhrot;
+        el.dataset.propLvrot = lvrot;
+      });
+    }
+
+    function applyPropSpinLive() {
+      const rhrot = normalizePropSpin(selPropRhrot.value);
+      const rvrot = normalizePropSpin(selPropRvrot.value);
+      selPropRhrot.value = rhrot;
+      selPropRvrot.value = rvrot;
+      selPropRhrotVal.textContent = `${rhrot}°`;
+      selPropRvrotVal.textContent = `${rvrot}°`;
+      stage.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
+        el.dataset.propRhrot = rhrot;
+        el.dataset.propRvrot = rvrot;
+      });
+    }
+
+    function applyPropSizeLive() {
+      selPropSxVal.textContent = Number(selPropSx.value).toFixed(2);
+      selPropSyVal.textContent = Number(selPropSy.value).toFixed(2);
+      selPropSzVal.textContent = Number(selPropSz.value).toFixed(2);
+      stage.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
+        el.dataset.propSx = selPropSx.value;
+        el.dataset.propSy = selPropSy.value;
+        el.dataset.propSz = selPropSz.value;
+      });
+    }
+
+    const filler = (n = 8) =>
+      Array.from({ length: n }, (_, i) =>
+        `<p>Texto de prueba ${i + 1}. Baja para ver cómo se comporta el anuncio en esta experiencia. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.</p>`
+      ).join("");
+
+    function railOn(select) {
+      return Boolean(select.value && select.value !== "none");
+    }
+
+    function railInner(side, formatId, inId, sticky) {
+      const ad = adMarkup(formatById(formatId), `lab-ad-${side}`, inId, selected("play"), propExtras());
+      if (!sticky) return ad;
+      return `<div class="rail-pin">${ad}</div>`;
+    }
+
+    function previewColumns() {
+      const cols = [];
+      if (railOn(leftAd)) cols.push("minmax(0, var(--rail-left))");
+      cols.push("minmax(0, 1fr)");
+      if (railOn(rightAd)) cols.push("minmax(0, var(--rail-right))");
+      return cols.join(" ");
+    }
+
+    function siteNavMarkup() {
+      if (!optNav.checked) return "";
+      return `<nav class="site-nav" aria-label="Secciones">
+        <div class="site-nav-top">
+          <span class="site-nav-icon" aria-hidden="true">☰</span>
+          <div class="site-nav-brand">Nexus Daily</div>
+          <span class="site-nav-icon" aria-hidden="true">⌕</span>
+        </div>
+        <div class="site-nav-bar">
+          <a class="is-section" href="#deportes">Deportes</a>
+          <a class="is-sub" href="#boxeo">Boxeo</a>
+          <a href="#beisbol">Béisbol</a>
+          <a href="#baloncesto">Baloncesto</a>
+          <a href="#futbol">Fútbol</a>
+          <a href="#tenis">Tenis</a>
+        </div>
+      </nav>`;
+    }
+
+    function coverMarkup() {
+      const parts = [];
+      if (optCover.checked) {
+        parts.push(coverSvg("Portada · El skyline al amanecer", "#dceaf4", "#c9d6e0", "#f4d7a3"));
+      }
+      if (optGallery.checked) {
+        const slides = [
+          coverSvg("Galería 1 · Plaza central", "#d7ebe4", "#b7d4c8", "#f2c97d"),
+          coverSvg("Galería 2 · Estudio de grabación", "#e4dff2", "#c9c2de", "#f4b4c8"),
+          coverSvg("Galería 3 · Terminal nocturna", "#d6e2f5", "#b6c6dd", "#9ad7e8"),
+        ].map((html, i) => `<div class="cover-gallery-slide${i === 0 ? " is-on" : ""}">${html}</div>`).join("");
+        parts.push(`<div class="cover-gallery" data-index="0">
+          ${slides}
+          <button type="button" class="cover-gallery-nav prev" aria-label="Anterior">‹</button>
+          <button type="button" class="cover-gallery-nav next" aria-label="Siguiente">›</button>
+          <div class="cover-gallery-dots">
+            <button type="button" class="is-on" aria-label="Diapositiva 1"></button>
+            <button type="button" aria-label="Diapositiva 2"></button>
+            <button type="button" aria-label="Diapositiva 3"></button>
+          </div>
+        </div>`);
+      }
+      if (optVideo.checked) {
+        parts.push(`<figure class="cover-media cover-video">
+          <video muted loop playsinline autoplay
+            src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+            aria-label="Video de portada"></video>
+          <figcaption>Portada en video · Flor en movimiento</figcaption>
+        </figure>`);
+      }
+      return parts.length ? `<div class="article-covers">${parts.join("")}</div>` : "";
+    }
+
+    function withCovers(html) {
+      const covers = coverMarkup();
+      if (!covers) return html;
+      return html.replace('<div class="copy">', `<div class="copy">${covers}`);
+    }
+
+    function bindPreviewChrome() {
+      stage.querySelectorAll(".site-nav a").forEach((link) => {
+        link.addEventListener("click", (event) => event.preventDefault());
+      });
+      stage.querySelectorAll(".cover-gallery").forEach((gallery) => {
+        const slides = [...gallery.querySelectorAll(".cover-gallery-slide")];
+        const dots = [...gallery.querySelectorAll(".cover-gallery-dots button")];
+        const show = (index) => {
+          const next = (index + slides.length) % slides.length;
+          gallery.dataset.index = String(next);
+          slides.forEach((slide, i) => slide.classList.toggle("is-on", i === next));
+          dots.forEach((dot, i) => dot.classList.toggle("is-on", i === next));
+        };
+        gallery.querySelector(".prev")?.addEventListener("click", () => show(Number(gallery.dataset.index) - 1));
+        gallery.querySelector(".next")?.addEventListener("click", () => show(Number(gallery.dataset.index) + 1));
+        dots.forEach((dot, i) => dot.addEventListener("click", () => show(i)));
+      });
+    }
+
+    function costValues() {
+      return {
+        waterSubdivisions: Number(costSub.value),
+        mirrorSize: Number(costMir.value),
+        mirrorBlur: Number(costBlur.value),
+        blitDpr: Number(costDpr.value),
+        fpsVisible: Number(costFps.value),
+        dropSegments: Number(costDrop.value),
+        skySegments: Number(costSky.value),
+        propShadow: Number(costPshad.value),
+        propShadowBlur: Number(costPsblur.value),
+        propFog: Number(costPfog.value),
+        propContact: costPcont.checked ? 1 : 0,
+        propBounds: Number(costPbound.value),
+        propLights: costPlights.value,
+      };
+    }
+
+    function updateCostLabels() {
+      const sub = Number(costSub.value);
+      const verts = (sub + 1) * (sub + 1);
+      costSubVal.textContent = String(sub);
+      costSubVerts.textContent = verts.toLocaleString("es");
+      costMirVal.textContent = `${costMir.value} px`;
+      costBlurVal.textContent = costBlur.value;
+      costDprVal.textContent = `${costDpr.value}×`;
+      costDropVal.textContent = costDrop.value;
+      costSkyVal.textContent = costSky.value;
+      costPsblurVal.textContent = costPsblur.value;
+      costPfogVal.textContent = Number(costPfog.value).toFixed(3);
+    }
+
+    function showCostFields() {
+      const prop = costView.value === "prop";
+      costWater.hidden = prop;
+      costProp.hidden = !prop;
+      costBlurb.textContent = prop
+        ? "Bajar sombras, luces y niebla aligera el play Objeto. DPR y FPS valen para todos los plays 3D."
+        : "Subir estos valores gasta más GPU y memoria. Afectan al play 3D (clímax / antes de entrar).";
+    }
+
+    function applyCostToPlayer() {
+      applyAnimCost(costValues());
+    }
+
+    function applyChromeClass() {
+      lab.classList.toggle("hide-ad-settings", optHideSettings.checked);
+      lab.classList.toggle("hide-cost", optHideCost.checked);
+      const look = applyClockLook(document.body, {
+        on: optClock.checked,
+        style: optClockStyle.value,
+        tone: optClockTone.value,
+        size: optClockSize.value,
+      });
+      setAdClockLook(look);
+      optClockSizeVal.value = `${look.size}%`;
+      clockStyleRow.hidden = !optClock.checked;
+      clockToneRow.hidden = !optClock.checked;
+      clockSizeRow.hidden = !optClock.checked;
+    }
+
+    let labClockRaf = 0;
+    let labClockStarted = 0;
+    let labClockSpan = 1;
+
+    function paintLabClock(done) {
+      setAdClockT(done);
+    }
+
+    function tickLabClock(now) {
+      labClockRaf = 0;
+      const t = Math.min(1, (now - labClockStarted) / labClockSpan);
+      const el = stage.querySelector(".ad-container");
+      const finished = el?.classList.contains("is-handoff-done")
+        || (el?.classList.contains("is-climax") && (el.dataset.handoff || "none") === "none");
+      paintLabClock(finished ? 1 : t);
+      if (t < 1) labClockRaf = requestAnimationFrame(tickLabClock);
+    }
+
+    function startLabClock() {
+      if (labClockRaf) cancelAnimationFrame(labClockRaf);
+      const play = playById(selected("play"));
+      labClockSpan = Math.max(1, playDurationMs(play.id, selPropAct.value));
+      labClockStarted = performance.now();
+      paintLabClock(0);
+      labClockRaf = requestAnimationFrame(tickLabClock);
+    }
+
+    const articleHead = `<p class="kicker">Noticias</p>
+      <h2 class="headline">Jonathan “Bomba” González trabaja a todo vapor para su primera defensa titular</h2>
+      <p class="dek"><strong>Kissimmee, Florida —</strong> El campeón boricua de la OMB en las 108 libras estará enfrentando al filipino Mark Anthony Barriga el 24 de junio.</p>
+      <p class="timestamp">miércoles, 15 de junio de 2022 · 4:56 p.m.</p>`;
+
+    function centerLayout(format, xp, inId) {
+      const ad = adMarkup(format, "lab-ad", inId, selected("play"), propExtras());
+      if (xp.id === "top-band") {
+        return `<section class="xp-band">${ad}</section><div class="copy">${articleHead}${filler(10)}</div>`;
+      }
+      if (xp.id === "sticky-bottom") {
+        return `<div class="copy">${articleHead}${filler(4)}${ad.replace('class="ad-slot"', 'class="ad-slot sticky-ad xp-bottom"')}${filler(12)}</div>`;
+      }
+      if (xp.id === "sticky-top") {
+        return `<div class="copy">${articleHead}${filler(3)}${ad.replace('class="ad-slot"', 'class="ad-slot sticky-ad xp-top"')}${filler(12)}</div>`;
+      }
+      if (xp.id === "fixed-bottom") {
+        return `<div class="copy">${articleHead}${filler(10)}</div><div class="xp-fixed-bottom">${ad}</div>`;
+      }
+      if (xp.id === "fixed-corner") {
+        return `<div class="copy">${articleHead}${filler(10)}</div><div class="xp-fixed-corner">${ad}</div>`;
+      }
+      return `<div class="copy">${articleHead}${filler(4)}${ad}${filler(8)}</div>`;
+    }
+
+    function pageLayout(format, xp, inId) {
+      const left = railOn(leftAd);
+      const right = railOn(rightAd);
+      const stickyTop = optNav.checked ? "calc(var(--site-nav-h, 116px) + 0.75rem)" : "0.75rem";
+      const leftCol = left ? `<aside class="side-rail side-rail--left">${railInner("left", leftAd.value, inId, leftSticky.checked)}</aside>` : "";
+      const rightCol = right ? `<aside class="side-rail side-rail--right">${railInner("right", rightAd.value, inId, rightSticky.checked)}</aside>` : "";
+      return `<div class="mag-page" style="--preview-sticky-top:${stickyTop}">
+        ${siteNavMarkup()}
+        <div class="page-preview${left ? " has-left" : ""}${right ? " has-right" : ""}" style="grid-template-columns:${previewColumns()};--rail-left:${leftW.value}px;--rail-right:${rightW.value}px">
+          ${leftCol}
+          <div class="page-main">${withCovers(centerLayout(format, xp, inId))}</div>
+          ${rightCol}
+        </div>
+      </div>`;
+    }
+
+    function syncUrl(format, xp, transition) {
+      const url = new URL(location.href);
+      url.searchParams.set("ad", format.id);
+      url.searchParams.set("xp", xp.id);
+      url.searchParams.set("in", transition.id);
+      url.searchParams.set("play", playById(selected("play")).id);
+      url.searchParams.set("pact", propActionById(selPropAct.value).id);
+      url.searchParams.set("pcam", selPropCam.value);
+      url.searchParams.set("psx", selPropSx.value);
+      url.searchParams.set("psy", selPropSy.value);
+      url.searchParams.set("psz", selPropSz.value);
+      const plight = propAimLightById(selPropLight.value).id;
+      if (plight !== "none") url.searchParams.set("plight", plight);
+      else url.searchParams.delete("plight");
+      const plint = normalizePropLint(selPropLint.value);
+      if (plint !== "0.35") url.searchParams.set("plint", plint);
+      else url.searchParams.delete("plint");
+      if (!selPropFloor.checked) url.searchParams.set("pfloor", "0");
+      else url.searchParams.delete("pfloor");
+      if (selPropFlat.checked) url.searchParams.set("pflat", "1");
+      else url.searchParams.delete("pflat");
+      const plcol = normalizePropLcol(selPropLcol.value);
+      if (plcol !== DEFAULT_PROP_LCOL) url.searchParams.set("plcol", plcol);
+      else url.searchParams.delete("plcol");
+      const pldist = normalizePropLdist(selPropLdist.value);
+      if (pldist !== DEFAULT_PROP_LDIST) url.searchParams.set("pldist", pldist);
+      else url.searchParams.delete("pldist");
+      const plpos = propAimPlaceById(selPropLpos.value).id;
+      if (plpos !== "frente") url.searchParams.set("plpos", plpos);
+      else url.searchParams.delete("plpos");
+      const plhrot = normalizePropLhrot(selPropLhrot.value);
+      if (plhrot !== "0") url.searchParams.set("plhrot", plhrot);
+      else url.searchParams.delete("plhrot");
+      const plvrot = normalizePropLvrot(selPropLvrot.value);
+      if (plvrot !== "0") url.searchParams.set("plvrot", plvrot);
+      else url.searchParams.delete("plvrot");
+      const prh = normalizePropSpin(selPropRhrot.value);
+      if (prh !== "0") url.searchParams.set("prh", prh);
+      else url.searchParams.delete("prh");
+      const prv = normalizePropSpin(selPropRvrot.value);
+      if (prv !== "0") url.searchParams.set("prv", prv);
+      else url.searchParams.delete("prv");
+      const packedPal = serializePlayColorState(playColorState);
+      if (packedPal) url.searchParams.set("pal", packedPal);
+      else url.searchParams.delete("pal");
+      const packedPh = serializeAdPlace(currentAdPlace());
+      if (packedPh && packedPh !== "cream") url.searchParams.set("ph", packedPh);
+      else url.searchParams.delete("ph");
+      url.searchParams.set("left", leftAd.value);
+      url.searchParams.set("right", rightAd.value);
+      url.searchParams.set("lw", leftW.value);
+      url.searchParams.set("rw", rightW.value);
+      url.searchParams.set("ls", leftSticky.checked ? "1" : "0");
+      url.searchParams.set("rs", rightSticky.checked ? "1" : "0");
+      url.searchParams.set("nav", optNav.checked ? "1" : "0");
+      url.searchParams.set("cover", optCover.checked ? "1" : "0");
+      url.searchParams.set("gallery", optGallery.checked ? "1" : "0");
+      url.searchParams.set("video", optVideo.checked ? "1" : "0");
+      url.searchParams.set("hide", optHideSettings.checked ? "1" : "0");
+      url.searchParams.set("hidec", optHideCost.checked ? "1" : "0");
+      url.searchParams.set("clock", optClock.checked ? "1" : "0");
+      if (normalizeViewClockStyle(optClockStyle.value) !== "sweep") url.searchParams.set("cstyle", normalizeViewClockStyle(optClockStyle.value));
+      else url.searchParams.delete("cstyle");
+      if (normalizeViewClockTone(optClockTone.value) !== "dark") url.searchParams.set("ctone", normalizeViewClockTone(optClockTone.value));
+      else url.searchParams.delete("ctone");
+      if (normalizeViewClockSize(optClockSize.value) !== 100) url.searchParams.set("csize", String(normalizeViewClockSize(optClockSize.value)));
+      else url.searchParams.delete("csize");
+      url.searchParams.set("sub", costSub.value);
+      url.searchParams.set("mir", costMir.value);
+      url.searchParams.set("mblur", costBlur.value);
+      url.searchParams.set("dpr", costDpr.value);
+      url.searchParams.set("afps", costFps.value);
+      url.searchParams.set("dseg", costDrop.value);
+      url.searchParams.set("sseg", costSky.value);
+      url.searchParams.set("cset", costView.value);
+      url.searchParams.set("pshad", costPshad.value);
+      url.searchParams.set("psblur", costPsblur.value);
+      url.searchParams.set("pfog", costPfog.value);
+      url.searchParams.set("plights", costPlights.value);
+      url.searchParams.set("pbound", costPbound.value);
+      url.searchParams.set("pcont", costPcont.checked ? "1" : "0");
+      history.replaceState(null, "", url);
+    }
+
+    function applyRailWidths() {
+      leftWVal.textContent = `${leftW.value} px`;
+      rightWVal.textContent = `${rightW.value} px`;
+      const page = stage.querySelector(".page-preview");
+      if (!page) return;
+      page.style.setProperty("--rail-left", `${leftW.value}px`);
+      page.style.setProperty("--rail-right", `${rightW.value}px`);
+      page.style.gridTemplateColumns = previewColumns();
+    }
+
+    function replayIn(slot) {
+      slot.classList.remove("is-in");
+      void slot.offsetWidth;
+      slot.classList.add("is-in");
+    }
+
+    function bindIn() {
+      inIo?.disconnect();
+      inIo = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          entry.target.classList.toggle("is-in", entry.isIntersecting);
+        }
+      }, { root: stage, threshold: 0.12 });
+      stage.querySelectorAll(".ad-slot").forEach((el) => inIo.observe(el));
+    }
+
+    function applyInOnly() {
+      const transition = transitionById(selected("in"));
+      const format = formatById(selected("ad"));
+      const xp = experienceById(selected("xp"));
+      const play = playById(selected("play"));
+      blurb.textContent = `${xp.blurb} ${playBlurb(play)} Entrada: ${transition.blurb}`;
+      syncUrl(format, xp, transition);
+      stage.querySelectorAll(".ad-slot").forEach((slot) => {
+        slot.dataset.in = transition.id;
+        slot.querySelectorAll(".ad-container").forEach((el) => {
+          el.dataset.in = transition.id;
+        });
+        if (slot.dataset.play === "pre-enter") return;
+        replayIn(slot);
+      });
+    }
+
+    async function render() {
+      const gen = ++renderGen;
+      const format = formatById(selected("ad"));
+      const xp = experienceById(selected("xp"));
+      const transition = transitionById(selected("in"));
+      const play = playById(selected("play"));
+      fillPlayColors();
+      applyPlaceLive();
+      propSettings.hidden = play.id !== "prop";
+      blurb.textContent = `${xp.blurb} ${playBlurb(play)} Entrada: ${transition.blurb}`;
+      syncUrl(format, xp, transition);
+      applyCostToPlayer();
+      disposeAds();
+      if (gen !== renderGen) return;
+      stage.innerHTML = pageLayout(format, xp, transition.id);
+      applyPlaceLive();
+      applyRailWidths();
+      await bootContainers(stage);
+      if (gen !== renderGen) return;
+      bindIn();
+      bindPreviewChrome();
+      startLabClock();
+    }
+
+    const params = new URLSearchParams(location.search);
+    const startAd = formatById(params.get("ad")).id;
+    const startXp = experienceById(params.get("xp")).id;
+    const startIn = transitionById(params.get("in")).id;
+    playColorState = parsePlayColorState(params.get("pal"));
+    placeColors = resolveAdPlace(params.get("ph"));
+    const startPlay = playById(params.get("play")).id;
+    const startPropAct = propActionById(params.get("pact")).id;
+    const startPropLight = propAimLightById(params.get("plight")).id;
+    const startPropLint = normalizePropLint(params.get("plint"));
+    const startPropFloor = normalizePropFloor(params.get("pfloor") ?? "1");
+    const startPropFlat = normalizePropFlat(params.get("pflat"));
+    const startPropLcol = normalizePropLcol(params.get("plcol"));
+    const startPropLdist = normalizePropLdist(params.get("pldist"));
+    const startPropLpos = propAimPlaceById(params.get("plpos")).id;
+    const startPropLhrot = normalizePropLhrot(params.get("plhrot"));
+    const startPropLvrot = normalizePropLvrot(params.get("plvrot"));
+    const startPropRhrot = normalizePropSpin(params.get("prh"));
+    const startPropRvrot = normalizePropSpin(params.get("prv"));
+    const startPropCam = (() => {
+      if (!params.has("pcam")) return "4.1";
+      const n = Number(params.get("pcam"));
+      if (!Number.isFinite(n) || n < 2.2) return "4.1";
+      return String(Math.min(8, n));
+    })();
+    const startPropAxis = (key) => {
+      if (!params.has(key)) return "0.72";
+      const n = Number(params.get(key));
+      if (!Number.isFinite(n) || n < 0.2) return "0.72";
+      return String(Math.min(2.2, n));
+    };
+    const railOptions = [{ id: "none", label: "Ninguno" }, ...FORMATS];
+    function fillRailSelect(select, value) {
+      railOptions.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.label;
+        select.append(opt);
+      });
+      select.value = railOptions.some((item) => item.id === value) ? value : "none";
+    }
+    fillRailSelect(leftAd, params.get("left") || "none");
+    fillRailSelect(rightAd, params.get("right") || "sky");
+    leftW.value = params.get("lw") || "160";
+    rightW.value = params.get("rw") || "300";
+    leftSticky.checked = params.get("ls") === "1";
+    rightSticky.checked = params.get("rs") === "1";
+    optNav.checked = params.get("nav") === "1";
+    optCover.checked = params.get("cover") === "1";
+    optGallery.checked = params.get("gallery") === "1";
+    optVideo.checked = params.get("video") === "1";
+    optHideSettings.checked = params.get("hide") === "1";
+    optHideCost.checked = params.get("hidec") === "1";
+    optClock.checked = normalizeViewClock(params.has("clock") ? params.get("clock") : true);
+    optClockStyle.value = normalizeViewClockStyle(params.get("cstyle"));
+    optClockTone.value = normalizeViewClockTone(params.get("ctone"));
+    optClockSize.value = String(normalizeViewClockSize(params.get("csize")));
+    optClockSizeVal.value = `${optClockSize.value}%`;
+    if (params.has("sub")) costSub.value = params.get("sub");
+    if (params.has("mir")) costMir.value = params.get("mir");
+    if (params.has("mblur")) costBlur.value = params.get("mblur");
+    if (params.has("dpr")) costDpr.value = params.get("dpr");
+    if (params.has("afps")) costFps.value = params.get("afps");
+    if (params.has("dseg")) costDrop.value = params.get("dseg");
+    if (params.has("sseg")) costSky.value = params.get("sseg");
+    if (params.get("cset") === "prop" || params.get("cset") === "water") {
+      costView.value = params.get("cset");
+    } else if (startPlay === "prop") {
+      costView.value = "prop";
+    }
+    if (params.has("pshad")) costPshad.value = params.get("pshad");
+    if (params.has("psblur")) costPsblur.value = params.get("psblur");
+    if (params.has("pfog")) costPfog.value = params.get("pfog");
+    if (params.get("plights") === "simple" || params.get("plights") === "full") {
+      costPlights.value = params.get("plights");
+    }
+    if (params.has("pbound")) costPbound.value = params.get("pbound");
+    costPcont.checked = params.get("pcont") !== "0";
+    updateCostLabels();
+    showCostFields();
+    applyCostToPlayer();
+    applyChromeClass();
+    document.getElementById("open-settings").addEventListener("click", () => settingsModal.showModal());
+    document.getElementById("close-settings").addEventListener("click", () => settingsModal.close());
+    settingsModal.addEventListener("click", (event) => {
+      if (event.target === settingsModal) settingsModal.close();
+    });
+    optHideSettings.addEventListener("change", () => {
+      applyChromeClass();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    optHideCost.addEventListener("change", () => {
+      applyChromeClass();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    optClock.addEventListener("change", () => {
+      applyChromeClass();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    optClockStyle.addEventListener("change", () => {
+      applyChromeClass();
+      paintLabClock(labClockRaf ? Math.min(1, (performance.now() - labClockStarted) / labClockSpan) : 0);
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    optClockTone.addEventListener("change", () => {
+      applyChromeClass();
+      paintLabClock(labClockRaf ? Math.min(1, (performance.now() - labClockStarted) / labClockSpan) : 0);
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    optClockSize.addEventListener("input", () => {
+      applyChromeClass();
+      paintLabClock(labClockRaf ? Math.min(1, (performance.now() - labClockStarted) / labClockSpan) : 0);
+    });
+    optClockSize.addEventListener("change", () => {
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    stage.addEventListener("click", (event) => {
+      if (!event.target.closest(".ad-clock")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      optClock.checked = false;
+      applyChromeClass();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    document.getElementById("cost-panel").addEventListener("input", (event) => {
+      updateCostLabels();
+      if (event.target === costView) {
+        showCostFields();
+        syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+        return;
+      }
+      clearTimeout(costTimer);
+      costTimer = setTimeout(render, 280);
+    });
+    costView.addEventListener("change", () => {
+      showCostFields();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    document.getElementById("cost-panel").addEventListener("change", (event) => {
+      if (event.target === costView) return;
+      if (!event.target.matches("select, input[type=checkbox]")) return;
+      updateCostLabels();
+      clearTimeout(costTimer);
+      costTimer = setTimeout(render, 280);
+    });
+    [optNav, optCover, optGallery, optVideo].forEach((input) => input.addEventListener("change", render));
+    fillSelect(selAd, FORMATS, startAd);
+    fillSelect(selXp, EXPERIENCES, startXp);
+    fillSelect(selIn, IN_TRANSITIONS, startIn);
+    fillSelect(selPlay, PLAY_MODES, startPlay);
+    fillPlayColors();
+    fillPlaceColors();
+    fillSelect(selPropAct, PROP_ACTIONS, startPropAct);
+    fillSelect(selPropLight, PROP_AIM_LIGHTS, startPropLight);
+    fillSelect(selPropLpos, PROP_AIM_PLACES, startPropLpos);
+    selPropLint.value = startPropLint;
+    selPropFloor.checked = startPropFloor === "1";
+    selPropFlat.checked = startPropFlat === "1";
+    selPropLcol.value = startPropLcol;
+    selPropLdist.value = startPropLdist;
+    selPropLpos.value = startPropLpos;
+    selPropLhrot.value = startPropLhrot;
+    selPropLvrot.value = startPropLvrot;
+    selPropRhrot.value = startPropRhrot;
+    selPropRvrot.value = startPropRvrot;
+    selPropCam.value = startPropCam;
+    selPropSx.value = startPropAxis("psx");
+    selPropSy.value = startPropAxis("psy");
+    selPropSz.value = startPropAxis("psz");
+    applyPropCamLive();
+    applyPropSizeLive();
+    applyPropSpinLive();
+    applyPropLintLive();
+    selAd.addEventListener("change", render);
+    selXp.addEventListener("change", render);
+    phShots.addEventListener("click", (event) => {
+      const btn = event.target.closest(".ph-shot");
+      if (!btn) return;
+      placeColors = resolveAdPlace({ ...currentAdPlace(), img: normalizeAdImg(btn.dataset.img) });
+      applyPlaceLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    phPills.addEventListener("click", (event) => {
+      const pill = event.target.closest(".ph-pill");
+      if (!pill) return;
+      setAdPlace(pill.dataset.id);
+    });
+    phStyles.addEventListener("click", (event) => {
+      const pill = event.target.closest(".ph-pill");
+      if (!pill) return;
+      setAdPlaceStyle(pill.dataset.style);
+    });
+    selPlay.addEventListener("change", () => {
+      costView.value = selPlay.value === "prop" ? "prop" : "water";
+      showCostFields();
+      render();
+    });
+    selPropAct.addEventListener("change", render);
+    selPropLight.addEventListener("change", () => {
+      applyPropLintLive();
+      render();
+    });
+    selPropLint.addEventListener("input", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropFloor.addEventListener("change", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropFlat.addEventListener("change", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropLcol.addEventListener("input", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropLdist.addEventListener("input", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropLpos.addEventListener("change", () => {
+      selPropLhrot.value = "0";
+      selPropLvrot.value = "0";
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropLhrot.addEventListener("input", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropLvrot.addEventListener("input", () => {
+      applyPropLintLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    selPropCam.addEventListener("input", () => {
+      applyPropCamLive();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    [selPropSx, selPropSy, selPropSz].forEach((input) => {
+      input.addEventListener("input", () => {
+        applyPropSizeLive();
+        syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+      });
+    });
+    [selPropRhrot, selPropRvrot].forEach((input) => {
+      input.addEventListener("input", () => {
+        applyPropSpinLive();
+        syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+      });
+    });
+    selPropFile.addEventListener("change", () => {
+      const files = [...(selPropFile.files || [])];
+      if (!files.length) return;
+      setPropModelFiles(files);
+      updatePropFileLabel();
+      preparePropSource().finally(render);
+    });
+    propFileClear.addEventListener("click", () => {
+      selPropFile.value = "";
+      setPropModelFile(null);
+      updatePropFileLabel();
+      render();
+    });
+    updatePropFileLabel();
+    selIn.addEventListener("change", applyInOnly);
+    leftAd.addEventListener("change", render);
+    rightAd.addEventListener("change", render);
+    leftSticky.addEventListener("change", render);
+    rightSticky.addEventListener("change", render);
+    leftW.addEventListener("input", () => {
+      applyRailWidths();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+    rightW.addEventListener("input", () => {
+      applyRailWidths();
+      syncUrl(formatById(selected("ad")), experienceById(selected("xp")), transitionById(selected("in")));
+    });
+
+    const galleryToast = document.getElementById("gallery-toast");
+    let toastTimer = 0;
+    function flashToast(text) {
+      galleryToast.textContent = text;
+      galleryToast.classList.add("is-on");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => galleryToast.classList.remove("is-on"), 2200);
+    }
+    document.getElementById("save-gallery").addEventListener("click", () => {
+      const store = loadGalleryStore();
+      addComboToActive(store, {
+        play: selected("play"),
+        propAct: selPropAct.value,
+        ad: selected("ad"),
+        in: selected("in"),
+        pal: currentPaletteMap(),
+        ph: currentAdPlace(),
+        pcam: selPropCam.value,
+        psx: selPropSx.value,
+        psy: selPropSy.value,
+        psz: selPropSz.value,
+        plight: propAimLightById(selPropLight.value).id,
+        plint: normalizePropLint(selPropLint.value),
+        pfloor: normalizePropFloor(selPropFloor.checked),
+        pflat: normalizePropFlat(selPropFlat.checked),
+        plcol: normalizePropLcol(selPropLcol.value),
+        pldist: normalizePropLdist(selPropLdist.value),
+        plpos: propAimPlaceById(selPropLpos.value).id,
+        plhrot: normalizePropLhrot(selPropLhrot.value),
+        plvrot: normalizePropLvrot(selPropLvrot.value),
+        prh: normalizePropSpin(selPropRhrot.value),
+        prv: normalizePropSpin(selPropRvrot.value),
+      });
+      flashToast(`Guardado en ${activeProfile(store).name}`);
+    });
+
+    render();
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>

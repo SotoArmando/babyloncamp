@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Gota y el Río - Animación</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Georgia', serif;
+        }
+        
+        #canvas {
+            width: min(100vw, calc(100vh * 9 / 16));
+            height: min(100vh, calc(100vw * 16 / 9));
+            background: #4d7380;
+        }
+        
+        #overlay {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            max-width: 600px;
+            line-height: 1.6;
+            z-index: 10;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="overlay">
+        <p id="poem-text">Mira, la gota cae desde la rama del sauce...</p>
+    </div>
+    
+    <div id="controls">
+        <button onclick="resetAnimation()">↺ Reiniciar</button>
+        <button onclick="togglePause()">⏸ Pausar</button>
+        <button onclick="toggleCamera()">📷 Cámara</button>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        // ============================================
+        // CONFIGURACIÓN GLOBAL
+        // ============================================
+        const CONFIG = {
+            canvasWidth: 1080,
+            canvasHeight: 1920,
+            fps: 24,
+            gravity: 2616, // px/s² en espacio de pantalla
+            riverSurfaceY: 1708, // px desde arriba
+            dropStartY: 400,
+            dropRadius: 15,
+            waveSpeed: 300, // px/s
+            flowSpeed: 80, // px/s
+        };
+
+        // ============================================
+        // ESCENA BABYLON.JS
+        // ============================================
+        const canvas = document.getElementById('canvas');
+        const engine = new BABYLON.Engine(canvas, true, {
+            preserveDrawingBuffer: true,
+            stencil: true
+        });
+
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.55, 0.72, 0.78, 1);
+
+        const VIEW_W = 1080;
+        const VIEW_H = 1920;
+        const CAM_Z = -20;
+
+        function fitOrtho(cam, halfH) {
+            const aspect = VIEW_W / VIEW_H;
+            cam.orthoTop = halfH;
+            cam.orthoBottom = -halfH;
+            cam.orthoLeft = -halfH * aspect;
+            cam.orthoRight = halfH * aspect;
+        }
+
+        const camera = new BABYLON.FreeCamera(
+            "orthoCam",
+            new BABYLON.Vector3(0, 0, CAM_Z),
+            scene
+        );
+        camera.rotation.set(0, 0, 0);
+        camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+        camera.minZ = 0.1;
+        camera.maxZ = 100;
+        fitOrtho(camera, VIEW_H / 2);
+
+        function paint(mat, r, g, b, a) {
+            const c = new BABYLON.Color3(r, g, b);
+            mat.diffuseColor = c;
+            mat.emissiveColor = c;
+            mat.specularColor = BABYLON.Color3.Black();
+            mat.disableLighting = true;
+            mat.backFaceCulling = false;
+            if (a != null) mat.alpha = a;
+        }
+
+        const skyMat = new BABYLON.StandardMaterial("skyMat", scene);
+        paint(skyMat, 0.62, 0.78, 0.82);
+        const sky = BABYLON.MeshBuilder.CreatePlane("sky", { width: VIEW_W, height: VIEW_H }, scene);
+        sky.position.z = 8;
+        sky.rotation.y = Math.PI;
+        sky.material = skyMat;
+
+        engine.runRenderLoop(() => scene.render());
+
+        // Luces
+        const light = new BABYLON.HemisphericLight(
+            "light",
+            new BABYLON.Vector3(0.5, -1, 0.3),
+            scene
+        );
+        light.intensity = 0.8;
+        light.diffuse = new BABYLON.Color3(1, 0.95, 0.85);
+        light.groundColor = new BABYLON.Color3(0.3, 0.5, 0.7);
+
+        // ============================================
+        // SISTEMA DE COORDENADAS (Conversión)
+        // ============================================
+        // Convertir coordenadas de pantalla (px) a coordenadas Babylon
+        function pxToBabylon(x, y) {
+            return {
+                x: x - VIEW_W / 2,
+                y: VIEW_H / 2 - y,
+                z: 0
+            };
+        }
+
+        // ============================================
+        // CREAR EL RÍO (Fondo)
+        // ============================================
+        function createRiver() {
+            const riverContainer = new BABYLON.TransformNode("river", scene);
+            
+            // Agua principal
+            const waterMat = new BABYLON.StandardMaterial("waterMat", scene);
+            paint(waterMat, 0.22, 0.52, 0.68);
+            
+            const riverPos = pxToBabylon(540, 1814);
+            const river = BABYLON.MeshBuilder.CreatePlane(
+                "riverMesh",
+                { width: VIEW_W, height: 212 },
+                scene
+            );
+            river.position = new BABYLON.Vector3(riverPos.x, riverPos.y, 0);
+            river.rotation.y = Math.PI;
+            waterMat.backFaceCulling = false;
+            river.material = waterMat;
+            river.parent = riverContainer;
+            
+            // Orilla superior (tierra)
+            const bankMat = new BABYLON.StandardMaterial("bankMat", scene);
+            paint(bankMat, 0.45, 0.35, 0.25);
+            
+            const bankPos = pxToBabylon(540, 1560);
+            const bank = BABYLON.MeshBuilder.CreatePlane(
+                "bankMesh",
+                { width: VIEW_W, height: 300 },
+                scene
+            );
+            bank.position = new BABYLON.Vector3(bankPos.x, bankPos.y, 0);
+            bank.rotation.y = Math.PI;
+            bankMat.backFaceCulling = false;
+            bank.material = bankMat;
+            bank.parent = riverContainer;
+            
+            // Superficie del río (línea brillante)
+            const surfaceMat = new BABYLON.StandardMaterial("surfaceMat", scene);
+            paint(surfaceMat, 0.75, 0.92, 1, 0.85);
+            
+            const surfacePos = pxToBabylon(540, CONFIG.riverSurfaceY);
+            const surface = BABYLON.MeshBuilder.CreatePlane(
+                "surfaceMesh",
+                { width: VIEW_W, height: 8 },
+                scene
+            );
+            surface.position = new BABYLON.Vector3(surfacePos.x, surfacePos.y, 0.1);
+            surface.rotation.y = Math.PI;
+            surfaceMat.backFaceCulling = false;
+            surface.material = surfaceMat;
+            surface.parent = riverContainer;
+            
+            return riverContainer;
+        }
+
+        // ============================================
+        // CREAR RAMA DE SAUCE
+        // ============================================
+        function createWillowBranch() {
+            const branchContainer = new BABYLON.TransformNode("branch", scene);
+            
+            const branchMat = new BABYLON.StandardMaterial("branchMat", scene);
+            paint(branchMat, 0.32, 0.24, 0.16);
+            
+            // Rama principal (línea curva)
+            const branchPoints = [];
+            for (let i = 0; i <= 20; i++) {
+                const t = i / 20;
+                const x = 400 + t * 100;
+                const y = 350 + t * 80 + 30 * Math.sin(t * Math.PI);
+                const pos = pxToBabylon(x, y);
+                branchPoints.push(new BABYLON.Vector3(pos.x, pos.y, 0));
+            }
+            
+            const branch = BABYLON.MeshBuilder.CreateTube(
+                "branchMesh",
+                {
+                    path: branchPoints,
+                    radius: 8,
+                    tessellation: 8
+                },
+                scene
+            );
+            branch.material = branchMat;
+            branch.parent = branchContainer;
+            
+            // Hojas del sauce (colgantes)
+            const leafMat = new BABYLON.StandardMaterial("leafMat", scene);
+            paint(leafMat, 0.28, 0.55, 0.28);
+            
+            for (let i = 0; i < 30; i++) {
+                const leafX = 380 + Math.random() * 140;
+                const leafY = 380 + Math.random() * 120;
+                const leafLength = 30 + Math.random() * 60;
+                const leafWidth = 8 + Math.random() * 5;
+                
+                const leafPos = pxToBabylon(leafX, leafY);
+                const leaf = BABYLON.MeshBuilder.CreatePlane(
+                    `leaf${i}`,
+                    { width: leafWidth, height: leafLength },
+                    scene
+                );
+                leaf.position = new BABYLON.Vector3(leafPos.x, leafPos.y, 0);
+                leaf.rotation.y = Math.PI;
+                leaf.rotation.z = Math.random() * 0.5 - 0.25;
+                leafMat.backFaceCulling = false;
+                leaf.material = leafMat;
+                leaf.parent = branchContainer;
+            }
+            
+            return branchContainer;
+        }
+
+        // ============================================
+        // CREAR LA GOTA
+        // ============================================
+        function createDrop() {
+            const dropMat = new BABYLON.StandardMaterial("dropMat", scene);
+            paint(dropMat, 0.35, 0.72, 1);
+            
+            // Crear gota con forma de lágrima usando esfera deformada
+            const drop = BABYLON.MeshBuilder.CreateSphere(
+                "drop",
+                {
+                    diameter: CONFIG.dropRadius * 2,
+                    segments: 16,
+                    diameterX: CONFIG.dropRadius * 2,
+                    diameterY: CONFIG.dropRadius * 2.5,
+                    diameterZ: CONFIG.dropRadius * 2
+                },
+                scene
+            );
+            drop.material = dropMat;
+            
+            // Añadir brillo especular
+            const highlightMat = new BABYLON.StandardMaterial("highlightMat", scene);
+            paint(highlightMat, 0.85, 0.95, 1, 0.7);
+            
+            const highlight = BABYLON.MeshBuilder.CreateSphere(
+                "highlight",
+                { diameter: CONFIG.dropRadius * 0.8, segments: 8 },
+                scene
+            );
+            highlight.material = highlightMat;
+            highlight.parent = drop;
+            highlight.position = new BABYLON.Vector3(
+                -CONFIG.dropRadius * 0.3,
+                -CONFIG.dropRadius * 0.4,
+                CONFIG.dropRadius * 0.5
+            );
+            
+            // Posicionar la gota en la rama
+            const startPos = pxToBabylon(450, CONFIG.dropStartY);
+            drop.position = new BABYLON.Vector3(startPos.x, startPos.y, 0);
+            
+            return drop;
+        }
+
+        // ============================================
+        // SISTEMA DE PARTÍCULAS PARA ONDAS
+        // ============================================
+        function createWaveSystem() {
+            const waveContainer = new BABYLON.TransformNode("waves", scene);
+            
+            const waveMat = new BABYLON.StandardMaterial("waveMat", scene);
+            paint(waveMat, 0.85, 0.95, 1, 0.7);
+            
+            const waves = [];
+            const numWaves = 15;
+            
+            for (let i = 0; i < numWaves; i++) {
+                const wave = BABYLON.MeshBuilder.CreateTorus(
+                    `wave${i}`,
+                    {
+                        diameter: 10,
+                        thickness: 2,
+                        tessellation: 32
+                    },
+                    scene
+                );
+                wave.material = waveMat;
+                wave.rotation.x = Math.PI / 2; // Acostar el toro
+                wave.visible = false;
+                wave.parent = waveContainer;
+                waves.push(wave);
+            }
+            
+            return { container: waveContainer, waves };
+        }
+
+        // ============================================
+        // SISTEMA DE PARTÍCULAS (Salpicaduras)
+        // ============================================
+        function createSplashParticles() {
+            const particleSystem = new BABYLON.ParticleSystem(
+                "splash",
+                100,
+                scene
+            );
+            
+            particleSystem.particleTexture = new BABYLON.Texture(
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                scene
+            );
+            
+            particleSystem.minEmitBox = new BABYLON.Vector3(-5, 0, -5);
+            particleSystem.maxEmitBox = new BABYLON.Vector3(5, 5, 5);
+            particleSystem.color1 = new BABYLON.Color4(0.6, 0.8, 1, 1);
+            particleSystem.color2 = new BABYLON.Color4(0.4, 0.6, 0.9, 0.5);
+            particleSystem.colorDead = new BABYLON.Color4(0.2, 0.3, 0.5, 0);
+            particleSystem.minSize = 2;
+            particleSystem.maxSize = 8;
+            particleSystem.minLifeTime = 0.3;
+            particleSystem.maxLifeTime = 0.8;
+            particleSystem.emitRate = 0;
+            particleSystem.preventAutoStart = true;
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+            particleSystem.gravity = new BABYLON.Vector3(0, -2616, 0);
+            particleSystem.direction1 = new BABYLON.Vector3(-200, -400, 0);
+            particleSystem.direction2 = new BABYLON.Vector3(200, -800, 0);
+            particleSystem.minAngularSpeed = 0;
+            particleSystem.maxAngularSpeed = Math.PI;
+            particleSystem.minEmitPower = 100;
+            particleSystem.maxEmitPower = 300;
+            particleSystem.updateSpeed = 0.01;
+            
+            return particleSystem;
+        }
+
+        // ============================================
+        // CREAR ESCENA COMPLETA
+        // ============================================
+        const riverContainer = createRiver();
+        const branchContainer = createWillowBranch();
+        const drop = createDrop();
+        const waveSystem = createWaveSystem();
+        const splashParticles = createSplashParticles();
+        
+        // Emisor de partículas en el punto de impacto
+        const impactPos = pxToBabylon(450, CONFIG.riverSurfaceY);
+        splashParticles.emitter = new BABYLON.Vector3(impactPos.x, impactPos.y, 0);
+
+        // ============================================
+        // ANIMACIÓN PRINCIPAL
+        // ============================================
+        const timeline = {
+            startTime: 0,
+            dropFalling: { start: 1.0, end: 2.0 },        // 1 segundo de caída
+            impact: { start: 2.0, end: 2.1 },             // 0.1 segundos de impacto
+            waves: { start: 2.1, end: 8.0 },              // Ondas expandiéndose
+            underwater: { start: 3.0, end: 8.0 },         // Vista submarina
+            poemLines: [
+                { text: "Mira, la gota cae desde la rama del sauce...", time: 1.0 },
+                { text: "Cuando la gota toca la superficie...", time: 2.0 },
+                { text: "El círculo que se forma en el agua comienza a crecer...", time: 3.0 },
+                { text: "Los peces que nadan justo debajo...", time: 4.5 },
+                { text: "La gota, mientras tanto, ya no existe como gota...", time: 6.0 },
+            ]
+        };
+
+        let animationTime = 0;
+        let isPaused = false;
+        let cameraMode = 0; // 0: normal, 1: close-up, 2: underwater
+
+        // ============================================
+        // FUNCIONES DE ANIMACIÓN
+        // ============================================
+        function animateDrop(time) {
+            if (time < timeline.dropFalling.start || time > timeline.dropFalling.end) return;
+            
+            const t = time - timeline.dropFalling.start;
+            const y = CONFIG.dropStartY + 0.5 * CONFIG.gravity * t * t;
+            
+            const pos = pxToBabylon(450, y);
+            drop.position.y = pos.y;
+            
+            // Deformación de la gota durante la caída
+            const deformation = 1 + 0.15 * Math.sin(2 * Math.PI * 15 * t);
+            drop.scaling.x = 1 / Math.sqrt(deformation);
+            drop.scaling.y = deformation;
+            
+            // Rotación sutil
+            drop.rotation.z += 0.01;
+        }
+
+        function animateImpact(time) {
+            if (time < timeline.impact.start || time > timeline.impact.end) return;
+            
+            const t = (time - timeline.impact.start) * 10; // Cámara lenta 10x
+            
+            // La gota se hunde en el agua
+            const sinkDepth = 20 * (1 - Math.exp(-t * 3));
+            const pos = pxToBabylon(450, CONFIG.riverSurfaceY + sinkDepth);
+            drop.position.y = pos.y;
+            
+            // La gota se achata
+            drop.scaling.y = 1 - t * 0.3;
+            drop.scaling.x = 1 + t * 0.5;
+            
+            // Activar partículas de salpicadura
+            if (t < 0.5) {
+                if (!splashParticles.isStarted()) splashParticles.start();
+                splashParticles.emitRate = 200;
+            } else {
+                splashParticles.emitRate = 0;
+            }
+        }
+
+        function animateWaves(time) {
+            if (time < timeline.waves.start) return;
+            
+            const t = time - timeline.waves.start;
+            
+            waveSystem.waves.forEach((wave, i) => {
+                const waveNumber = Math.floor(i / 3);
+                const waveTime = t - waveNumber * 0.3;
+                
+                if (waveTime > 0 && waveTime < 3) {
+                    wave.visible = true;
+                    
+                    // Radio de la onda
+                    const radius = CONFIG.waveSpeed * waveTime;
+                    const amplitude = 20 * Math.exp(-2 * waveTime) * Math.cos(20 * waveTime);
+                    
+                    const scale = (radius / 100) * (1080/1920);
+                    wave.scaling.x = scale;
+                    wave.scaling.z = scale;
+                    
+                    // Posición de la onda
+                    const wavePos = pxToBabylon(450, CONFIG.riverSurfaceY);
+                    wave.position.x = wavePos.x;
+                    wave.position.y = wavePos.y;
+                    wave.position.z = 0;
+                    
+                    // Alpha según la amplitud
+                    wave.material.alpha = Math.max(0, amplitude / 20);
+                } else {
+                    wave.visible = false;
+                }
+            });
+        }
+
+        function animateRiverFlow(time) {
+            // Animar partículas flotantes en el río
+            const flowOffset = (time * CONFIG.flowSpeed) % 1080;
+            
+            // Crear textura de agua en movimiento
+            riverContainer.getChildMeshes().forEach(mesh => {
+                if (mesh.name === "riverMesh") {
+                    mesh.position.x = pxToBabylon(540 + (flowOffset * 0.1), 1814).x;
+                }
+            });
+        }
+
+        function updateCamera(time) {
+            camera.rotation.set(0, 0, 0);
+            camera.position.z = CAM_Z;
+            if (cameraMode === 1 && time > 1.5 && time < 2.5) {
+                camera.position.x = drop.position.x;
+                camera.position.y = drop.position.y;
+                fitOrtho(camera, 200);
+            } else if (cameraMode === 2 && time > 3 && time < 6) {
+                const underwaterPos = pxToBabylon(540, CONFIG.riverSurfaceY + 150);
+                camera.position.x = underwaterPos.x;
+                camera.position.y = underwaterPos.y;
+                fitOrtho(camera, 300);
+            } else {
+                camera.position.x = 0;
+                camera.position.y = 0;
+                fitOrtho(camera, VIEW_H / 2);
+            }
+        }
+
+        function updatePoemText(time) {
+            const overlay = document.getElementById('poem-text');
+            
+            for (let i = timeline.poemLines.length - 1; i >= 0; i--) {
+                if (time >= timeline.poemLines[i].time) {
+                    overlay.textContent = timeline.poemLines[i].text;
+                    break;
+                }
+            }
+        }
+
+        // ============================================
+        // BUCLE DE RENDERIZADO
+        // ============================================
+        let lastTime = Date.now();
+
+        scene.onBeforeRenderObservable.add(() => {
+            if (isPaused) return;
+            
+            const currentTime = Date.now();
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            animationTime += deltaTime;
+            
+            // Animar todos los elementos
+            animateDrop(animationTime);
+            animateImpact(animationTime);
+            animateWaves(animationTime);
+            animateRiverFlow(animationTime);
+            updateCamera(animationTime);
+            updatePoemText(animationTime);
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+
+        function resetAnimation() {
+            animationTime = 0;
+            lastTime = Date.now();
+            isPaused = false;
+            impactFxDone = false;
+            const startPos = pxToBabylon(450, CONFIG.dropStartY);
+            drop.position = new BABYLON.Vector3(startPos.x, startPos.y, 0);
+            drop.scaling = new BABYLON.Vector3(1, 1, 1);
+            waveSystem.waves.forEach(wave => {
+                wave.visible = false;
+                wave.scaling = new BABYLON.Vector3(0.001, 1, 0.001);
+            });
+            cameraMode = 0;
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            lastTime = Date.now();
+        }
+
+        function toggleCamera() {
+            cameraMode = (cameraMode + 1) % 3;
+        }
+
+        window.resetAnimation = resetAnimation;
+        window.togglePause = togglePause;
+        window.toggleCamera = toggleCamera;
+
+        // ============================================
+        // EFECTOS ADICIONALES
+        // ============================================
+        
+        // Crear destello de luz cuando la gota impacta
+        function createImpactFlash(position) {
+            const flashMat = new BABYLON.StandardMaterial("flashMat", scene);
+            flashMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+            flashMat.emissiveColor = new BABYLON.Color3(2, 2, 2);
+            flashMat.alpha = 0;
+            
+            const flash = BABYLON.MeshBuilder.CreateSphere(
+                "flash",
+                { diameter: 50, segments: 16 },
+                scene
+            );
+            flash.material = flashMat;
+            flash.position = position.clone();
+            
+            // Animar el destello
+            let flashTime = 0;
+            const flashAnimation = new BABYLON.Animation(
+                "flashAnim",
+                "material.alpha",
+                30,
+                BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
+            
+            const keys = [
+                { frame: 0, value: 1 },
+                { frame: 15, value: 0 }
+            ];
+            
+            flashAnimation.setKeys(keys);
+            flash.animations.push(flashAnimation);
+            scene.beginAnimation(flash, 0, 15, false);
+            
+            // Eliminar después de la animación
+            setTimeout(() => {
+                flash.dispose();
+            }, 500);
+        }
+
+        // Crear burbujas de aire cuando la gota se sumerge
+        function createBubbles(position) {
+            const bubbleSystem = new BABYLON.ParticleSystem(
+                "bubbles",
+                50,
+                scene
+            );
+            
+            bubbleSystem.particleTexture = new BABYLON.Texture(
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+                scene
+            );
+            
+            bubbleSystem.emitter = position;
+            bubbleSystem.minEmitBox = new BABYLON.Vector3(-3, 0, -3);
+            bubbleSystem.maxEmitBox = new BABYLON.Vector3(3, 3, 3);
+            bubbleSystem.color1 = new BABYLON.Color4(0.8, 0.9, 1, 0.8);
+            bubbleSystem.color2 = new BABYLON.Color4(0.6, 0.8, 1, 0.5);
+            bubbleSystem.colorDead = new BABYLON.Color4(0.3, 0.5, 0.7, 0);
+            bubbleSystem.minSize = 1;
+            bubbleSystem.maxSize = 5;
+            bubbleSystem.minLifeTime = 0.5;
+            bubbleSystem.maxLifeTime = 1.5;
+            bubbleSystem.emitRate = 20;
+            bubbleSystem.gravity = new BABYLON.Vector3(0, 500, 0); // Flotan hacia arriba
+            bubbleSystem.direction1 = new BABYLON.Vector3(-10, 100, -10);
+            bubbleSystem.direction2 = new BABYLON.Vector3(10, 200, 10);
+            bubbleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+            
+            setTimeout(() => {
+                bubbleSystem.dispose();
+            }, 2000);
+            
+            return bubbleSystem;
+        }
+
+        let impactFxDone = false;
+        scene.onBeforeRenderObservable.add(() => {
+            if (impactFxDone || animationTime < timeline.impact.start) return;
+            if (animationTime - timeline.impact.start > 0.08) return;
+            impactFxDone = true;
+            const hit = pxToBabylon(450, CONFIG.riverSurfaceY);
+            createImpactFlash(new BABYLON.Vector3(hit.x, hit.y, 0));
+            createBubbles(new BABYLON.Vector3(hit.x, hit.y, 0));
+        });
+
+        engine.resize();
+        scene.render();
+    </script>
+</body>
+</html>

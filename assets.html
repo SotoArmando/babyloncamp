@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assets 3D</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <script type="importmap">
+  {
+    "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --paper: #ffffff;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #101514;
+      --card-w: 148px;
+      --gap: 1rem;
+      --a-void-l: 14;
+      --a-thumb-bg: color-mix(in srgb, #121318 calc(100% - var(--a-void-l) * 1%), #e6e7e2 calc(var(--a-void-l) * 1%));
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .app-bar { background: rgba(255, 255, 255, 0.94); }
+    .a-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+      height: 100%;
+    }
+    .a-shell.is-preview {
+      grid-template-columns: minmax(220px, 1fr) minmax(280px, 58%);
+    }
+    .a-pane {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      background: #fff7f7bf;
+    }
+    .a-stage {
+      display: none;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      background: #ece8e2;
+      border-left: 1px solid var(--line);
+    }
+    .a-shell.is-preview .a-stage {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .a-stage-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.45rem 0.85rem;
+      background: rgba(255, 255, 255, 0.72);
+    }
+    .a-stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+    .a-stage-label {
+      margin: 0;
+      font-size: 0.72rem;
+      color: #5c6b7a;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .a-stage-bar .a-dpr { margin-left: auto; }
+    .a-lights-btn {
+      appearance: none;
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.38rem 0.7rem;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .a-lights-btn[aria-expanded="true"] { background: var(--neon); color: #fff; }
+    .a-lights {
+      display: none;
+      position: absolute;
+      top: 2.7rem;
+      right: 0.7rem;
+      z-index: 5;
+      width: min(17.5rem, calc(100% - 1.4rem));
+      padding: 0.75rem 0.8rem 0.85rem;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 14px 36px rgba(16, 21, 20, 0.16);
+    }
+    .a-stage.is-lights .a-lights { display: block; }
+    .a-lights h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .a-light-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      margin-bottom: 0.7rem;
+    }
+    .a-light-presets button {
+      appearance: none;
+      font: 650 0.7rem/1 ui-sans-serif, system-ui, sans-serif;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.32rem 0.55rem;
+      background: #f0f2f1;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .a-light-presets button.is-on { background: var(--neon); color: #fff; }
+    .a-lights label {
+      display: grid;
+      grid-template-columns: 5.4rem minmax(0, 1fr) 2.2rem;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0.28rem 0 0;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .a-lights input[type="range"] { width: 100%; accent-color: var(--neon); }
+    .a-lights output { font-weight: 650; color: var(--ink); text-align: right; }
+    .a-lights label.has-col { grid-template-columns: 3.6rem 1.3rem minmax(0, 1fr) 2.2rem; }
+    .a-lights input[type="color"] {
+      width: 1.3rem;
+      height: 1.1rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .a-extras { display: grid; gap: 0.45rem; margin-top: 0.55rem; }
+    .a-extra {
+      padding: 0.4rem 0.45rem 0.5rem;
+      border-radius: 8px;
+      background: #f0f2f1;
+    }
+    .a-extra-bar {
+      display: grid;
+      grid-template-columns: 1.3rem minmax(0, 1fr) 2rem 1.1rem;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .a-extra-bar output { font-size: 0.68rem; }
+    .a-extra-del {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: 700 1rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .a-xplaces { display: flex; flex-wrap: wrap; gap: 0.24rem; margin-top: 0.35rem; }
+    .a-xplaces button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.22rem 0.42rem;
+      background: #fff;
+      color: var(--ink);
+      font: 650 0.66rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .a-xplaces button.is-on { background: var(--neon); color: #fff; }
+    .a-extra-add {
+      appearance: none;
+      width: 100%;
+      margin-top: 0.45rem;
+      border: 0;
+      border-radius: 8px;
+      padding: 0.4rem 0.5rem;
+      background: #f0f2f1;
+      color: var(--ink);
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .a-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 1rem;
+    }
+    .a-search {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+    .a-search input {
+      font: inherit;
+      font-size: 0.82rem;
+      width: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.4rem 2.6rem 0.4rem 0.8rem;
+      background: #fff;
+      color: var(--ink);
+    }
+    .a-search input:focus {
+      outline: 1px solid var(--neon);
+    }
+    .a-count {
+      position: absolute;
+      right: 0.35rem;
+      top: 50%;
+      transform: translateY(-50%);
+      min-width: 1.35rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 650;
+      text-align: center;
+      color: var(--muted);
+      background: var(--line);
+      pointer-events: none;
+    }
+    .a-void {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: 10px minmax(4.8rem, 7.2rem) 10px;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .a-void i {
+      display: block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .a-void .dim { background: #2a2e34; }
+    .a-void .lit { background: #f2f2ee; }
+    .a-void input[type="range"] {
+      width: 100%;
+      margin: 0;
+      accent-color: var(--neon);
+      cursor: pointer;
+    }
+    .a-add {
+      appearance: none;
+      font: 650 0.78rem/1 ui-sans-serif, system-ui, sans-serif;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.45rem 0.85rem;
+      background: var(--neon);
+      color: #fff;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .a-dpr {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+    .a-dpr input[type="range"] { width: 7.2rem; accent-color: var(--neon); }
+    .a-dpr output { min-width: 2.4rem; font-weight: 650; color: var(--ink); }
+    .a-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+      gap: var(--gap);
+      align-content: start;
+      padding: 0.55rem 1.1rem 0.9rem;
+      overflow: auto;
+      min-height: 0;
+    }
+    .a-card {
+      position: relative;
+      min-width: 0;
+      cursor: pointer;
+    }
+    .a-card.is-on .a-name { color: var(--neon); }
+    .a-pick {
+      appearance: none;
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0 0 1.35rem;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      position: relative;
+    }
+    .a-thumb {
+      position: relative;
+      z-index: 1;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--a-thumb-bg);
+    }
+    .a-thumb img,
+    .a-thumb svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .a-close {
+      appearance: none;
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.38rem 0.7rem;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .a-close:hover { background: #1a2330; color: #fff; }
+    .a-close output {
+      margin-left: 0.2rem;
+      font-weight: 650;
+      color: inherit;
+    }
+    .a-name {
+      position: absolute;
+      left: 0;
+      right: 6px;
+      bottom: 0;
+      z-index: 2;
+      transform: translateY(45%);
+      margin: 0;
+      padding: 0.12rem 0.28rem;
+      font-size: 0.78rem;
+      line-height: 1.25;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      pointer-events: none;
+    }
+    .a-meta {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      z-index: 3;
+      font-size: 0.62rem;
+      font-weight: 750;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.4rem;
+      border-radius: 6px;
+      background: rgba(12, 14, 18, 0.58);
+      color: #fff;
+      pointer-events: none;
+    }
+    .a-del {
+      appearance: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 4;
+      width: 26px;
+      height: 26px;
+      border: 0;
+      border-radius: 7px;
+      background: rgba(12, 14, 18, 0.58);
+      color: #fff;
+      cursor: pointer;
+      opacity: 0;
+    }
+    .a-card:hover .a-del,
+    .a-card:focus-within .a-del { opacity: 1; }
+    .a-del:hover { background: #b42318; }
+    .a-empty {
+      grid-column: 1 / -1;
+      margin: 2.5rem 0.4rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      max-width: 36rem;
+    }
+    .a-note {
+      margin: 0;
+      padding: 0.55rem 1.1rem 0.85rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .a-note code {
+      font-size: 0.72rem;
+      background: #fff;
+      padding: 0.08rem 0.32rem;
+      border-radius: 4px;
+    }
+    body.is-drop .a-pane { outline: 3px dashed rgba(16, 21, 20, 0.35); outline-offset: -8px; }
+    .a-file { display: none; }
+    @media (max-width: 980px) {
+      .a-shell.is-preview {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 42%) minmax(0, 1fr);
+      }
+      .a-shell.is-preview .a-stage { border-left: 0; border-top: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Assets 3D</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+      <a class="app-quiet" href="ads.html">Anuncios</a>
+      <a class="app-quiet" href="lab.html">Lab</a>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="a-shell" id="a-shell">
+    <div class="a-pane" id="a-pane">
+      <div class="a-bar">
+        <label class="a-search">
+          <input type="search" id="a-search" placeholder="Buscar" autocomplete="off" spellcheck="false" />
+          <span class="a-count" id="a-count">0</span>
+        </label>
+        <label class="a-void">
+          <i class="dim" aria-hidden="true"></i>
+          <input id="a-void" type="range" min="0" max="100" step="1" value="14" aria-label="Claridad del fondo" />
+          <i class="lit" aria-hidden="true"></i>
+        </label>
+        <button type="button" class="a-add" id="a-add">Agregar archivos</button>
+      </div>
+      <main class="a-grid" id="a-grid"></main>
+      <p class="a-note">Elegí un asset para verlo a la derecha, en un estudio raster. Carpeta: <code>assets/3d/</code>.</p>
+    </div>
+    <aside class="a-stage" id="a-stage">
+      <div class="a-stage-bar">
+        <p class="a-stage-label" id="a-stage-label">Estudio</p>
+        <label class="a-dpr">
+          Resolución
+          <input id="a-dpr" type="range" min="1" max="2.5" step="0.25" value="1.5" />
+          <output id="a-dpr-val">1.5×</output>
+        </label>
+        <button type="button" class="a-lights-btn" id="a-lights-btn" aria-expanded="false" aria-controls="a-lights">Luces</button>
+        <button type="button" class="a-close" id="a-close">Cerrar <output id="a-close-t">15</output></button>
+      </div>
+      <div class="a-lights" id="a-lights">
+        <h3>Estudio fotográfico</h3>
+        <div class="a-light-presets" id="a-light-presets">
+          <button type="button" data-light="catalog" class="is-on">Catálogo</button>
+          <button type="button" data-light="highkey">High key</button>
+          <button type="button" data-light="lowkey">Low key</button>
+          <button type="button" data-light="rembrandt">Rembrandt</button>
+          <button type="button" data-light="butterfly">Mariposa</button>
+          <button type="button" data-light="split">Split</button>
+          <button type="button" data-light="rimshot">Contra</button>
+          <button type="button" data-light="estudio">Estudio</button>
+        </div>
+        <label class="has-col">Ambiente <input data-scol="worldCol" type="color" value="#ede8e0" aria-label="Color ambiente" /><input data-ch="world" type="range" min="0" max="1.2" step="0.02" value="0.7" /><output data-out="world">0.70</output></label>
+        <label class="has-col">Key <input data-scol="keyCol" type="color" value="#fff7eb" aria-label="Color key" /><input data-ch="key" type="range" min="0" max="1.2" step="0.02" value="0.55" /><output data-out="key">0.55</output></label>
+        <label class="has-col">Fill <input data-scol="fillCol" type="color" value="#ebf2ff" aria-label="Color fill" /><input data-ch="fill" type="range" min="0" max="1.2" step="0.02" value="0.42" /><output data-out="fill">0.42</output></label>
+        <label class="has-col">Rim <input data-scol="rimCol" type="color" value="#d9e6ff" aria-label="Color rim" /><input data-ch="rim" type="range" min="0" max="1.2" step="0.02" value="0.20" /><output data-out="rim">0.20</output></label>
+        <label>Exposición <input data-ch="exposure" type="range" min="0.6" max="1.4" step="0.02" value="1.02" /><output data-out="exposure">1.02</output></label>
+        <h3>Luces de color</h3>
+        <div class="a-extras" id="a-extras"></div>
+        <button type="button" class="a-extra-add" id="a-extra-add">Agregar luz</button>
+      </div>
+      <canvas id="a-canvas"></canvas>
+    </aside>
+  </div>
+  <input class="a-file" id="a-file" type="file" multiple accept=".glb,.gltf,.obj,.mtl,.png,.jpg,.jpeg,.webp,.bmp,.tga,.bin,model/gltf-binary,model/gltf+json" />
+  <script type="module">
+    import {
+      listAllAssets,
+      saveAssetFiles,
+      deleteStoredAsset,
+      formatBytes,
+      isAssetFile,
+      isMeshFile,
+      getAssetLoadSource,
+      loadAssetThumbs,
+      saveAssetThumb,
+    } from "./ad-assets.js?v=thumb6";
+    import { createAssetStudio, bakeAssetThumb, ASSET_THUMB_PRESET } from "./asset-studio.js?v=thumb6";
+    import { STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY } from "./studio-lights.js?v=thumb6";
+
+    const grid = document.getElementById("a-grid");
+    const search = document.getElementById("a-search");
+    const count = document.getElementById("a-count");
+    const fileInput = document.getElementById("a-file");
+    const stageLabel = document.getElementById("a-stage-label");
+    const dprInput = document.getElementById("a-dpr");
+    const dprVal = document.getElementById("a-dpr-val");
+    const shell = document.getElementById("a-shell");
+    const stage = document.getElementById("a-stage");
+    const closeBtn = document.getElementById("a-close");
+    const closeOut = document.getElementById("a-close-t");
+    const voidInput = document.getElementById("a-void");
+    const VOID_KEY = "nexus-asset-void-l";
+
+    function applyVoidLight(raw) {
+      const value = Math.round(Number(raw));
+      const light = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 14;
+      document.documentElement.style.setProperty("--a-void-l", String(light));
+      if (voidInput) voidInput.value = String(light);
+      try { localStorage.setItem(VOID_KEY, String(light)); } catch { /* optional */ }
+      return light;
+    }
+    applyVoidLight((() => {
+      try { return localStorage.getItem(VOID_KEY); } catch { return "14"; }
+    })() ?? "14");
+    voidInput?.addEventListener("input", () => applyVoidLight(voidInput.value));
+    let items = [];
+    let selectedId = "";
+    let studio = null;
+    let thumbs = new Map();
+    let closeTimer = 0;
+    let closeLeft = 15;
+    let bakeBusy = false;
+    const CLOSE_SEC = 15;
+
+    const syncPreviewLayout = () => {
+      shell.classList.toggle("is-preview", Boolean(selectedId));
+      requestAnimationFrame(() => studio?.resize());
+    };
+
+    function stopCloseTimer() {
+      window.clearInterval(closeTimer);
+      closeTimer = 0;
+    }
+
+    function closePreview() {
+      stopCloseTimer();
+      selectedId = "";
+      stage.classList.remove("is-lights");
+      document.getElementById("a-lights-btn").setAttribute("aria-expanded", "false");
+      render();
+      syncPreviewLayout();
+      bakeMissingThumbs();
+    }
+
+    function armCloseTimer() {
+      if (!selectedId) return;
+      stopCloseTimer();
+      closeLeft = CLOSE_SEC;
+      closeOut.textContent = String(closeLeft);
+      closeTimer = window.setInterval(() => {
+        closeLeft -= 1;
+        closeOut.textContent = String(Math.max(0, closeLeft));
+        if (closeLeft <= 0) closePreview();
+      }, 1000);
+    }
+
+    function thumbMarkup(item) {
+      const shot = thumbs.get(item.id);
+      if (shot) return `<img src="${shot}" alt="">`;
+      const fill = "transparent";
+      const ink = "#c4b8a4";
+      return `<svg viewBox="0 0 160 160" aria-hidden="true">
+        <rect width="160" height="160" fill="${fill}"/>
+        <g fill="none" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round">
+          <path d="M80 38 L124 62 L124 108 L80 132 L36 108 L36 62 Z"/>
+          <path d="M80 38 L80 84 L124 108"/>
+          <path d="M80 84 L36 108"/>
+        </g>
+      </svg>`;
+    }
+
+    async function snapshotThumb(id = selectedId) {
+      const item = items.find((entry) => entry.id === id);
+      if (!item || !isMeshFile(item.name)) return;
+      const source = await getAssetLoadSource(item);
+      if (!source) return;
+      const dataUrl = await bakeAssetThumb(source, { preset: ASSET_THUMB_PRESET });
+      if (!dataUrl || dataUrl.length < 4000) return;
+      thumbs.set(id, dataUrl);
+      const card = grid.querySelector(`.a-card[data-id="${CSS.escape(id)}"] .a-thumb`);
+      if (card) card.innerHTML = `<img src="${dataUrl}" alt="">`;
+      saveAssetThumb(id, dataUrl, ASSET_THUMB_PRESET).catch(() => {});
+    }
+
+    async function bakeMissingThumbs() {
+      if (bakeBusy || selectedId) return;
+      bakeBusy = true;
+      try {
+        for (const item of items) {
+          if (selectedId || thumbs.has(item.id) || !isMeshFile(item.name)) continue;
+          if ((item.size || 0) > 20_000_000) continue;
+          const source = await getAssetLoadSource(item);
+          if (!source) continue;
+          const dataUrl = await bakeAssetThumb(source, { preset: ASSET_THUMB_PRESET });
+          if (!dataUrl || dataUrl.length < 4000 || selectedId) continue;
+          thumbs.set(item.id, dataUrl);
+          saveAssetThumb(item.id, dataUrl, ASSET_THUMB_PRESET).catch(() => {});
+          const card = grid.querySelector(`.a-card[data-id="${CSS.escape(item.id)}"] .a-thumb`);
+          if (card) card.innerHTML = `<img src="${dataUrl}" alt="">`;
+        }
+      } catch (error) {
+        console.warn(error);
+      } finally {
+        bakeBusy = false;
+      }
+    }
+
+    function render() {
+      const q = search.value.trim().toLowerCase();
+      const shown = items.filter((item) => !q || item.name.toLowerCase().includes(q));
+      count.textContent = String(shown.length);
+      if (!shown.length) {
+        grid.innerHTML = `<p class="a-empty">${items.length ? "Nada coincide con la búsqueda." : "No hay assets todavía. Copiá .glb / .gltf / .obj a assets/3d/ o agregá archivos acá."}</p>`;
+        return;
+      }
+      grid.innerHTML = shown.map((item) => `
+        <article class="a-card${item.id === selectedId ? " is-on" : ""}" data-id="${item.id}">
+          <div class="a-pick">
+            <div class="a-thumb">${thumbMarkup(item)}</div>
+            <span class="a-meta">${item.ext || "3d"}</span>
+            <p class="a-name">${item.name}${item.size ? ` · ${formatBytes(item.size)}` : ""}</p>
+          </div>
+          ${item.source === "library" ? `<button type="button" class="a-del" data-del="${item.id}" aria-label="Quitar ${item.name}">×</button>` : ""}
+        </article>
+      `).join("");
+    }
+
+    async function selectAsset(id) {
+      const item = items.find((entry) => entry.id === id);
+      if (!item || !isMeshFile(item.name)) return;
+      selectedId = item.id;
+      render();
+      syncPreviewLayout();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      stageLabel.textContent = `Cargando · ${item.name}`;
+      try {
+        if (!studio) {
+          studio = await createAssetStudio(document.getElementById("a-canvas"), { dpr: dprInput.value });
+          syncLightUi(studio.lights());
+        }
+        const source = await getAssetLoadSource(item);
+        await studio.show(source);
+        studio.resize();
+        stageLabel.textContent = item.name;
+        armCloseTimer();
+        await snapshotThumb(item.id);
+      } catch (error) {
+        stageLabel.textContent = `No se pudo abrir ${item.name}`;
+        console.warn(error);
+      }
+    }
+
+    async function refresh() {
+      items = await listAllAssets();
+      if (selectedId && !items.some((item) => item.id === selectedId)) selectedId = "";
+      render();
+      syncPreviewLayout();
+      if (!selectedId) bakeMissingThumbs();
+    }
+
+    async function addFiles(list) {
+      const files = [...list].filter((file) => isAssetFile(file.name));
+      if (!files.length) return;
+      await saveAssetFiles(files);
+      await refresh();
+    }
+
+    const lightsBtn = document.getElementById("a-lights-btn");
+    const lightsPanel = document.getElementById("a-lights");
+    const lightPresets = document.getElementById("a-light-presets");
+    const extrasBox = document.getElementById("a-extras");
+    const extraAdd = document.getElementById("a-extra-add");
+
+    function paintExtras(state) {
+      extrasBox.innerHTML = (state.extras || []).map((extra) => `
+        <div class="a-extra" data-xid="${extra.id}">
+          <div class="a-extra-bar">
+            <input type="color" data-xcol value="${extra.color}" aria-label="Color de la luz" />
+            <input type="range" data-xint min="0" max="${MAX_STUDIO_EXTRA_INTENSITY}" step="0.1" value="${extra.intensity}" aria-label="Intensidad" />
+            <output>${Number(extra.intensity).toFixed(1)}</output>
+            <button type="button" class="a-extra-del" data-xdel aria-label="Quitar luz">×</button>
+          </div>
+          <div class="a-xplaces">
+            ${STUDIO_EXTRA_PLACE_LIST.map((place) => `
+              <button type="button" data-xplace="${place.id}" class="${place.id === extra.place ? "is-on" : ""}">${place.label}</button>
+            `).join("")}
+          </div>
+        </div>`).join("");
+      extraAdd.hidden = (state.extras || []).length >= MAX_STUDIO_EXTRAS;
+    }
+
+    function syncLightUi(state) {
+      if (!state) return;
+      lightPresets.querySelectorAll("[data-light]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.light === state.preset);
+      });
+      for (const name of ["world", "key", "fill", "rim", "exposure"]) {
+        const input = lightsPanel.querySelector(`[data-ch="${name}"]`);
+        const out = lightsPanel.querySelector(`[data-out="${name}"]`);
+        if (input) input.value = String(state[name]);
+        if (out) out.textContent = Number(state[name]).toFixed(2);
+      }
+      for (const name of ["worldCol", "keyCol", "fillCol", "rimCol"]) {
+        const input = lightsPanel.querySelector(`[data-scol="${name}"]`);
+        if (input) input.value = state[name];
+      }
+      paintExtras(state);
+    }
+
+    lightsBtn.addEventListener("click", () => {
+      const open = !stage.classList.contains("is-lights");
+      stage.classList.toggle("is-lights", open);
+      lightsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    lightPresets.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-light]");
+      if (!btn || !studio) return;
+      syncLightUi(studio.applyPreset(btn.dataset.light));
+      armCloseTimer();
+      snapshotThumb();
+    });
+    lightsPanel.addEventListener("input", (event) => {
+      if (!studio) return;
+      const channel = event.target.closest("[data-ch]");
+      if (channel) {
+        const next = studio.setChannel(channel.dataset.ch, channel.value);
+        const out = lightsPanel.querySelector(`[data-out="${channel.dataset.ch}"]`);
+        if (out) out.textContent = Number(next[channel.dataset.ch]).toFixed(2);
+      }
+      const color = event.target.closest("[data-scol]");
+      if (color) studio.setChannel(color.dataset.scol, color.value);
+      const row = event.target.closest("[data-xid]");
+      if (row && event.target.matches("[data-xcol]")) studio.setExtra(row.dataset.xid, { color: event.target.value });
+      if (row && event.target.matches("[data-xint]")) {
+        const next = studio.setExtra(row.dataset.xid, { intensity: event.target.value });
+        const extra = next.extras.find((item) => item.id === row.dataset.xid);
+        const out = row.querySelector("output");
+        if (out && extra) out.textContent = Number(extra.intensity).toFixed(1);
+      }
+      if (!channel && !color && !row) return;
+      armCloseTimer();
+      window.clearTimeout(lightsPanel._snap);
+      lightsPanel._snap = window.setTimeout(() => snapshotThumb(), 350);
+    });
+    extraAdd.addEventListener("click", () => {
+      if (!studio) return;
+      syncLightUi(studio.addExtra());
+      armCloseTimer();
+      snapshotThumb();
+    });
+    extrasBox.addEventListener("click", (event) => {
+      const row = event.target.closest("[data-xid]");
+      if (!row || !studio) return;
+      if (event.target.closest("[data-xdel]")) {
+        syncLightUi(studio.removeExtra(row.dataset.xid));
+        armCloseTimer();
+        snapshotThumb();
+        return;
+      }
+      const place = event.target.closest("[data-xplace]");
+      if (place) {
+        syncLightUi(studio.setExtra(row.dataset.xid, { place: place.dataset.xplace }));
+        armCloseTimer();
+        snapshotThumb();
+      }
+    });
+    closeBtn.addEventListener("click", closePreview);
+    document.getElementById("a-canvas").addEventListener("pointerdown", armCloseTimer);
+    dprInput.addEventListener("input", () => {
+      dprVal.textContent = `${dprInput.value}×`;
+      studio?.setDpr(dprInput.value);
+      armCloseTimer();
+    });
+    new ResizeObserver(() => studio?.resize()).observe(stage);
+    document.getElementById("a-add").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      await addFiles(fileInput.files);
+      fileInput.value = "";
+    });
+    search.addEventListener("input", render);
+    grid.addEventListener("click", async (event) => {
+      const btn = event.target.closest("[data-del]");
+      if (btn) {
+        await deleteStoredAsset(btn.dataset.del);
+        if (selectedId === btn.dataset.del) selectedId = "";
+        await refresh();
+        return;
+      }
+      const card = event.target.closest(".a-card");
+      if (card) await selectAsset(card.dataset.id);
+    });
+
+    ["dragenter", "dragover"].forEach((type) => {
+      document.addEventListener(type, (event) => {
+        event.preventDefault();
+        document.body.classList.add("is-drop");
+      });
+    });
+    ["dragleave", "drop"].forEach((type) => {
+      document.addEventListener(type, (event) => {
+        if (type === "dragleave" && event.target !== document.documentElement) return;
+        document.body.classList.remove("is-drop");
+      });
+    });
+    document.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      document.body.classList.remove("is-drop");
+      await addFiles(event.dataTransfer?.files || []);
+    });
+
+    loadAssetThumbs().then((map) => {
+      thumbs = map;
+      return refresh();
+    });
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>

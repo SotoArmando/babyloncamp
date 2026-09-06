@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor · Anuncio 4</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #0b8f78;
+      --panel: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    h1 { font-size: 0.95rem; margin: 0; font-weight: 600; }
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      min-height: 0;
+    }
+    aside, .props {
+      overflow: auto;
+      padding: 1rem;
+      border-color: var(--line);
+      background: var(--panel);
+    }
+    aside { border-right: 1px solid var(--line); }
+    .props { border-left: 1px solid var(--line); }
+    .stage-wrap {
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+      background: var(--bg);
+    }
+    .stage {
+      width: 300px;
+      height: 250px;
+      position: relative;
+      border-radius: 10px;
+      overflow: clip;
+      isolation: isolate;
+      background: #05080f;
+      border: 1px solid var(--neon);
+      box-sizing: border-box;
+      box-shadow: 0 10px 28px rgba(11, 143, 120, 0.18);
+    }
+    .stage svg.ad-2d, .stage .ad-wave-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 9px;
+    }
+    .stage .ad-2d { z-index: 1; overflow: hidden; }
+    .ad-wave {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+      height: 56px; overflow: hidden; pointer-events: none;
+      border-radius: 0 0 9px 9px;
+    }
+    .ad-wave-logo {
+      position: relative; z-index: 1; height: 100%;
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 0.45rem; padding-bottom: 10px;
+      transform: translateY(var(--wave-bob, 0px));
+    }
+    .ad-brand-mark {
+      width: 13px; height: 13px; margin-bottom: 2px;
+      background: #04110e;
+      transform: rotate(calc(45deg + var(--logo-spin, 0deg)));
+    }
+    .ad-brand-name {
+      font-weight: 800; letter-spacing: 0.22em; font-size: 0.78rem; color: #04110e;
+    }
+    h2 { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.6rem; }
+    label { display: block; font-size: 0.72rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
+    input[type="text"], select {
+      width: 100%; padding: 0.4rem 0.5rem; border-radius: 6px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit;
+    }
+    input[type="color"] { width: 100%; height: 32px; border: 1px solid var(--line); background: #fff; padding: 0; }
+    input[type="range"], input[type="number"] { width: 100%; }
+    input[type="number"] {
+      padding: 0.35rem; border-radius: 6px; border: 1px solid var(--line);
+      background: #fff; color: var(--ink); font: inherit;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; }
+    button {
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      font: inherit; font-size: 0.78rem; padding: 0.4rem 0.55rem; border-radius: 6px; cursor: pointer;
+    }
+    button.primary { border-color: var(--neon); color: var(--neon); }
+    .tools { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.8rem; }
+    .shape-list { display: flex; flex-direction: column; gap: 0.3rem; }
+    .shape-list button[aria-selected="true"] { border-color: var(--neon); color: var(--neon); }
+    .modes { display: grid; gap: 0.3rem; }
+    .modes label {
+      display: flex; align-items: center; gap: 0.4rem; margin: 0;
+      color: var(--ink); font-size: 0.82rem; cursor: pointer;
+    }
+    .hint { font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
+    .status { min-height: 1.1em; font-size: 0.72rem; color: var(--neon); margin-top: 0.5rem; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside, .props { border: none; border-top: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Editor anuncio 4</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="index.html">Sitio</a>
+      <a class="app-quiet" href="lab.html">Lab</a>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <h2>Formas 2D</h2>
+      <p class="hint">Añade formas y anímalas: mover, expandir, o las dos a la vez.</p>
+      <div class="tools">
+        <button type="button" data-add="rect">Rectángulo</button>
+        <button type="button" data-add="ellipse">Elipse</button>
+        <button type="button" data-add="diamond">Rombo</button>
+        <button type="button" data-add="triangle">Triángulo</button>
+      </div>
+      <div class="shape-list" id="shape-list"></div>
+      <button type="button" id="delete-shape" style="margin-top:0.6rem">Eliminar forma</button>
+
+      <h2 style="margin-top:1.2rem">Ola y logo</h2>
+      <label>Texto</label>
+      <input id="logo" type="text" maxlength="16" />
+      <label class="modes" style="margin-top:0.5rem"><input id="showMark" type="checkbox" /> Mostrar rombo</label>
+      <label>Colores ola</label>
+      <div class="row-3">
+        <input id="waveTop" type="color" />
+        <input id="waveMid" type="color" />
+        <input id="waveBottom" type="color" />
+      </div>
+      <label>Color logo</label>
+      <input id="logoColor" type="color" />
+      <label>Velocidad ola <span id="speedVal"></span></label>
+      <input id="speed" type="range" min="0.4" max="8" step="0.1" />
+      <label>Amplitud <span id="ampVal"></span></label>
+      <input id="amplitude" type="range" min="1" max="16" step="0.5" />
+      <div class="tools" style="margin-top:0.8rem">
+        <button type="button" data-preset="nexus">Nexus</button>
+        <button type="button" data-preset="magenta">Magenta</button>
+        <button type="button" data-preset="solar">Solar</button>
+        <button type="button" data-preset="ice">Hielo</button>
+      </div>
+    </aside>
+
+    <div class="stage-wrap">
+      <div class="stage" id="stage">
+        <svg class="ad-2d" id="shape-svg" viewBox="0 0 300 250"></svg>
+        <div class="ad-wave">
+          <svg class="ad-wave-svg" viewBox="0 0 300 56">
+            <defs>
+              <linearGradient id="ad4-wave-fill" x1="0" y1="0" x2="0" y2="1" data-wave-stops>
+                <stop offset="0%" stop-color="#7af7c5" />
+                <stop offset="55%" stop-color="#00f0c8" />
+                <stop offset="100%" stop-color="#6d7cff" />
+              </linearGradient>
+            </defs>
+            <path class="ad-wave-path" fill="url(#ad4-wave-fill)" d="M0 56 L0 28 L300 28 L300 56 Z"></path>
+          </svg>
+          <div class="ad-wave-logo">
+            <span class="ad-brand-mark"></span>
+            <span class="ad-brand-name">NEXUS</span>
+          </div>
+        </div>
+      </div>
+      <p class="hint" style="margin:0.8rem 0 0;text-align:center">Vista 300×250 · igual que el anuncio sticky</p>
+    </div>
+
+    <section class="props">
+      <h2>Animación de la forma</h2>
+      <div class="modes">
+        <label><input type="radio" name="mode" value="none" /> Quieta</label>
+        <label><input type="radio" name="mode" value="move" /> Mover</label>
+        <label><input type="radio" name="mode" value="expand" /> Expandir</label>
+        <label><input type="radio" name="mode" value="both" /> Mover y expandir</label>
+      </div>
+
+      <label>Relleno</label>
+      <input id="fill" type="color" />
+      <label>Opacidad <span id="opVal"></span></label>
+      <input id="opacity" type="range" min="0.15" max="1" step="0.05" />
+
+      <div class="row">
+        <div><label>Ancho</label><input id="w" type="number" min="8" max="200" /></div>
+        <div><label>Alto</label><input id="h" type="number" min="8" max="200" /></div>
+      </div>
+
+      <p class="hint" id="move-fields-label">Inicio → final (posición)</p>
+      <div class="row">
+        <div><label>X inicio</label><input id="fromX" type="number" /></div>
+        <div><label>Y inicio</label><input id="fromY" type="number" /></div>
+      </div>
+      <div class="row">
+        <div><label>X final</label><input id="toX" type="number" /></div>
+        <div><label>Y final</label><input id="toY" type="number" /></div>
+      </div>
+      <div class="row">
+        <div><label>Escala inicio</label><input id="fromS" type="number" min="0.1" max="4" step="0.05" /></div>
+        <div><label>Escala final</label><input id="toS" type="number" min="0.1" max="4" step="0.05" /></div>
+      </div>
+      <label>Duración (s)</label>
+      <input id="duration" type="number" min="0.1" max="8" step="0.1" />
+      <label>Retardo (s)</label>
+      <input id="delay" type="number" min="0" max="5" step="0.1" />
+      <label>Easing</label>
+      <select id="easing">
+        <option value="easeInOut">easeInOut</option>
+        <option value="linear">linear</option>
+        <option value="easeIn">easeIn</option>
+        <option value="easeOut">easeOut</option>
+      </select>
+      <label class="modes" style="margin-top:0.6rem"><input id="loop" type="checkbox" /> Repetir</label>
+      <label class="modes"><input id="alternate" type="checkbox" /> Ida y vuelta</label>
+
+      <div class="tools" style="margin-top:1rem">
+        <button type="button" class="primary" id="save">Guardar en anuncio 4</button>
+        <button type="button" id="reset">Restablecer</button>
+      </div>
+      <p class="status" id="status"></p>
+    </section>
+  </div>
+
+  <script type="module">
+    import {
+      loadBanner, saveBanner, applyWaveToDom, startShapePlayer, wavePathD,
+      newShape, WAVE_PRESETS, BANNER_DEFAULTS, defaultShapes,
+    } from "./ad4-banner.js";
+
+    const banner = loadBanner();
+    let selectedId = banner.shapes[0]?.id || null;
+    const stage = document.getElementById("stage");
+    const wavePath = stage.querySelector(".ad-wave-path");
+    const status = document.getElementById("status");
+
+    const $ = (id) => document.getElementById(id);
+
+    function selected() {
+      return banner.shapes.find((s) => s.id === selectedId) || null;
+    }
+
+    function persist(msg) {
+      saveBanner(banner);
+      applyWaveToDom(stage, banner);
+      if (msg) status.textContent = msg;
+    }
+
+    function fillWaveFields() {
+      $("logo").value = banner.logo;
+      $("showMark").checked = banner.showMark;
+      $("logoColor").value = banner.logoColor;
+      $("waveTop").value = banner.waveTop;
+      $("waveMid").value = banner.waveMid;
+      $("waveBottom").value = banner.waveBottom;
+      $("speed").value = banner.speed;
+      $("amplitude").value = banner.amplitude;
+      $("speedVal").textContent = banner.speed;
+      $("ampVal").textContent = banner.amplitude;
+    }
+
+    function readWaveFields() {
+      banner.logo = $("logo").value.trim().slice(0, 16) || "NEXUS";
+      banner.showMark = $("showMark").checked;
+      banner.logoColor = $("logoColor").value;
+      banner.waveTop = $("waveTop").value;
+      banner.waveMid = $("waveMid").value;
+      banner.waveBottom = $("waveBottom").value;
+      banner.speed = Number($("speed").value);
+      banner.amplitude = Number($("amplitude").value);
+      $("speedVal").textContent = banner.speed;
+      $("ampVal").textContent = banner.amplitude;
+      persist();
+    }
+
+    function modeOf(shape) {
+      if (shape.anim.move && shape.anim.expand) return "both";
+      if (shape.anim.move) return "move";
+      if (shape.anim.expand) return "expand";
+      return "none";
+    }
+
+    function fillShapeFields() {
+      const s = selected();
+      const disabled = !s;
+      document.querySelectorAll(".props input, .props select, #delete-shape").forEach((el) => {
+        if (el.id === "save" || el.id === "reset") return;
+        el.disabled = disabled && el.closest(".props");
+      });
+      if (!s) return;
+      document.querySelector(`input[name="mode"][value="${modeOf(s)}"]`).checked = true;
+      $("fill").value = s.fill;
+      $("opacity").value = s.opacity;
+      $("opVal").textContent = s.opacity;
+      $("w").value = s.w;
+      $("h").value = s.h;
+      $("fromX").value = s.anim.from.x;
+      $("fromY").value = s.anim.from.y;
+      $("toX").value = s.anim.to.x;
+      $("toY").value = s.anim.to.y;
+      $("fromS").value = s.anim.from.scale;
+      $("toS").value = s.anim.to.scale;
+      $("duration").value = s.anim.duration;
+      $("delay").value = s.anim.delay;
+      $("easing").value = s.anim.easing;
+      $("loop").checked = s.anim.loop;
+      $("alternate").checked = s.anim.alternate;
+    }
+
+    function readShapeFields() {
+      const s = selected();
+      if (!s) return;
+      const mode = document.querySelector("input[name=mode]:checked")?.value || "none";
+      s.anim.move = mode === "move" || mode === "both";
+      s.anim.expand = mode === "expand" || mode === "both";
+      s.fill = $("fill").value;
+      s.opacity = Number($("opacity").value);
+      $("opVal").textContent = s.opacity;
+      s.w = Number($("w").value);
+      s.h = Number($("h").value);
+      s.anim.from.x = Number($("fromX").value);
+      s.anim.from.y = Number($("fromY").value);
+      s.anim.to.x = Number($("toX").value);
+      s.anim.to.y = Number($("toY").value);
+      s.anim.from.scale = Number($("fromS").value);
+      s.anim.to.scale = Number($("toS").value);
+      s.x = s.anim.move ? s.anim.from.x : s.x;
+      s.y = s.anim.move ? s.anim.from.y : s.y;
+      s.anim.duration = Number($("duration").value);
+      s.anim.delay = Number($("delay").value);
+      s.anim.easing = $("easing").value;
+      s.anim.loop = $("loop").checked;
+      s.anim.alternate = $("alternate").checked;
+      persist();
+      renderList();
+    }
+
+    function renderList() {
+      const box = $("shape-list");
+      box.innerHTML = "";
+      banner.shapes.forEach((s, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        const kind = { rect: "Rect", ellipse: "Elipse", diamond: "Rombo", triangle: "Triángulo" }[s.type];
+        const anim = modeOf(s) === "none" ? "quieta" : modeOf(s) === "both" ? "mover+expandir" : modeOf(s) === "move" ? "mover" : "expandir";
+        btn.textContent = `${i + 1}. ${kind} · ${anim}`;
+        btn.setAttribute("aria-selected", s.id === selectedId ? "true" : "false");
+        btn.addEventListener("click", () => {
+          selectedId = s.id;
+          fillShapeFields();
+          renderList();
+        });
+        box.appendChild(btn);
+      });
+    }
+
+    document.querySelectorAll("[data-add]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const shape = newShape(btn.dataset.add);
+        banner.shapes.push(shape);
+        selectedId = shape.id;
+        persist("Forma añadida");
+        fillShapeFields();
+        renderList();
+      });
+    });
+
+    $("delete-shape").addEventListener("click", () => {
+      banner.shapes = banner.shapes.filter((s) => s.id !== selectedId);
+      selectedId = banner.shapes[0]?.id || null;
+      persist("Forma eliminada");
+      fillShapeFields();
+      renderList();
+    });
+
+    document.querySelectorAll("[data-preset]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const preset = WAVE_PRESETS[btn.dataset.preset];
+        Object.assign(banner, preset);
+        fillWaveFields();
+        persist(`Preset ${btn.textContent}`);
+      });
+    });
+
+    $("save").addEventListener("click", () => persist("Guardado. Ábrelo en el artículo para verlo con el 3D."));
+    $("reset").addEventListener("click", () => {
+      Object.assign(banner, { ...BANNER_DEFAULTS, shapes: defaultShapes() });
+      selectedId = banner.shapes[0].id;
+      fillWaveFields();
+      fillShapeFields();
+      renderList();
+      persist("Valores por defecto");
+    });
+
+    ["logo", "showMark", "logoColor", "waveTop", "waveMid", "waveBottom", "speed", "amplitude"]
+      .forEach((id) => $(id).addEventListener("input", readWaveFields));
+    document.querySelector(".props").addEventListener("input", (ev) => {
+      if (ev.target.closest(".props")) readShapeFields();
+    });
+
+    fillWaveFields();
+    fillShapeFields();
+    renderList();
+    applyWaveToDom(stage, banner);
+    startShapePlayer($("shape-svg"), () => banner, () => selectedId);
+
+    let phase = 0;
+    const tickWave = () => {
+      phase += 0.016 * banner.speed;
+      wavePath.setAttribute("d", wavePathD(phase, banner.amplitude, 0.2, banner.height));
+      stage.style.setProperty("--wave-bob", `${Math.sin(phase + 1.2) * 2.5}px`);
+      requestAnimationFrame(tickWave);
+    };
+    requestAnimationFrame(tickWave);
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>

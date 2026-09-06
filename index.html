@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus Daily — Anuncios 3D con Babylon.js</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    /* ============================================================
+       LAYOUT Y TEMA
+       Cada .ad-slot define --ad-w / --ad-h (tamaños IAB).
+       ============================================================ */
+    :root {
+      --bg: #f4f6f8;
+      --paper: #ffffff;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #0b8f78;
+      --neon-2: #3d5aed;
+      --neon-3: #c43a86;
+      --ad-w: 300px;
+      --ad-h: 250px;
+      --sticky-bottom-gap: 28px;
+      --sticky-side-gap: 20px;
+      --rail-w: 300px;
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.7;
+    }
+
+    article {
+      max-width: 760px;
+      margin: 0;
+      padding: 0 0 3rem;
+    }
+    .lede {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 1rem;
+    }
+    .lede h1 { max-width: 760px; }
+    .photo-essay {
+      display: grid;
+      gap: 1.25rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .story-photo {
+      margin: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      box-shadow: 0 8px 24px rgba(26, 35, 48, 0.06);
+    }
+    .story-photo svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: top;
+    }
+    .story-photo figcaption {
+      padding: 0.65rem 0.9rem 0.85rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .page-shell {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 760px) var(--rail-w);
+      column-gap: 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 1.25rem 2rem;
+      align-items: start;
+    }
+    .ad-sky-rail {
+      width: 160px;
+    }
+    .ad-rail {
+      min-height: 100%;
+      padding-bottom: 2rem;
+    }
+    .ad-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 1rem 1.25rem 1.1rem;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+    .ad-band .ad-slot {
+      margin: 0;
+      width: min(100%, var(--ad-w));
+      flex: 0 0 auto;
+    }
+    .kicker {
+      color: var(--neon-2);
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin: 0 0 0.4rem;
+    }
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      line-height: 1.15;
+      margin: 0 0 0.75rem;
+    }
+    .byline { color: var(--muted); font-size: 0.92rem; margin-bottom: 2rem; }
+    p { margin: 0 0 1.2rem; color: var(--ink); }
+    h2 { font-size: 1.35rem; margin: 2rem 0 0.8rem; }
+
+    /* Anuncios: tamaño IAB por slot (--ad-w / --ad-h), se encogen en móvil */
+    .ad-slot {
+      --ad-w: 300px;
+      --ad-h: 250px;
+      width: min(100%, var(--ad-w));
+      max-width: 100%;
+      margin: 2rem auto;
+    }
+    .ad-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 0.35rem;
+    }
+    .ad-frame {
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-bottom: calc(100% * var(--ad-h) / var(--ad-w));
+      margin: 0 auto;
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(26, 35, 48, 0.08);
+      transition: box-shadow 0.35s ease;
+    }
+    .ad-frame:has(.is-visible) {
+      box-shadow: 0 8px 24px rgba(11, 143, 120, 0.22);
+    }
+    .ad-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      overflow: clip;
+      isolation: isolate;
+      background: #05080f;
+      border: 1px solid #c5d0dc;
+      box-sizing: border-box;
+      transition: border-color 0.35s ease;
+    }
+    .ad-container.is-visible {
+      border-color: var(--neon);
+    }
+    .ad-container canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 9px;
+      touch-action: none;
+    }
+    .ad-fallback {
+      display: none;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 1rem;
+      text-align: center;
+    }
+    .ad-container.is-error .ad-fallback { display: grid; }
+    .ad-container.is-error canvas { display: none; }
+    .ad-hint {
+      position: absolute;
+      left: 8px;
+      bottom: 6px;
+      z-index: 3;
+      font-size: 0.65rem;
+      color: rgba(215, 226, 242, 0.75);
+      pointer-events: none;
+      text-shadow: 0 1px 4px #000;
+    }
+
+    /* Barra-ola del anuncio 4: la ola corre y revela el logo */
+    .ad-wave {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      height: 56px;
+      pointer-events: none;
+      overflow: hidden;
+      border-radius: 0 0 9px 9px;
+    }
+    .ad-wave-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .ad-wave-logo {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.45rem;
+      padding-bottom: 10px;
+      transform: translateY(var(--wave-bob, 0px));
+    }
+    .ad-brand-mark {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+      margin-bottom: 2px;
+      background: #04110e;
+      box-shadow: 0 0 10px rgba(0, 240, 200, 0.7);
+      transform: rotate(calc(45deg + var(--logo-spin, 0deg)));
+    }
+    .ad-brand-name {
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      font-size: 0.78rem;
+      color: #04110e;
+    }
+    .ad-2d {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    footer {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 1.25rem 3rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* Anuncio 4: sticky real. Oculto hasta que se pega; entonces entra con un pop. */
+    .sticky-ad {
+      position: sticky;
+      top: calc(100vh - var(--ad-h) - var(--sticky-bottom-gap) - 2rem);
+      z-index: 20;
+      width: var(--ad-w);
+      margin: 0;
+      opacity: 0;
+      transform: translate3d(0, 32px, 0) scale(0.92);
+      pointer-events: none;
+      visibility: hidden;
+      transition:
+        opacity 0.4s ease,
+        transform 0.55s cubic-bezier(0.22, 1.2, 0.36, 1),
+        visibility 0s linear 0.4s;
+    }
+    .sticky-ad.is-stuck {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+      visibility: visible;
+      transition:
+        opacity 0.4s ease,
+        transform 0.55s cubic-bezier(0.22, 1.2, 0.36, 1),
+        visibility 0s;
+    }
+    .sticky-ad.is-stick-enter .ad-frame {
+      animation: stick-enter 0.75s ease;
+    }
+    @keyframes stick-enter {
+      0% {
+        box-shadow: 0 0 0 0 rgba(11, 143, 120, 0);
+        filter: brightness(1.8);
+      }
+      45% {
+        box-shadow:
+          0 0 0 6px rgba(11, 143, 120, 0.35),
+          0 12px 32px rgba(11, 143, 120, 0.28);
+        filter: brightness(1.08);
+      }
+      100% {
+        box-shadow: 0 8px 24px rgba(11, 143, 120, 0.22);
+        filter: none;
+      }
+    }
+    .stick-sentinel {
+      height: 1px;
+      width: 100%;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .ad-slot--mobile .ad-hint { font-size: 0.55rem; }
+    @media (max-width: 1280px) {
+      .page-shell {
+        grid-template-columns: minmax(0, 760px) var(--rail-w);
+      }
+      .ad-sky-rail {
+        grid-column: 1 / -1;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        order: 3;
+        margin-top: 1.5rem;
+      }
+    }
+    @media (max-width: 1100px) {
+      .page-shell {
+        grid-template-columns: 1fr;
+      }
+      .ad-rail {
+        order: -1;
+        min-height: 0;
+        margin-bottom: 1.5rem;
+      }
+      .ad-sky-rail { order: 4; }
+      .sticky-ad {
+        top: auto;
+        bottom: calc(var(--sticky-bottom-gap) + 58px);
+      }
+    }
+    @media (max-width: 768px) {
+      .ad-slot--mobile {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 45;
+        width: 100%;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+        background: rgba(255, 255, 255, 0.94);
+        border-top: 1px solid var(--line);
+      }
+      .ad-slot--mobile .ad-label { margin-bottom: 2px; }
+      body { padding-bottom: 62px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <span class="app-page-title">Edición especial · IAB 3D</span>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+      <a class="app-quiet" href="lab.html">Lab</a>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="ad-band" aria-label="Formatos horizontales">
+    <aside class="ad-slot" style="--ad-w:970px;--ad-h:250px">
+      <div class="ad-label">Publicidad · Billboard · 970×250</div>
+      <div class="ad-frame">
+        <div id="ad-billboard" class="ad-container" data-scene="banner">
+          <canvas id="ad-billboard-canvas" width="970" height="250" aria-label="Anuncio billboard 970 por 250"></canvas>
+          <div class="ad-fallback">Anuncio no disponible</div>
+          <div class="ad-hint">970×250 · impacto superior</div>
+        </div>
+      </div>
+    </aside>
+    <aside class="ad-slot" style="--ad-w:728px;--ad-h:90px">
+      <div class="ad-label">Publicidad · Leaderboard · 728×90</div>
+      <div class="ad-frame">
+        <div id="ad-leader" class="ad-container" data-scene="banner">
+          <canvas id="ad-leader-canvas" width="728" height="90" aria-label="Anuncio leaderboard 728 por 90"></canvas>
+          <div class="ad-fallback">Anuncio no disponible</div>
+          <div class="ad-hint">728×90 · branding</div>
+        </div>
+      </div>
+    </aside>
+    <aside class="ad-slot ad-slot--mobile" style="--ad-w:320px;--ad-h:50px">
+      <div class="ad-label">Publicidad · Mobile banner · 320×50</div>
+      <div class="ad-frame">
+        <div id="ad-mobile" class="ad-container" data-scene="banner">
+          <canvas id="ad-mobile-canvas" width="320" height="50" aria-label="Anuncio móvil 320 por 50"></canvas>
+          <div class="ad-fallback">Anuncio no disponible</div>
+          <div class="ad-hint">320×50</div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="lede">
+    <p class="kicker">Tecnología · Publicidad inmersiva</p>
+    <h1>Los anuncios dejan de ser imágenes estáticas: así se sienten los formatos IAB en tres dimensiones</h1>
+    <p class="byline">Por redacción Nexus · 27 agosto 2026 · 6 min de lectura</p>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. En un feed saturado de banners planos,
+      el reto ya no es solo “ser visto”, sino justificar cada milisegundo de atención. Esta pieza usa
+      texto de relleno a propósito: hace falta altura de página para que el scroll active y pause cada
+      escena 3D exactamente cuando el anuncio entra o sale del viewport.
+    </p>
+
+    <div class="photo-essay">
+     
+      <figure class="story-photo">
+        <svg viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paso peatonal con un banner 300 por 250">
+          <rect width="960" height="420" fill="#dceaf4"/>
+          <polygon points="0,280 960,220 960,420 0,420" fill="#c9d6e0"/>
+          <rect x="330" y="70" width="300" height="250" rx="10" fill="#ffffff" stroke="#0b8f78" stroke-width="3"/>
+          <text x="480" y="200" text-anchor="middle" fill="#1a2330" font-family="Segoe UI, sans-serif" font-size="22" font-weight="700">300 × 250</text>
+          <circle cx="180" cy="300" r="36" fill="#9eb0c0"/>
+          <circle cx="780" cy="310" r="40" fill="#9eb0c0"/>
+        </svg>
+        <figcaption>Foto 3 · Un 300×250 en la calle. Al terminar esta tira, el anuncio #4 se pega al viewport.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div class="page-shell">
+  <aside class="ad-sky-rail">
+    <aside class="ad-slot" style="--ad-w:160px;--ad-h:600px">
+      <div class="ad-label">Publicidad · Skyscraper · 160×600</div>
+      <div class="ad-frame">
+        <div id="ad-sky" class="ad-container" data-scene="banner">
+          <canvas id="ad-sky-canvas" width="160" height="600" aria-label="Anuncio rascacielos 160 por 600"></canvas>
+          <div class="ad-fallback">Anuncio no disponible</div>
+          <div class="ad-hint">160×600 · storytelling</div>
+        </div>
+      </div>
+    </aside>
+  </aside>
+
+  <article>
+    <aside class="ad-slot" style="--ad-w:300px;--ad-h:250px">
+      <div class="ad-label">Publicidad · Medium rectangle · 300×250</div>
+      <div class="ad-frame">
+      <div id="ad-1" class="ad-container" data-scene="particles">
+        <canvas id="ad-1-canvas" width="300" height="250" aria-label="Anuncio 3D de partículas 300 por 250"></canvas>
+        <div class="ad-fallback">Anuncio no disponible</div>
+        <div class="ad-hint">Hover: logo · el cursor atrae partículas</div>
+      </div>
+      </div>
+    </aside>
+
+    <p>
+      Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae. Integer
+      volutpat, nisl vitae tincidunt maximus, sapien sapien pretium lorem, vitae rhoncus elit lacus in
+      arcu. Suspendisse potenti. Cras non lectus ac nisi vehicula tempor. Nam at felis et elit pulvinar
+      convallis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis
+      egestas. Donec sit amet magna at nisl luctus vehicula.
+    </p>
+    <p>
+      Curabitur non nulla sit amet nisl tempus convallis quis ac lectus. Proin eget tortor risus.
+      Praesent sapien massa, convallis a pellentesque nec, egestas non nisi. Vivamus magna justo,
+      lacinia eget consectetur sed, convallis at tellus. Nulla quis lorem ut libero malesuada feugiat.
+      Quisque velit nisi, pretium ut lacinia in, elementum id enim. Donec rutrum congue leo eget malesuada.
+    </p>
+    <h2>Por qué el viewport es el nuevo “play”</h2>
+    <p>
+      Mauris blandit aliquet elit, eget tincidunt nibh pulvinar a. Sed porttitor lectus nibh. Curabitur
+      aliquet quam id dui posuere blandit. Vestibulum ac diam sit amet quam vehicula elementum sed sit
+      amet dui. Pellentesque in ipsum id orci porta dapibus. Vivamus suscipit tortor eget felis porttitor
+      volutpat. Nulla porttitor accumsan tincidunt.
+    </p>
+    <p>
+      Praesent sapien massa, convallis a pellentesque nec, egestas non nisi. Vestibulum ante ipsum primis
+      in faucibus orci luctus et ultrices posuere cubilia curae; Donec velit neque, auctor sit amet
+      aliquam vel, ullamcorper sit amet ligula. Curabitur non nulla sit amet nisl tempus convallis quis
+      ac lectus. Quisque velit nisi, pretium ut lacinia in, elementum id enim.
+    </p>
+    <p>
+      Donec sollicitudin molestie malesuada. Curabitur arcu erat, accumsan id imperdiet et, porttitor at
+      sem. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
+      Pellentesque in ipsum id orci porta dapibus. Proin eget tortor risus. Nulla quis lorem ut libero
+      malesuada feugiat. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus.
+    </p>
+
+    <!-- Large rectangle 336×280 -->
+    <aside class="ad-slot" style="--ad-w:336px;--ad-h:280px">
+      <div class="ad-label">Publicidad · Large rectangle · 336×280</div>
+      <div class="ad-frame">
+      <div id="ad-2" class="ad-container" data-scene="cube">
+        <canvas id="ad-2-canvas" width="336" height="280" aria-label="Anuncio 3D de cubo 336 por 280"></canvas>
+        <div class="ad-fallback">Anuncio no disponible</div>
+        <div class="ad-hint">Click: cambia el color de las caras</div>
+      </div>
+      </div>
+    </aside>
+
+    <h2>Rendimiento: 30 fps en idle, animación plena solo si se ve</h2>
+    <p>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante venenatis
+      dapibus posuere velit aliquet. Etiam porta sem malesuada magna mollis euismod. Aenean lacinia
+      bibendum nulla sed consectetur. Morbi leo risus, porta ac consectetur ac, vestibulum at eros.
+      Integer posuere erat a ante venenatis dapibus posuere velit aliquet.
+    </p>
+    <p>
+      Cras mattis consectetur purus sit amet fermentum. Donec id elit non mi porta gravida at eget metus.
+      Nullam quis risus eget urna mollis ornare vel eu leo. Donec sed odio dui. Aenean eu leo quam.
+      Pellentesque ornare sem lacinia quam venenatis vestibulum. Sed posuere consectetur est at lobortis.
+    </p>
+    <p>
+      Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo
+      sit amet risus. Etiam porta sem malesuada magna mollis euismod. Maecenas sed diam eget risus varius
+      blandit sit amet non magna. Integer posuere erat a ante venenatis dapibus posuere velit aliquet.
+      Vestibulum id ligula porta felis euismod semper.
+    </p>
+    <p>
+      Aenean lacinia bibendum nulla sed consectetur. Cum sociis natoque penatibus et magnis dis parturient
+      montes, nascetur ridiculus mus. Donec ullamcorper nulla non metus auctor fringilla. Maecenas faucibus
+      mollis interdum. Vestibulum id ligula porta felis euismod semper. Cras justo odio, dapibus ac
+      facilisis in, egestas eget quam.
+    </p>
+    <p>
+      Nullam id dolor id nibh ultricies vehicula ut id elit. Morbi leo risus, porta ac consectetur ac,
+      vestibulum at eros. Praesent commodo cursus magna, vel scelerisque nisl consectetur et. Vivamus
+      sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Integer posuere erat a ante venenatis
+      dapibus posuere velit aliquet.
+    </p>
+    <p>
+      Duis mollis, est non commodo luctus, nisi erat porttitor ligula, eget lacinia odio sem nec elit.
+      Cras mattis consectetur purus sit amet fermentum. Aenean lacinia bibendum nulla sed consectetur.
+      Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. Integer posuere erat a ante.
+    </p>
+
+    <h2>Cierre</h2>
+    <p>
+      Maecenas sed diam eget risus varius blandit sit amet non magna. Cras justo odio, dapibus ac
+      facilisis in, egestas eget quam. Donec id elit non mi porta gravida at eget metus. Nullam quis
+      risus eget urna mollis ornare vel eu leo. Cum sociis natoque penatibus et magnis dis parturient
+      montes, nascetur ridiculus mus.
+    </p>
+    <p>
+      Vestibulum id ligula porta felis euismod semper. Nulla vitae elit libero, a pharetra augue.
+      Aenean lacinia bibendum nulla sed consectetur. Integer posuere erat a ante venenatis dapibus
+      posuere velit aliquet. Donec ullamcorper nulla non metus auctor fringilla. Fin de la pieza:
+      si llegaste hasta aquí, cada formato IAB ya debería haber arrancado y pausado al menos una vez.
+    </p>
+  </article>
+
+  <aside class="ad-rail">
+    <aside class="ad-slot" style="--ad-w:300px;--ad-h:600px">
+      <div class="ad-label">Publicidad · Half-page · 300×600</div>
+      <div class="ad-frame">
+        <div id="ad-half" class="ad-container" data-scene="sphere">
+          <canvas id="ad-half-canvas" width="300" height="600" aria-label="Anuncio media página 300 por 600"></canvas>
+          <div class="ad-fallback">Anuncio no disponible</div>
+          <div class="ad-hint">Scroll visible: deforma el planeta</div>
+        </div>
+      </div>
+    </aside>
+    <div class="stick-sentinel" aria-hidden="true"></div>
+    <div class="ad-slot sticky-ad hide-until-stuck" style="--ad-w:300px;--ad-h:250px">
+      <div class="ad-label">Publicidad · Medium · 300×250 · scroll</div>
+    <div class="ad-frame">
+    <div id="ad-4" class="ad-container" data-scene="scroll">
+      <canvas id="ad-4-canvas" width="300" height="250" aria-label="Anuncio 3D ligado al scroll"></canvas>
+      <svg class="ad-2d" viewBox="0 0 300 250" aria-hidden="true"></svg>
+      <div class="ad-fallback">Anuncio no disponible</div>
+      <div class="ad-wave" aria-hidden="true">
+        <svg class="ad-wave-svg" viewBox="0 0 300 56" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="ad4-wave-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#7af7c5" />
+              <stop offset="55%" stop-color="#00f0c8" />
+              <stop offset="100%" stop-color="#6d7cff" />
+            </linearGradient>
+          </defs>
+          <path class="ad-wave-path" fill="url(#ad4-wave-fill)" d="M0 56 L0 28 L300 28 L300 56 Z"></path>
+        </svg>
+        <div class="ad-wave-logo">
+          <span class="ad-brand-mark"></span>
+          <span class="ad-brand-name">NEXUS</span>
+        </div>
+      </div>
+    </div>
+    </div>
+    </div>
+  </aside>
+  </div>
+
+  <footer>POC Babylon.js · WebGPU con fallback WebGL · IAB 970×250 · 728×90 · 300×250 · 336×280 · 320×50 · 160×600 · 300×600</footer>
+
+  <!--
+    Import map: Babylon.js v7+ como ES module.
+    esm.sh empaqueta @babylonjs/core para el navegador (import maps nativos).
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import { loadBanner, applyWaveToDom, startShapePlayer, wavePathD, STORAGE_KEY } from "./ad4-banner.js";
+    /**
+     * ============================================================
+     *  CÓMO AJUSTAR ESTE POC (sin tocar el resto)
+     * -----------------------------------------------------------
+     *  Tamaño de anuncios ........ --ad-w / --ad-h en cada .ad-slot
+     *  Nº de partículas .......... CONFIG.particleCount
+     *  Colores escena 1 .......... CONFIG.colors.particles
+     *  Colores cubo .............. CONFIG.colors.cubeFaces
+     *  Colores planeta ........... CONFIG.colors.planet
+     *  Colores anillo / logo ..... CONFIG.colors.scroll
+     *  Velocidad animaciones ..... CONFIG.speeds.*
+     *  Hueco sticky vs. bottom ... CSS :root --sticky-bottom-gap
+     * ============================================================
+     */
+    const CONFIG = {
+      particleCount: 180,          // mantener bajo: cada partícula es un quad (2 tris)
+      logoOnHover: true,
+      speeds: {
+        rain: 1.15,                // caída de partículas
+        cubeSpin: 0.9,             // giro del cubo (idle más lento)
+        planetSpin: 0.35,
+        textureScroll: 22,         // px/s del mapa procedural
+        scrollEase: 8,             // seguimiento del anillo al progreso de página
+      },
+      colors: {
+        particles: ["#00f0c8", "#6d7cff", "#ff3cac", "#f5f7ff"],
+        cubeFaces: ["#00f0c8", "#6d7cff", "#ff3cac", "#ffd166", "#7af7c5", "#4cc9f0"],
+        planet: { ocean: "#081428", land: "#00f0c8", cloud: "#6d7cff", glow: "#ff3cac" },
+        scroll: { ring: "#6d7cff", core: "#00f0c8", needle: "#ff3cac" },
+        clear: [0.02, 0.03, 0.06],
+      },
+      observerThreshold: 0,        // cualquier píxel visible enciende el anuncio
+      fpsVisible: 60,
+    };
+
+    // Un engine WebGL compartido; solo se hace render de anuncios visibles.
+    const ads = new Map();
+    let sharedLoop = null;
+    const AD4_BANNER = loadBanner();
+    const AD4_FX = { burst: 0 };
+
+    function applyAd4Banner() {
+      applyWaveToDom(document.getElementById("ad-4"), AD4_BANNER);
+    }
+
+    function markError(container) {
+      container.classList.add("is-error");
+    }
+
+    function hexToColor4(hex) {
+      const n = hex.replace("#", "");
+      const r = parseInt(n.slice(0, 2), 16) / 255;
+      const g = parseInt(n.slice(2, 4), 16) / 255;
+      const b = parseInt(n.slice(4, 6), 16) / 255;
+      return { r, g, b, a: 1 };
+    }
+
+    /** Textura procedural (sin archivos externos): glow radial para partículas. */
+    function makeGlowTexture(scene, BABYLON) {
+      const size = 64;
+      const tex = new BABYLON.DynamicTexture("glow", { width: size, height: size }, scene, false);
+      const ctx = tex.getContext();
+      const grd = ctx.createRadialGradient(32, 32, 1, 32, 32, 31);
+      grd.addColorStop(0, "rgba(255,255,255,1)");
+      grd.addColorStop(0.35, "rgba(180,255,240,0.85)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(32, 32, 31, 0, Math.PI * 2);
+      ctx.fill();
+      tex.hasAlpha = true;
+      tex.update();
+      return tex;
+    }
+
+    /** Puntos 3D que dibujan un logo geométrico (rombo + barras). */
+    function logoTargets(count) {
+      const pts = [];
+      const diamond = [
+        [0, 0.72, 0], [0.42, 0, 0], [0, -0.72, 0], [-0.42, 0, 0],
+      ];
+      for (let i = 0; i < diamond.length; i++) {
+        const a = diamond[i];
+        const b = diamond[(i + 1) % diamond.length];
+        const steps = Math.floor(count * 0.12);
+        for (let s = 0; s < steps; s++) {
+          const t = s / steps;
+          pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0]);
+        }
+      }
+      const barCount = Math.floor(count * 0.15);
+      for (let i = 0; i < barCount; i++) {
+        const t = i / Math.max(1, barCount - 1);
+        pts.push([-0.18 + t * 0.36, 0.18, 0]);
+        pts.push([-0.18 + t * 0.36, -0.18, 0]);
+      }
+      while (pts.length < count) {
+        const ang = (pts.length / count) * Math.PI * 2;
+        pts.push([Math.cos(ang) * 0.22, Math.sin(ang) * 0.22, 0]);
+      }
+      return pts.slice(0, count);
+    }
+
+    function adCanvas(scene) {
+      return scene.metadata?.displayCanvas || scene.getEngine().getRenderingCanvas();
+    }
+
+    function syncAdSize(container) {
+      const slot = container.closest(".ad-slot") || container;
+      const frame = container.closest(".ad-frame");
+      const tw = parseFloat(getComputedStyle(slot).getPropertyValue("--ad-w")) || 300;
+      const th = parseFloat(getComputedStyle(slot).getPropertyValue("--ad-h")) || 250;
+      const width = Math.max(
+        2,
+        Math.round((frame || slot).clientWidth || slot.getBoundingClientRect().width || tw)
+      );
+      const height = Math.max(2, Math.round((width * th) / tw));
+      if (frame && frame.clientHeight < 2) {
+        frame.style.paddingBottom = "0";
+        frame.style.height = `${height}px`;
+      }
+      if (container.clientHeight < 2) {
+        container.style.height = `${height}px`;
+      }
+      const canvas = container.querySelector("canvas");
+      if (canvas && canvas.clientHeight < 2) {
+        canvas.style.width = "100%";
+        canvas.style.height = `${height}px`;
+      }
+      return { width, height };
+    }
+
+    function waitForBox(el) {
+      return new Promise((resolve) => {
+        syncAdSize(el);
+        const box = el.closest(".ad-frame") || el;
+        const ready = () =>
+          (el.clientHeight > 1 || box.clientHeight > 1) &&
+          (el.clientWidth > 1 || box.clientWidth > 1);
+        if (ready()) return resolve();
+        const ro = new ResizeObserver(() => {
+          syncAdSize(el);
+          if (!ready()) return;
+          ro.disconnect();
+          resolve();
+        });
+        ro.observe(box);
+        requestAnimationFrame(() => {
+          syncAdSize(el);
+          if (ready()) {
+            ro.disconnect();
+            resolve();
+          }
+        });
+        setTimeout(() => {
+          syncAdSize(el);
+          ro.disconnect();
+          resolve();
+        }, 1500);
+      });
+    }
+
+    function createSharedEngine(BABYLON) {
+      const gl = document.createElement("canvas");
+      gl.width = 300;
+      gl.height = 250;
+      gl.setAttribute("aria-hidden", "true");
+      Object.assign(gl.style, {
+        position: "fixed",
+        left: "-4000px",
+        top: "0",
+        width: "300px",
+        height: "250px",
+        pointerEvents: "none",
+      });
+      document.body.appendChild(gl);
+      // Un solo WebGL: 8 engines dejan los canvas en negro (límite de contextos).
+      const engine = new BABYLON.Engine(gl, true, {
+        antialias: true,
+        adaptToDeviceRatio: false,
+        preserveDrawingBuffer: true,
+        stencil: false,
+        powerPreference: "high-performance",
+      });
+      engine.setHardwareScalingLevel(1);
+      return engine;
+    }
+
+    function canvasAspect(scene) {
+      const canvas = adCanvas(scene);
+      const w = canvas?.clientWidth || scene.metadata?.w || 300;
+      const h = canvas?.clientHeight || scene.metadata?.h || 250;
+      return { w, h, aspect: w / Math.max(1, h) };
+    }
+
+    function setupCamera(scene, BABYLON, radius = 3.2) {
+      const { aspect } = canvasAspect(scene);
+      let r = radius;
+      if (aspect > 3) r = Math.min(radius, 2.55);
+      if (aspect < 0.55) r = radius * 1.28;
+      const camera = new BABYLON.ArcRotateCamera(
+        "cam",
+        Math.PI / 2,
+        aspect > 3 ? 1.25 : 1.15,
+        r,
+        BABYLON.Vector3.Zero(),
+        scene
+      );
+      camera.lowerRadiusLimit = r;
+      camera.upperRadiusLimit = r;
+      camera.fov = aspect > 6 ? 0.28 : aspect > 3.5 ? 0.42 : 0.8;
+      camera.panningSensibility = 0;
+      // Sin attachControl: el scroll de la página no lo captura el canvas.
+      camera.inputs.clear();
+      return camera;
+    }
+
+    /* -------------------- Escena 1: partículas -------------------- */
+    function buildParticleScene(scene, BABYLON) {
+      scene.clearColor = new BABYLON.Color4(...CONFIG.colors.clear, 1);
+      setupCamera(scene, BABYLON, 3.4);
+      const light = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene);
+      light.intensity = 0.9;
+
+      const count = CONFIG.particleCount;
+      const plane = BABYLON.MeshBuilder.CreatePlane("pt", { size: 0.09 }, scene);
+      const sps = new BABYLON.SolidParticleSystem("sps", scene, { useModelMaterial: true });
+      sps.billboard = true;
+      sps.addShape(plane, count);
+      const mesh = sps.buildMesh();
+      plane.dispose();
+
+      const mat = new BABYLON.StandardMaterial("pm", scene);
+      mat.diffuseTexture = makeGlowTexture(scene, BABYLON);
+      mat.diffuseTexture.hasAlpha = true;
+      mat.useAlphaFromDiffuseTexture = true;
+      mat.emissiveColor = new BABYLON.Color3(0.4, 1, 0.9);
+      mat.disableLighting = true;
+      mat.backFaceCulling = false;
+      mesh.material = mat;
+      mesh.hasVertexAlpha = true;
+
+      const palette = CONFIG.colors.particles.map(hexToColor4);
+      const targets = logoTargets(count);
+      const cursor = { x: 0, y: 0, active: false };
+      const hover = { value: 0 };
+
+      sps.initParticles = () => {
+        for (let i = 0; i < sps.nbParticles; i++) {
+          const p = sps.particles[i];
+          p.position.x = (Math.random() - 0.5) * 2.4;
+          p.position.y = Math.random() * 2.2 + 0.4;
+          p.position.z = (Math.random() - 0.5) * 0.6;
+          p.velocity = new BABYLON.Vector3(
+            (Math.random() - 0.5) * 0.15,
+            -0.35 - Math.random() * 0.55,
+            0
+          );
+          const c = palette[i % palette.length];
+          p.color = new BABYLON.Color4(c.r, c.g, c.b, 0.95);
+        }
+      };
+      sps.buildParticle = (particle) => particle;
+      sps.initParticles();
+      sps.setParticles();
+
+      const canvas = adCanvas(scene);
+      canvas.addEventListener("pointermove", (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        const nx = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+        cursor.x = nx * 1.4;
+        cursor.y = ny * 1.05;
+        cursor.active = true;
+      });
+      canvas.addEventListener("pointerleave", () => {
+        cursor.active = false;
+      });
+      canvas.addEventListener("pointerenter", () => {
+        hover.value = 1;
+      });
+      canvas.addEventListener("pointerleave", () => {
+        hover.value = 0;
+      });
+
+      scene.onBeforeRenderObservable.add(() => {
+        const dt = Math.min(0.05, scene.getEngine().getDeltaTime() / 1000);
+        const rain = CONFIG.speeds.rain;
+        for (let i = 0; i < sps.nbParticles; i++) {
+          const p = sps.particles[i];
+          const logo = targets[i];
+          if (hover.value > 0.5 && CONFIG.logoOnHover) {
+            p.position.x += (logo[0] - p.position.x) * 4.5 * dt;
+            p.position.y += (logo[1] - p.position.y) * 4.5 * dt;
+            p.position.z += (logo[2] - p.position.z) * 4.5 * dt;
+          } else {
+            p.position.x += p.velocity.x * rain * dt * 2.2;
+            p.position.y += p.velocity.y * rain * dt * 2.2;
+            if (p.position.y < -1.25) {
+              p.position.y = 1.35;
+              p.position.x = (Math.random() - 0.5) * 2.4;
+            }
+          }
+          if (cursor.active) {
+            const dx = cursor.x - p.position.x;
+            const dy = cursor.y - p.position.y;
+            const d2 = dx * dx + dy * dy + 0.08;
+            p.position.x += (dx / d2) * 0.55 * dt;
+            p.position.y += (dy / d2) * 0.55 * dt;
+          }
+        }
+        sps.setParticles();
+      });
+
+      return { mesh, sps };
+    }
+
+    /* -------------------- Escena 2: cubo -------------------- */
+    function buildCubeScene(scene, BABYLON) {
+      scene.clearColor = new BABYLON.Color4(...CONFIG.colors.clear, 1);
+      const camera = setupCamera(scene, BABYLON, 3.1);
+      camera.beta = 1.05;
+      const light = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0.4, 1, 0.3), scene);
+      light.intensity = 0.95;
+      const fill = new BABYLON.HemisphericLight("f", new BABYLON.Vector3(-1, -0.4, 1), scene);
+      fill.intensity = 0.35;
+
+      const faceColors = CONFIG.colors.cubeFaces.map((hex) => {
+        const c = hexToColor4(hex);
+        return new BABYLON.Color4(c.r, c.g, c.b, 1);
+      });
+
+      const box = BABYLON.MeshBuilder.CreateBox("cube", {
+        size: 1.25,
+        faceColors,
+        updatable: true,
+      }, scene);
+      const mat = new BABYLON.StandardMaterial("cm", scene);
+      mat.disableLighting = false;
+      mat.specularColor = new BABYLON.Color3(0.35, 0.35, 0.45);
+      mat.emissiveColor = new BABYLON.Color3(0.08, 0.1, 0.14);
+      box.material = mat;
+
+      const unit = { mesh: box, spin: CONFIG.speeds.cubeSpin };
+      const canvas = adCanvas(scene);
+      canvas.style.cursor = "pointer";
+      canvas.addEventListener("click", () => {
+        const colors = [];
+        for (let i = 0; i < 6; i++) {
+          colors.push(new BABYLON.Color4(Math.random(), Math.random(), Math.random(), 1));
+        }
+        const vc = [];
+        for (let f = 0; f < 6; f++) {
+          const col = colors[f];
+          for (let v = 0; v < 4; v++) vc.push(col.r, col.g, col.b, col.a);
+        }
+        const mesh = unit.mesh;
+        if (mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind)?.length === vc.length) {
+          mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, vc);
+          return;
+        }
+        const old = mesh.rotation.clone();
+        mesh.dispose();
+        const next = BABYLON.MeshBuilder.CreateBox("cube", {
+          size: 1.25,
+          faceColors: colors,
+          updatable: true,
+        }, scene);
+        next.material = mat;
+        next.rotation.copyFrom(old);
+        unit.mesh = next;
+      });
+      scene.onBeforeRenderObservable.add(() => {
+        const dt = scene.getEngine().getDeltaTime() / 1000;
+        const mesh = unit.mesh;
+        if (!mesh) return;
+        const k = ads.get("ad-2")?.visible ? unit.spin : unit.spin * 0.22;
+        mesh.rotation.y += dt * k;
+        mesh.rotation.x += dt * k * 0.45;
+      });
+      return unit;
+    }
+
+    /* -------------------- Escena 3: planeta -------------------- */
+    function buildSphereScene(scene, BABYLON) {
+      scene.clearColor = new BABYLON.Color4(...CONFIG.colors.clear, 1);
+      setupCamera(scene, BABYLON, 3.15);
+      const light = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0.2, 1, 0.6), scene);
+      light.intensity = 1.05;
+
+      // 12 segmentos ≈ 288 tris (límite 500). updatable para deformar vértices.
+      const sphere = BABYLON.MeshBuilder.CreateSphere("planet", {
+        diameter: 1.7,
+        segments: 12,
+        updatable: true,
+      }, scene);
+
+      const size = 256;
+      const dyn = new BABYLON.DynamicTexture("planetTex", { width: size, height: size }, scene, false);
+      const ctx = dyn.getContext();
+      const mat = new BABYLON.StandardMaterial("sm", scene);
+      mat.diffuseTexture = dyn;
+      mat.emissiveColor = new BABYLON.Color3(0.12, 0.18, 0.22);
+      mat.specularColor = new BABYLON.Color3(0.2, 0.25, 0.3);
+      sphere.material = mat;
+
+      const basePos = Float32Array.from(sphere.getVerticesData(BABYLON.VertexBuffer.PositionKind));
+      const deform = { amount: 0, target: 0 };
+      let texOffset = 0;
+
+      function paintTexture(offset) {
+        const { ocean, land, cloud } = CONFIG.colors.planet;
+        ctx.fillStyle = ocean;
+        ctx.fillRect(0, 0, size, size);
+        for (let y = 0; y < size; y += 4) {
+          const band = 0.5 + 0.5 * Math.sin((y + offset) * 0.04);
+          ctx.fillStyle = band > 0.55 ? land : cloud;
+          ctx.globalAlpha = 0.35 + band * 0.4;
+          ctx.fillRect(0, y, size, 4);
+        }
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < 18; i++) {
+          const x = (i * 73 + offset * 0.4) % size;
+          const y = (i * 51 + offset * 0.2) % size;
+          ctx.fillStyle = land;
+          ctx.beginPath();
+          ctx.ellipse(x, y, 18, 10, i, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        dyn.update();
+      }
+      paintTexture(0);
+
+      window.addEventListener("scroll", () => {
+        if (ads.get("ad-half")?.visible) {
+          deform.target = Math.min(0.28, deform.target + 0.045);
+        }
+      }, { passive: true });
+
+      scene.onBeforeRenderObservable.add(() => {
+        const dt = scene.getEngine().getDeltaTime() / 1000;
+        const visible = ads.get("ad-half")?.visible;
+        sphere.rotation.y += dt * CONFIG.speeds.planetSpin * (visible ? 1 : 0.2);
+        texOffset += dt * CONFIG.speeds.textureScroll * (visible ? 1 : 0.15);
+        if (visible) paintTexture(texOffset);
+        deform.target *= 0.92;
+        deform.amount += (deform.target - deform.amount) * 0.12;
+        const pos = sphere.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+        const amp = deform.amount;
+        for (let i = 0; i < pos.length; i += 3) {
+          const bx = basePos[i], by = basePos[i + 1], bz = basePos[i + 2];
+          const n = Math.hypot(bx, by, bz) || 1;
+          const wave = 1 + amp * Math.sin(by * 8 + texOffset * 0.08) * Math.cos(bx * 6);
+          pos[i] = (bx / n) * (0.85 * wave);
+          pos[i + 1] = (by / n) * (0.85 * wave);
+          pos[i + 2] = (bz / n) * (0.85 * wave);
+        }
+        sphere.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos);
+      });
+
+      return { mesh: sphere, deform };
+    }
+
+    function pageScrollProgress() {
+      const el = document.documentElement;
+      const max = el.scrollHeight - el.clientHeight;
+      return max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    }
+
+    /* -------------------- Escena 4: anillo ligado al scroll -------------------- */
+    function buildScrollScene(scene, BABYLON) {
+      scene.clearColor = new BABYLON.Color4(...CONFIG.colors.clear, 1);
+      const camera = setupCamera(scene, BABYLON, 3.35);
+      camera.beta = 1.05;
+      camera.alpha = Math.PI * 0.72;
+      const light = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0.3, 1, 0.4), scene);
+      light.intensity = 1.05;
+
+      // Toro ~256 tris + icosaedro + cubo: por debajo de 500.
+      const torus = BABYLON.MeshBuilder.CreateTorus("ring", {
+        diameter: 1.85,
+        thickness: 0.16,
+        tessellation: 16,
+      }, scene);
+      const ringMat = new BABYLON.StandardMaterial("rm", scene);
+      const ringHex = hexToColor4(CONFIG.colors.scroll.ring);
+      ringMat.emissiveColor = new BABYLON.Color3(ringHex.r, ringHex.g, ringHex.b);
+      ringMat.diffuseColor = new BABYLON.Color3(0.12, 0.14, 0.28);
+      ringMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.6);
+      torus.material = ringMat;
+
+      const core = BABYLON.MeshBuilder.CreatePolyhedron("logo", { type: 1, size: 0.38 }, scene);
+      const coreMat = new BABYLON.StandardMaterial("cm4", scene);
+      const coreHex = hexToColor4(CONFIG.colors.scroll.core);
+      coreMat.emissiveColor = new BABYLON.Color3(coreHex.r * 0.7, coreHex.g * 0.7, coreHex.b * 0.7);
+      coreMat.diffuseColor = new BABYLON.Color3(coreHex.r, coreHex.g, coreHex.b);
+      core.material = coreMat;
+
+      const barMat = new BABYLON.StandardMaterial("logoBar", scene);
+      barMat.emissiveColor = new BABYLON.Color3(coreHex.r * 0.5, coreHex.g * 0.5, coreHex.b * 0.5);
+      barMat.diffuseColor = coreMat.diffuseColor;
+      const barT = BABYLON.MeshBuilder.CreateBox("logoBarT", { width: 0.55, height: 0.06, depth: 0.06 }, scene);
+      const barB = BABYLON.MeshBuilder.CreateBox("logoBarB", { width: 0.55, height: 0.06, depth: 0.06 }, scene);
+      barT.position.y = 0.18;
+      barB.position.y = -0.18;
+      barT.parent = core;
+      barB.parent = core;
+      barT.material = barMat;
+      barB.material = barMat;
+
+      const needle = BABYLON.MeshBuilder.CreateBox("needle", { size: 0.18 }, scene);
+      const needleMat = new BABYLON.StandardMaterial("nm", scene);
+      const nHex = hexToColor4(CONFIG.colors.scroll.needle);
+      needleMat.emissiveColor = new BABYLON.Color3(nHex.r, nHex.g, nHex.b);
+      needleMat.diffuseColor = new BABYLON.Color3(nHex.r, nHex.g, nHex.b);
+      needle.material = needleMat;
+
+      const state = { progress: 0, target: 0, phase: 0 };
+      const brandHost = adCanvas(scene)?.closest(".ad-container");
+      const wavePath = brandHost?.querySelector(".ad-wave-path");
+      window.addEventListener("scroll", () => {
+        state.target = pageScrollProgress();
+      }, { passive: true });
+      state.target = pageScrollProgress();
+
+      scene.onBeforeRenderObservable.add(() => {
+        const dt = Math.min(0.05, scene.getEngine().getDeltaTime() / 1000);
+        const visible = ads.get("ad-4")?.visible;
+        const ease = CONFIG.speeds.scrollEase * (visible ? 1 : 0.25);
+        state.progress += (state.target - state.progress) * Math.min(1, ease * dt);
+
+        const t = state.progress;
+        torus.rotation.x = t * Math.PI * 2;
+        torus.rotation.z = 0.35 + t * 0.4;
+        core.rotation.y += dt * (0.4 + t * 1.8 + AD4_FX.burst * 4);
+        core.scaling.setAll(0.85 + t * 0.45 + AD4_FX.burst * 0.4);
+        AD4_FX.burst *= 0.9;
+
+        const ang = t * Math.PI * 2;
+        const radius = 0.925;
+        needle.position.x = Math.cos(ang) * radius;
+        needle.position.z = Math.sin(ang) * radius;
+        needle.position.y = Math.sin(ang * 2) * 0.12;
+        needle.rotation.y = ang;
+
+        state.phase += dt * (AD4_BANNER.speed + t * 3.2);
+        const amp = AD4_BANNER.amplitude + t * 5 + AD4_FX.burst * 14;
+        if (wavePath) wavePath.setAttribute("d", wavePathD(state.phase, amp, t, AD4_BANNER.height));
+        if (brandHost) {
+          brandHost.style.setProperty("--logo-spin", `${t * 360}deg`);
+          const bob = Math.sin(state.phase + 1.2) * (2.5 + t * 2);
+          brandHost.style.setProperty("--wave-bob", `${bob}px`);
+        }
+
+        const ringHex = hexToColor4(AD4_BANNER.ring);
+        const coreHexLive = hexToColor4(AD4_BANNER.core);
+        const needleHex = hexToColor4(AD4_BANNER.needle);
+        ringMat.emissiveColor.set(
+          ringHex.r * (0.35 + t * 0.65),
+          ringHex.g * (0.35 + t * 0.65),
+          ringHex.b * (0.55 + t * 0.45)
+        );
+        coreMat.emissiveColor.set(
+          coreHexLive.r * (0.4 + t * 0.6),
+          coreHexLive.g * (0.4 + t * 0.6),
+          coreHexLive.b * (0.3 + (1 - t) * 0.4)
+        );
+        coreMat.diffuseColor.set(coreHexLive.r, coreHexLive.g, coreHexLive.b);
+        needleMat.emissiveColor.set(needleHex.r, needleHex.g, needleHex.b);
+        needleMat.diffuseColor.set(needleHex.r, needleHex.g, needleHex.b);
+      });
+
+      return { torus, core, needle, state };
+    }
+
+    /* Banner IAB: piezas que recorren el eje largo (970×250, 728×90, 320×50, 160×600) */
+    function buildBannerScene(scene, BABYLON) {
+      scene.clearColor = new BABYLON.Color4(...CONFIG.colors.clear, 1);
+      const { aspect } = canvasAspect(scene);
+      const wide = aspect >= 1;
+      const camera = setupCamera(scene, BABYLON, wide ? 2.7 : 4.1);
+      camera.alpha = wide ? Math.PI * 0.5 : Math.PI * 0.62;
+      const light = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0.3, 1, 0.4), scene);
+      light.intensity = 1.05;
+
+      const palette = CONFIG.colors.cubeFaces.map(hexToColor4);
+      const count = wide ? (aspect > 5 ? 5 : 7) : 8;
+      const span = wide ? (aspect > 5 ? 2.4 : 3.1) : 2.6;
+      const size = wide && aspect > 5 ? 0.22 : wide ? 0.32 : 0.42;
+      const items = [];
+
+      const core = BABYLON.MeshBuilder.CreatePolyhedron("mark", { type: 1, size: size * 0.85 }, scene);
+      const coreMat = new BABYLON.StandardMaterial("bannerCore", scene);
+      const coreHex = hexToColor4(CONFIG.colors.scroll.core);
+      coreMat.emissiveColor = new BABYLON.Color3(coreHex.r * 0.7, coreHex.g * 0.7, coreHex.b * 0.7);
+      coreMat.diffuseColor = new BABYLON.Color3(coreHex.r, coreHex.g, coreHex.b);
+      core.material = coreMat;
+
+      for (let i = 0; i < count; i++) {
+        const box = BABYLON.MeshBuilder.CreateBox(`b${i}`, { size }, scene);
+        const mat = new BABYLON.StandardMaterial(`bm${i}`, scene);
+        const c = palette[i % palette.length];
+        mat.emissiveColor = new BABYLON.Color3(c.r * 0.55, c.g * 0.55, c.b * 0.55);
+        mat.diffuseColor = new BABYLON.Color3(c.r, c.g, c.b);
+        box.material = mat;
+        items.push({ mesh: box, offset: (i / count) * Math.PI * 2, spin: 0.6 + i * 0.08 });
+      }
+
+      const hostId = adCanvas(scene)?.closest(".ad-container")?.id;
+      scene.onBeforeRenderObservable.add(() => {
+        const dt = Math.min(0.05, scene.getEngine().getDeltaTime() / 1000);
+        const visible = hostId ? ads.get(hostId)?.visible : true;
+        const k = visible ? 1 : 0.22;
+        const t = performance.now() * 0.001 * k;
+        core.rotation.y += dt * 1.2 * k;
+        core.rotation.x += dt * 0.4 * k;
+        for (const item of items) {
+          const a = t * 0.7 + item.offset;
+          if (wide) {
+            item.mesh.position.x = Math.sin(a) * span;
+            item.mesh.position.y = Math.sin(a * 2) * (aspect > 5 ? 0.08 : 0.28);
+            item.mesh.position.z = Math.cos(a) * 0.35;
+          } else {
+            item.mesh.position.y = Math.sin(a) * span;
+            item.mesh.position.x = Math.sin(a * 1.6) * 0.28;
+            item.mesh.position.z = Math.cos(a) * 0.32;
+          }
+          item.mesh.rotation.y += dt * item.spin * k;
+          item.mesh.rotation.z += dt * 0.35 * k;
+        }
+      });
+
+      return { items, core };
+    }
+
+    function isAdPlayable(container, intersecting) {
+      if (!intersecting || document.hidden) return false;
+      const sticky = container.closest(".sticky-ad");
+      if (sticky && !sticky.classList.contains("is-stuck")) return false;
+      return true;
+    }
+
+    function visibleAdCount() {
+      let n = 0;
+      for (const unit of ads.values()) {
+        if (unit.visible && unit.scene) n += 1;
+      }
+      return n;
+    }
+
+    function attachSharedLoop(engine) {
+      const gl = engine.getRenderingCanvas();
+      let running = false;
+      const tick = () => {
+        if (document.hidden || !visibleAdCount()) {
+          running = false;
+          engine.stopRenderLoop();
+          return;
+        }
+        const now = performance.now();
+        const minDelta = 1000 / CONFIG.fpsVisible;
+        for (const unit of ads.values()) {
+          if (!unit.visible || !unit.scene || !unit.display) continue;
+          const dest = unit.display;
+          const w = dest.clientWidth | 0;
+          const h = dest.clientHeight | 0;
+          if (w < 2 || h < 2) continue;
+          if (now - unit.lastFrame < minDelta) continue;
+          unit.lastFrame = now;
+          if (gl.width !== w || gl.height !== h) {
+            gl.style.width = `${w}px`;
+            gl.style.height = `${h}px`;
+            engine.setSize(w, h);
+          }
+          unit.scene.render();
+          if (!unit.ctx) unit.ctx = dest.getContext("2d");
+          if (dest.width !== w || dest.height !== h) {
+            dest.width = w;
+            dest.height = h;
+          }
+          unit.ctx.drawImage(gl, 0, 0, w, h);
+        }
+      };
+      const startLoop = () => {
+        if (running || document.hidden || !visibleAdCount()) return;
+        running = true;
+        engine.runRenderLoop(tick);
+      };
+      const stopLoop = () => {
+        if (!running) return;
+        running = false;
+        engine.stopRenderLoop();
+      };
+      return { startLoop, stopLoop };
+    }
+
+    async function bootAd(container, BABYLON, engine) {
+      const id = container.id;
+      const canvas = container.querySelector("canvas");
+      const kind = container.dataset.scene;
+      try {
+        await waitForBox(container);
+        const sized = syncAdSize(container);
+        const scene = new BABYLON.Scene(engine);
+        scene.metadata = {
+          displayCanvas: canvas,
+          w: sized.width,
+          h: sized.height,
+        };
+        ads.set(id, {
+          engine,
+          scene,
+          visible: false,
+          container,
+          display: canvas,
+          lastFrame: 0,
+        });
+
+        if (kind === "particles") buildParticleScene(scene, BABYLON);
+        else if (kind === "cube") buildCubeScene(scene, BABYLON);
+        else if (kind === "sphere") buildSphereScene(scene, BABYLON);
+        else if (kind === "scroll") buildScrollScene(scene, BABYLON);
+        else if (kind === "banner") buildBannerScene(scene, BABYLON);
+      } catch (err) {
+        console.error("No se pudo iniciar", id, err);
+        markError(container);
+      }
+    }
+
+    function setAdVisible(container, intersecting) {
+      const unit = ads.get(container.id);
+      const on = isAdPlayable(container, intersecting);
+      container.classList.toggle("is-visible", on);
+      if (!unit) return;
+      const was = unit.visible;
+      unit.visible = on;
+      if (on && !was) unit.lastFrame = 0;
+      if (on) sharedLoop?.startLoop();
+      else if (!visibleAdCount()) sharedLoop?.stopLoop();
+    }
+
+    function observeAds() {
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          setAdVisible(entry.target, entry.isIntersecting);
+        }
+      }, { threshold: CONFIG.observerThreshold });
+
+      document.querySelectorAll(".ad-container").forEach((el) => observer.observe(el));
+    }
+
+    function watchStickyAd() {
+      const sticky = document.querySelector(".sticky-ad");
+      const sentinel = document.querySelector(".stick-sentinel");
+      if (!sticky || !sentinel) return;
+
+      const setStuck = (stuck) => {
+        const was = sticky.classList.contains("is-stuck");
+        sticky.classList.toggle("is-stuck", stuck);
+        if (stuck && !was) {
+          sticky.classList.remove("is-stick-enter");
+          void sticky.offsetWidth;
+          sticky.classList.add("is-stick-enter");
+          AD4_FX.burst = 1;
+        }
+        if (!stuck) sticky.classList.remove("is-stick-enter");
+        const ad4 = document.getElementById("ad-4");
+        if (ad4) {
+          const rect = ad4.getBoundingClientRect();
+          const intersecting = rect.bottom > 0 && rect.top < window.innerHeight;
+          setAdVisible(ad4, intersecting);
+        }
+      };
+
+      sticky.addEventListener("animationend", (ev) => {
+        if (ev.animationName === "stick-enter") sticky.classList.remove("is-stick-enter");
+      });
+
+      let io;
+      const bind = () => {
+        io?.disconnect();
+        const cs = getComputedStyle(sticky);
+        const topPx = cs.top === "auto" ? 0 : parseFloat(cs.top) || 0;
+        const bottomPx = cs.bottom === "auto" ? 0 : parseFloat(cs.bottom) || 0;
+        const rootMargin = bottomPx
+          ? `0px 0px -${Math.round(bottomPx)}px 0px`
+          : `-${Math.max(0, Math.round(topPx))}px 0px 0px 0px`;
+        io = new IntersectionObserver(([entry]) => {
+          const below = entry.boundingClientRect.top > window.innerHeight;
+          const stuck = !entry.isIntersecting && !below;
+          setStuck(stuck);
+        }, { threshold: 0, rootMargin });
+        io.observe(sentinel);
+      };
+
+      bind();
+      window.addEventListener("resize", bind);
+    }
+
+    async function main() {
+      applyAd4Banner();
+      watchStickyAd();
+      const shapeSvg = document.querySelector("#ad-4 .ad-2d");
+      if (shapeSvg) {
+        startShapePlayer(
+          shapeSvg,
+          () => AD4_BANNER,
+          () => null,
+          () => Boolean(ads.get("ad-4")?.visible)
+        );
+      }
+      window.addEventListener("storage", (ev) => {
+        if (ev.key !== STORAGE_KEY) return;
+        Object.assign(AD4_BANNER, loadBanner());
+        applyAd4Banner();
+      });
+
+      let BABYLON;
+      try {
+        BABYLON = await import("@babylonjs/core");
+      } catch (err) {
+        console.error("Babylon.js no cargó desde el CDN", err);
+        document.querySelectorAll(".ad-container").forEach(markError);
+        return;
+      }
+
+      const engine = createSharedEngine(BABYLON);
+      const nodes = [...document.querySelectorAll(".ad-container")];
+      for (const node of nodes) {
+        await bootAd(node, BABYLON, engine);
+      }
+      sharedLoop = attachSharedLoop(engine);
+      observeAds();
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) sharedLoop.stopLoop();
+        else sharedLoop.startLoop();
+      });
+      window.addEventListener("resize", () => {
+        document.querySelectorAll(".ad-container").forEach(syncAdSize);
+      });
+    }
+
+    main();
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>

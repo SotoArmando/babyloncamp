@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anuncios</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --paper: #ffffff;
+      --ink: #111111;
+      --muted: #767676;
+      --line: #e9e9e9;
+      --neon: #101514;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .app-bar { background: rgba(255, 255, 255, 0.94); }
+    .ads-page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0.85rem 1rem 3.5rem;
+    }
+    .ads-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem 0.85rem;
+      margin: 0 0 1rem;
+    }
+    .ads-bar p {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .ads-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.32rem;
+      margin-left: auto;
+    }
+    .ads-pill {
+      appearance: none;
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      margin: 0;
+      padding: 0.32rem 0.68rem;
+      border: 0;
+      border-radius: 999px;
+      background: #f1f1f1;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .ads-pill:hover,
+    .ads-pill:focus-visible {
+      outline: 2px solid #111;
+      outline-offset: 1px;
+    }
+    .ads-pill.is-on {
+      background: #111;
+      color: #fff;
+    }
+    .ads-count {
+      font: 650 0.72rem/1 ui-sans-serif, system-ui, sans-serif;
+      color: var(--muted);
+      background: #f1f1f1;
+      border-radius: 999px;
+      padding: 0.2rem 0.5rem;
+    }
+    .ads-board {
+      position: relative;
+      min-height: 40vh;
+    }
+    .ads-pin {
+      position: absolute;
+      margin: 0;
+    }
+    .ads-pin button {
+      appearance: none;
+      position: relative;
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #efefef;
+      cursor: zoom-in;
+      box-shadow: none;
+    }
+    .ads-pin button::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0);
+      transition: background 0.16s ease;
+      pointer-events: none;
+    }
+    .ads-pin button:hover::after,
+    .ads-pin button:focus-visible::after {
+      background: rgba(0, 0, 0, 0.12);
+    }
+    .ads-pin button:focus-visible {
+      outline: 2px solid #111;
+      outline-offset: 2px;
+    }
+    .ads-pin img {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+    }
+    .ads-empty {
+      margin: 3rem 0;
+      text-align: center;
+      color: var(--muted);
+    }
+    .ads-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(17, 17, 17, 0.55);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .ads-lightbox.is-on { display: flex; }
+    .ads-lightbox img {
+      max-width: min(92vw, 1100px);
+      max-height: 88vh;
+      border-radius: 16px;
+      box-shadow: none;
+    }
+    .ads-lb-btn {
+      appearance: none;
+      position: absolute;
+      top: 50%;
+      translate: 0 -50%;
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      font: 700 1.2rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    .ads-lb-prev { left: 1rem; }
+    .ads-lb-next { right: 1rem; }
+    .ads-lb-close {
+      top: 1rem;
+      right: 1rem;
+      translate: 0;
+    }
+    @media (max-width: 640px) {
+      .ads-lb-prev, .ads-lb-next { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Anuncios</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+      <a class="app-quiet" href="assets.html">Assets</a>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="ads-page">
+    <div class="ads-bar">
+      <span class="ads-count" id="ads-count">0</span>
+      <p>Referencias en <code>assets/ads/</code></p>
+      <div class="ads-filters" role="group" aria-label="Orientación">
+        <button type="button" class="ads-pill is-on" data-orient="all">Todos</button>
+        <button type="button" class="ads-pill" data-orient="land">Horizontal</button>
+        <button type="button" class="ads-pill" data-orient="port">Vertical</button>
+        <button type="button" class="ads-pill" data-orient="square">Cuadrado</button>
+      </div>
+    </div>
+    <div class="ads-board" id="ads-board"></div>
+  </main>
+  <div class="ads-lightbox" id="ads-lightbox" hidden>
+    <button type="button" class="ads-lb-btn ads-lb-close" id="ads-lb-close" aria-label="Cerrar">×</button>
+    <button type="button" class="ads-lb-btn ads-lb-prev" id="ads-lb-prev" aria-label="Anterior">‹</button>
+    <img id="ads-lb-img" alt="" />
+    <button type="button" class="ads-lb-btn ads-lb-next" id="ads-lb-next" aria-label="Siguiente">›</button>
+  </div>
+  <script type="module">
+    const FOLDER = "assets/ads/";
+    const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
+    const board = document.getElementById("ads-board");
+    const count = document.getElementById("ads-count");
+    const filters = document.querySelector(".ads-filters");
+    const box = document.getElementById("ads-lightbox");
+    const lbImg = document.getElementById("ads-lb-img");
+    let items = [];
+    let filter = "all";
+    let index = 0;
+
+    const srcOf = (item) => `${FOLDER}${encodeURIComponent(item.name)}`;
+
+    function orientOf(w, h) {
+      const rw = Number(w);
+      const rh = Number(h);
+      if (!rw || !rh) return "square";
+      const r = rw / rh;
+      if (r > 1.08) return "land";
+      if (r < 0.92) return "port";
+      return "square";
+    }
+
+    async function measureItem(item) {
+      if (item.orient) return item;
+      if (item.w && item.h) {
+        item.orient = orientOf(item.w, item.h);
+        return item;
+      }
+      try {
+        const img = new Image();
+        img.src = srcOf(item);
+        await img.decode();
+        item.w = img.naturalWidth;
+        item.h = img.naturalHeight;
+        item.orient = orientOf(item.w, item.h);
+      } catch {
+        item.orient = "square";
+      }
+      return item;
+    }
+
+    function visibleItems() {
+      if (filter === "all") return items;
+      return items.filter((item) => item.orient === filter);
+    }
+
+    async function listAds() {
+      try {
+        const res = await fetch(`${FOLDER}manifest.json`, { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        return (data.files || []).filter((item) => IMAGE_EXT.test(item.name));
+      } catch {
+        return [];
+      }
+    }
+
+    const GAP = 12;
+    const MIN_COL = 236;
+
+    function layoutBoard() {
+      const pins = [...board.querySelectorAll(".ads-pin")];
+      if (!pins.length) {
+        board.style.height = "";
+        return;
+      }
+      const width = board.clientWidth;
+      const cols = Math.max(2, Math.floor((width + GAP) / (MIN_COL + GAP)));
+      const colW = (width - GAP * (cols - 1)) / cols;
+      const heights = Array.from({ length: cols }, () => 0);
+      for (const pin of pins) {
+        pin.style.width = `${colW}px`;
+        const col = heights.indexOf(Math.min(...heights));
+        pin.style.left = `${col * (colW + GAP)}px`;
+        pin.style.top = `${heights[col]}px`;
+        heights[col] += pin.offsetHeight + GAP;
+      }
+      board.style.height = `${Math.max(...heights) - GAP}px`;
+    }
+
+    function render() {
+      const shown = visibleItems();
+      count.textContent = filter === "all" ? String(shown.length) : `${shown.length} · ${items.length}`;
+      if (!items.length) {
+        board.innerHTML = `<p class="ads-empty">No hay imágenes todavía. Copiá JPG / PNG / WEBP a <code>assets/ads/</code> y actualizá el manifest.</p>`;
+        board.style.height = "";
+        return;
+      }
+      if (!shown.length) {
+        board.innerHTML = `<p class="ads-empty">No hay anuncios en esta orientación.</p>`;
+        board.style.height = "";
+        return;
+      }
+      board.innerHTML = shown.map((item, i) => `
+        <article class="ads-pin">
+          <button type="button" data-i="${i}" aria-label="Ver anuncio ${i + 1}">
+            <img src="${srcOf(item)}" alt="Anuncio ${i + 1}" />
+          </button>
+        </article>
+      `).join("");
+      board.querySelectorAll("img").forEach((img) => {
+        if (img.complete) layoutBoard();
+        else img.addEventListener("load", layoutBoard);
+      });
+      layoutBoard();
+    }
+
+    function setFilter(id) {
+      filter = id === "land" || id === "port" || id === "square" ? id : "all";
+      filters.querySelectorAll(".ads-pill").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.orient === filter);
+      });
+      render();
+    }
+
+    function openAt(i) {
+      const shown = visibleItems();
+      if (!shown.length) return;
+      index = (i + shown.length) % shown.length;
+      lbImg.src = srcOf(shown[index]);
+      lbImg.alt = `Anuncio ${index + 1}`;
+      box.hidden = false;
+      box.classList.add("is-on");
+    }
+
+    function closeLb() {
+      box.classList.remove("is-on");
+      box.hidden = true;
+    }
+
+    board.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-i]");
+      if (!btn) return;
+      openAt(Number(btn.dataset.i));
+    });
+    document.getElementById("ads-lb-close").addEventListener("click", closeLb);
+    document.getElementById("ads-lb-prev").addEventListener("click", () => openAt(index - 1));
+    document.getElementById("ads-lb-next").addEventListener("click", () => openAt(index + 1));
+    box.addEventListener("click", (event) => {
+      if (event.target === box) closeLb();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (!box.classList.contains("is-on")) return;
+      if (event.key === "Escape") closeLb();
+      if (event.key === "ArrowLeft") openAt(index - 1);
+      if (event.key === "ArrowRight") openAt(index + 1);
+    });
+
+    filters.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-orient]");
+      if (!btn) return;
+      setFilter(btn.dataset.orient);
+    });
+
+    items = await listAds();
+    render();
+    await Promise.all(items.map(measureItem));
+    render();
+    window.addEventListener("resize", layoutBoard);
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>
