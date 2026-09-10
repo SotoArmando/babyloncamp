@@ -10,6 +10,7 @@
            <a href="ads.html">Anuncios</a>
            <a href="assets.html">Assets 3D</a>
            <a href="serve.html">Serve</a>
+           <a href="many.html">Varios</a>
            <a href="lab.html">Lab</a>
            <a href="index.html">Artículo</a>
            <a href="editor.html">Editor</a>

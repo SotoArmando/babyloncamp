@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Varios · Player</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <link rel="stylesheet" href="ad-play.css?v=play2" />
+  <style>
+    :root { --ink: #111; --muted: #767676; --line: #e9e9e9; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #f6f5f2; color: var(--ink); }
+    .feed {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 1rem 1.1rem 6rem;
+    }
+    .feed-lead { margin: 0 0 1.2rem; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+    .feed-copy { color: #3d3d3d; font-size: 1.02rem; line-height: 1.65; }
+    .feed-copy p { margin: 0 0 1rem; }
+    .feed-slot {
+      margin: 2.2rem 0;
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+    }
+    .feed-slot.is-wait {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .feed-hud {
+      position: sticky;
+      top: 3.4rem;
+      z-index: 4;
+      margin: 0 0 1rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 8px;
+      background: #111;
+      color: #eee;
+      font: 650 0.72rem/1.4 ui-monospace, monospace;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Varios</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+    </div>
+  </header>
+  <main class="feed">
+    <p class="feed-hud" id="hud">en vista 0 · montados 0</p>
+    <p class="feed-lead" id="lead">Varios clímaxes en un scroll. Se montan al acercarse; el player solo anima los que el IntersectionObserver ve.</p>
+    <article id="article"></article>
+  </main>
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module">
+    import { loadServeStore } from "./ad-profile.js?v=cam26";
+    import { listGalleryPlays, listProfiles, comboPlayLabel, mountPlay } from "./play-route.js?v=8";
+
+    const params = new URLSearchParams(location.search);
+    const store = await loadServeStore();
+    const profiles = listProfiles(store);
+    const profileId = params.get("p") || store.activeId || profiles[0]?.id || "pack-galeria-1";
+    const plays = listGalleryPlays(store, profileId);
+    const article = document.getElementById("article");
+    const hud = document.getElementById("hud");
+    const lead = document.getElementById("lead");
+    const profileName = profiles.find((entry) => entry.id === profileId)?.name || profileId;
+
+    lead.textContent = `${plays.length} clímaxes de ${profileName}. Hueco vacío hasta ~400px; el play lo enciende el observer del player.`;
+
+    const filler = (n) => `<div class="feed-copy">${Array.from({ length: n }, () =>
+      "<p>Texto de relleno para forzar scroll. El anuncio de abajo no monta el mesh ni la escena hasta que el hueco se acerca.</p>"
+    ).join("")}</div>`;
+
+    article.insertAdjacentHTML("beforeend", filler(4));
+    for (const item of plays) {
+      const host = document.createElement("div");
+      host.className = "feed-slot is-wait";
+      host.dataset.playId = item.id;
+      host.textContent = `Esperando · ${comboPlayLabel(item)}`;
+      article.append(host);
+      article.insertAdjacentHTML("beforeend", filler(3));
+    }
+
+    let mounted = 0;
+    const paintHud = () => {
+      const on = document.querySelectorAll(".ad-container.is-visible").length;
+      hud.textContent = `en vista ${on} · montados ${mounted}/${plays.length}`;
+    };
+
+    const approach = new IntersectionObserver(async (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const host = entry.target;
+        if (host.dataset.booting) continue;
+        host.dataset.booting = "1";
+        approach.unobserve(host);
+        const playId = host.dataset.playId;
+        const ok = await mountPlay(host, {
+          profileId,
+          playId,
+          slotId: `many-${playId}`,
+        });
+        host.classList.remove("is-wait");
+        if (!ok) host.textContent = "Ese clímax no está en el perfil.";
+        else mounted += 1;
+        paintHud();
+      }
+    }, { threshold: 0, rootMargin: "400px 0px" });
+
+    article.querySelectorAll(".feed-slot").forEach((el) => approach.observe(el));
+    setInterval(paintHud, 400);
+    paintHud();
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>

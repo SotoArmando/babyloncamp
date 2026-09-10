@@ -20,6 +20,7 @@ import {
   normalizePropCamMode,
   normalizePropCamPan,
   normalizeViewFps,
+  normalizeViewBlit,
   normalizeViewShelf,
   normalizeViewZoom,
   normalizeViewClock,
@@ -42,8 +43,9 @@ import {
   serializeAdPlace,
   resolvePalette,
   resolveAdPlace,
-} from "./ad-catalog.js?v=cam22";
+} from "./ad-catalog.js?v=cam24";
 import { normalizeStudioState } from "./studio-lights.js";
+import { onPlayerOriginChange, playerUrl } from "./player-origin.js";
 
 export const PROFILE_KEY = "babylon-ads-gallery";
 
@@ -52,7 +54,7 @@ function uid() {
 }
 
 function defaultView() {
-  return { cols: "3", size: "m", gap: "md", previewW: null, voidL: 14, zoom: 1, format: "medium", cat: "all", showOff: false, afps: 0, shelf: "column", clock: true, clockStyle: "sweep", clockTone: "dark", clockSize: 100, ph: resolveAdPlace() };
+  return { cols: "3", size: "m", gap: "md", previewW: null, voidL: 14, zoom: 1, format: "medium", cat: "all", showOff: false, afps: 0, blit: 1.5, shelf: "column", clock: true, clockStyle: "sweep", clockTone: "dark", clockSize: 100, ph: resolveAdPlace() };
 }
 
 export function comboTitle(item) {
@@ -190,7 +192,7 @@ export function loadGalleryStore(storage = galleryStorage()) {
     const raw = JSON.parse(storage.getItem(PROFILE_KEY) || "null");
     if (!raw || !Array.isArray(raw.profiles) || !raw.profiles.length) return emptyStore();
     if (!raw.view) raw.view = defaultView();
-    else raw.view = { ...defaultView(), ...raw.view, ph: resolveAdPlace(raw.view.ph), afps: normalizeViewFps(raw.view.afps), shelf: normalizeViewShelf(raw.view.shelf), zoom: normalizeViewZoom(raw.view.zoom), clock: normalizeViewClock(raw.view.clock), clockStyle: normalizeViewClockStyle(raw.view.clockStyle), clockTone: normalizeViewClockTone(raw.view.clockTone), clockSize: normalizeViewClockSize(raw.view.clockSize) };
+    else raw.view = { ...defaultView(), ...raw.view, ph: resolveAdPlace(raw.view.ph), afps: normalizeViewFps(raw.view.afps), blit: normalizeViewBlit(raw.view.blit), shelf: normalizeViewShelf(raw.view.shelf), zoom: normalizeViewZoom(raw.view.zoom), clock: normalizeViewClock(raw.view.clock), clockStyle: normalizeViewClockStyle(raw.view.clockStyle), clockTone: normalizeViewClockTone(raw.view.clockTone), clockSize: normalizeViewClockSize(raw.view.clockSize) };
     if (!raw.activeId || !raw.profiles.some((item) => item.id === raw.activeId)) {
       raw.activeId = raw.profiles[0].id;
     }
@@ -229,6 +231,152 @@ export function createProfile(store, name) {
   store.profiles.push(profile);
   store.activeId = profile.id;
   return saveGalleryStore(store);
+}
+
+export const PROFILE_EXPORT_KIND = "babylon-ads-profile";
+
+function slugName(name) {
+  const slug = String(name || "galeria")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "galeria";
+}
+
+export function profileExportFilename(profile) {
+  return `${slugName(profile?.name)}.json`;
+}
+
+export function serializeProfileExport(profile) {
+  const src = profile || {};
+  return {
+    kind: PROFILE_EXPORT_KIND,
+    version: 1,
+    exportedAt: Date.now(),
+    profile: {
+      name: String(src.name || "Galería").trim() || "Galería",
+      items: (src.items || []).map((item) => {
+        const combo = makeCombo(item);
+        return { ...combo, id: "" };
+      }),
+    },
+  };
+}
+
+export function parseProfileExport(raw) {
+  const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+  if (!data || data.kind !== PROFILE_EXPORT_KIND || !data.profile || !Array.isArray(data.profile.items)) {
+    throw new Error("No es un perfil exportado.");
+  }
+  return data;
+}
+
+export function addProfileFromExport(store, raw, name) {
+  const packet = parseProfileExport(raw);
+  const src = packet.profile;
+  const profile = {
+    id: uid(),
+    name: String(name || src.name || "Galería").trim() || "Galería",
+    createdAt: Date.now(),
+    items: src.items.map((item) => makeCombo({ ...item, id: "" })),
+  };
+  store.profiles.push(profile);
+  store.activeId = profile.id;
+  return saveGalleryStore(store);
+}
+
+export function packedProfileId(filename) {
+  const base = String(filename || "").replace(/^.*\//, "").replace(/\.json$/i, "").replace(/[^a-z0-9_-]+/gi, "-");
+  return `pack-${base || "perfil"}`;
+}
+
+export function profileFromPackedFile(raw, filename) {
+  const packet = parseProfileExport(raw);
+  const id = packedProfileId(filename);
+  return {
+    id,
+    name: packet.profile.name || "Galería",
+    createdAt: packet.exportedAt || Date.now(),
+    file: String(filename || ""),
+    packed: true,
+    items: packet.profile.items.map((item, index) => makeCombo({
+      ...item,
+      id: item.id || `${id}-${index}`,
+    })),
+  };
+}
+
+const PACKED_FALLBACK = ["galeria-1.json"];
+let serveStoreOnce = null;
+
+onPlayerOriginChange(() => {
+  serveStoreOnce = null;
+});
+
+function packedLocalUrl(file) {
+  try {
+    if (import.meta.url) return new URL(`./data/${file}`, import.meta.url).href;
+  } catch {
+    /* IIFE: import.meta vacío */
+  }
+  if (typeof location !== "undefined") return new URL(`data/${file}`, location.href).href;
+  return `data/${file}`;
+}
+
+function packedIndexUrl() {
+  return playerUrl("data/profiles.json", packedLocalUrl("profiles.json"));
+}
+
+function packedFileUrl(name) {
+  return playerUrl(`data/${name}`, packedLocalUrl(name));
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+
+async function listPackedFilenames() {
+  try {
+    const listed = await fetchJson(packedIndexUrl());
+    if (Array.isArray(listed) && listed.length) {
+      return listed.map((name) => String(name).replace(/^.*\//, "")).filter((name) => name.endsWith(".json"));
+    }
+  } catch {
+    /* índice opcional */
+  }
+  return PACKED_FALLBACK;
+}
+
+export async function loadPackedProfiles() {
+  const names = await listPackedFilenames();
+  const packed = [];
+  for (const name of names) {
+    try {
+      packed.push(profileFromPackedFile(await fetchJson(packedFileUrl(name)), name));
+    } catch {
+      /* archivo ausente o inválido */
+    }
+  }
+  return packed;
+}
+
+export async function loadServeStore() {
+  if (serveStoreOnce) return serveStoreOnce;
+  const live = loadGalleryStore();
+  const packed = await loadPackedProfiles();
+  const used = new Set((live.profiles || []).map((entry) => entry.id));
+  const extra = packed.filter((entry) => !used.has(entry.id));
+  serveStoreOnce = {
+    version: live.version,
+    activeId: live.activeId,
+    view: live.view,
+    profiles: [...(live.profiles || []), ...extra],
+  };
+  return serveStoreOnce;
 }
 
 export function addComboToActive(store, partial) {

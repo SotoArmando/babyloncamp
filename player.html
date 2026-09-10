@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Player</title>
-  <link rel="stylesheet" href="ad-play.css?v=play1" />
+  <link rel="stylesheet" href="ad-play.css?v=play2" />
   <style>
     html, body { height: 100%; }
     #mount { min-height: 100%; display: grid; place-items: center; }
@@ -24,41 +24,38 @@
     } }
   </script>
   <script type="module">
-    import { adMarkup, playById, formatById } from "./ad-catalog.js?v=cam23";
-    import { comboPlayExtras, playRouteParams, resolvePlayCombo } from "./play-route.js?v=5";
-    import { bootContainers, startAd, setPropModelFile, setPropModelFiles, preparePropSource } from "./ad-player.js?v=prop43";
-    import { listAllAssets, loadAssetFilesForMesh } from "./ad-assets.js";
-    import { loadComboPropFiles } from "./ad-profile.js?v=cam24";
+    import { adMarkup, formatById } from "./ad-catalog.js?v=cam23";
+    import { comboPlayExtras, playRouteParams, resolvePlayCombo, PLAY_VIEW } from "./play-route.js?v=8";
+    import { bootContainers, startAd, setPageShown, prepareComboMesh } from "./ad-player.js?v=prop50";
 
     const mount = document.getElementById("mount");
+    window.addEventListener("message", (ev) => {
+      if (ev.data?.type !== PLAY_VIEW) return;
+      setPageShown(ev.data.on);
+    });
     const route = playRouteParams();
-    const item = await resolvePlayCombo(route.id, route.profile);
+    let item = null;
+    try {
+      item = await resolvePlayCombo(route.id, route.profile);
+    } catch (err) {
+      console.error(err);
+    }
     if (!item) {
       mount.innerHTML = `<p class="player-miss">Ese clímax no está en el perfil de la galería.</p>`;
     } else {
       const format = formatById(item.ad);
       document.documentElement.style.setProperty("--ad-w", `${format.w}px`);
       document.documentElement.style.setProperty("--ad-h", `${format.h}px`);
-      if (playById(item.play).id === "prop" && item.pmesh) {
-        let files = [];
-        if (item.pmesh.assetId) {
-          const catalog = await listAllAssets();
-          const asset = catalog.find((entry) => entry.id === item.pmesh.assetId);
-          files = asset ? await loadAssetFilesForMesh(asset, catalog) : [];
-        } else {
-          files = await loadComboPropFiles(item.id);
-        }
-        if (files.length) {
-          setPropModelFiles(files);
-          await preparePropSource();
-        } else setPropModelFile(null);
-      } else {
-        setPropModelFile(null);
-      }
+      await prepareComboMesh(item);
       mount.innerHTML = adMarkup(format, "serve-ad", item.in || "none", item.play, comboPlayExtras(item));
       mount.querySelector(".ad-slot")?.classList.add("is-in");
-      await bootContainers(mount);
-      await startAd(mount.querySelector(".ad-container"));
+      try {
+        await bootContainers(mount);
+        await startAd(mount.querySelector(".ad-container"));
+      } catch (err) {
+        console.error(err);
+        mount.querySelector(".ad-container")?.classList.add("is-error");
+      }
     }
   </script>
 </body>

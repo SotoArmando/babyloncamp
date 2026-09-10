@@ -1,0 +1,26 @@
+{
+  "name": "babylon-ads-player",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Player de clímax para un sitio host. Los packs se piden al origen de la galería.",
+  "main": "./dist/babylon-ads-player.js",
+  "exports": {
+    ".": "./dist/babylon-ads-player.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "devDependencies": {
+    "@babylonjs/core": "7.54.3",
+    "@babylonjs/loaders": "7.54.3",
+    "esbuild": "^0.25.9"
+  },
+  "scripts": {
+    "build:player": "node scripts/build-player.mjs",
+    "start": "npx -y serve -p 8765 --cors"
+  }
+}

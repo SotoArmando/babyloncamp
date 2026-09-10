@@ -1,3 +1,5 @@
+import { playerUrl } from "./player-origin.js";
+
 export const FORMATS = [
   { id: "billboard", label: "970×250 · Billboard", w: 970, h: 250, scene: "journey", brand: "Aurora", kicker: "Café de especialidad", offer: "94 °C. Sin prisa.", cta: "Pedir ahora", accent: "#e8a25a", hint: "La gota cae. El anuncio es el ripple." },
   { id: "leader", label: "728×90 · Leaderboard", w: 728, h: 90, scene: "journey", brand: "Norte", kicker: "Banca", offer: "Tu nómina, el mismo día.", cta: "Abrir cuenta", accent: "#7eb6e8", hint: "La gota cae. El anuncio es el ripple." },
@@ -336,6 +338,12 @@ export function normalizePropCamPan(value) {
 export function normalizeViewFps(value) {
   const n = Number(value);
   return n === 30 || n === 60 ? n : 0;
+}
+
+export function normalizeViewBlit(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 1.5;
+  return Math.round(Math.min(3, Math.max(1, n)) * 4) / 4;
 }
 
 export function normalizeViewShelf(value) {
@@ -720,12 +728,12 @@ export function normalizeAdFitMat(value) {
 export function adImageSrc(name) {
   const img = normalizeAdImgRef(name);
   if (/^https?:\/\//i.test(img)) return img;
-  return img ? `assets/ads/${encodeURIComponent(img)}` : "";
+  return img ? playerUrl(`assets/ads/${encodeURIComponent(img)}`, `assets/ads/${encodeURIComponent(img)}`) : "";
 }
 
 export async function listAdImages() {
   try {
-    const res = await fetch("assets/ads/manifest.json", { cache: "no-store" });
+    const res = await fetch(playerUrl("assets/ads/manifest.json", "assets/ads/manifest.json"), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     return (data.files || []).map((item) => normalizeAdImg(item.name)).filter(Boolean);

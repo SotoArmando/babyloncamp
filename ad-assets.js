@@ -1,8 +1,14 @@
+import { playerUrl } from "./player-origin.js";
+
 const DB_NAME = "babylon-ads-asset-lib";
 const STORE = "files";
 const THUMB_STORE = "thumbs";
 export const ASSET_THUMB_VER = 6;
-const FOLDER = "/assets/3d/";
+
+function folderBase() {
+  const base = playerUrl("assets/3d/", "/assets/3d/");
+  return base.endsWith("/") ? base : `${base}/`;
+}
 const MESH_EXT = new Set(["glb", "gltf", "obj"]);
 const EXTRA_EXT = new Set(["mtl", "bin", "png", "jpg", "jpeg", "webp", "bmp", "tga"]);
 
@@ -165,13 +171,13 @@ function folderItem(name, size = 0) {
     ext: assetExt(name),
     size,
     source: "folder",
-    url: `${FOLDER}${encodeURIComponent(name)}`,
+    url: `${folderBase()}${encodeURIComponent(name)}`,
     added: 0,
   };
 }
 
 async function listFromManifest() {
-  const res = await fetch(`${FOLDER}manifest.json`, { cache: "no-store" });
+  const res = await fetch(`${folderBase()}manifest.json`, { cache: "no-store" });
   if (!res.ok) return [];
   const data = await res.json();
   const names = Array.isArray(data?.files) ? data.files : [];
@@ -182,7 +188,7 @@ async function listFromManifest() {
 }
 
 async function listFromDirectoryIndex() {
-  const res = await fetch(FOLDER, { cache: "no-store" });
+  const res = await fetch(folderBase(), { cache: "no-store" });
   if (!res.ok) return [];
   const html = await res.text();
   const names = new Set();

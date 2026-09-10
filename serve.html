@@ -73,7 +73,7 @@
   <main class="serve">
     <section>
       <h2>Galería</h2>
-      <p class="serve-note">Perfil y clímax. El iframe lo reproduce tal como lo guardaste.</p>
+      <p class="serve-note">Perfiles del navegador y de <code>data/</code>. El iframe lo reproduce tal como está guardado.</p>
       <div class="serve-fields">
         <label>Perfil
           <select id="sel-profile"></select>
@@ -92,11 +92,11 @@
     </section>
   </main>
   <script type="module">
-    import { loadGalleryStore } from "./ad-profile.js?v=cam24";
+    import { loadServeStore } from "./ad-profile.js?v=cam26";
     import { formatById } from "./ad-catalog.js?v=cam23";
-    import { listGalleryPlays, listProfiles, comboPlayLabel, playerHref, comboById, replyPlayCombo } from "./play-route.js?v=5";
+    import { listGalleryPlays, listProfiles, comboPlayLabel, playerHref, comboById, replyPlayCombo, PLAY_GIVE, watchPlayFrame } from "./play-route.js?v=8";
 
-    const store = loadGalleryStore();
+    const store = await loadServeStore();
     const selProfile = document.getElementById("sel-profile");
     const sel = document.getElementById("sel-combo");
     const frame = document.getElementById("serve-frame");
@@ -118,6 +118,28 @@
       for (const item of items) sel.append(new Option(comboPlayLabel(item), item.id));
     }
 
+    function sendCombo() {
+      const item = items.find((entry) => entry.id === sel.value) || null;
+      frame.contentWindow?.postMessage({ type: PLAY_GIVE, item }, "*");
+    }
+
+    function loadFrame(href) {
+      const go = () => {
+        frame.onload = () => {
+          sendCombo();
+          view.send();
+          setTimeout(sendCombo, 200);
+        };
+        frame.src = href;
+      };
+      if (frame.getAttribute("src")) {
+        frame.onload = () => go();
+        frame.src = "about:blank";
+        return;
+      }
+      go();
+    }
+
     function sync() {
       const item = items.find((entry) => entry.id === sel.value);
       if (!item) {
@@ -132,11 +154,12 @@
       frame.height = format.h;
       if (frame.dataset.href !== href) {
         frame.dataset.href = href;
-        frame.src = href;
+        loadFrame(href);
       }
     }
 
     replyPlayCombo((id, profileId) => comboById(id, store, profileId || selProfile.value));
+    const view = watchPlayFrame(frame);
     selProfile.addEventListener("change", () => {
       fillCombos();
       sync();

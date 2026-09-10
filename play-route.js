@@ -1,14 +1,23 @@
-import { formatById, handoffById } from "./ad-catalog.js?v=cam23";
-import { loadGalleryStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=cam24";
+import { adMarkup, formatById, handoffById } from "./ad-catalog.js?v=cam23";
+import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=cam26";
 import { serializeStudioState } from "./studio-lights.js";
+import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop50";
+import { setPlayerOrigin, getPlayerOrigin } from "./player-origin.js";
+
+export { setPlayerOrigin, getPlayerOrigin };
 
 export function profileById(id, store = loadGalleryStore()) {
   const key = String(id || "");
-  return (key && store.profiles.find((entry) => entry.id === key)) || activeProfile(store);
+  if (key) return store.profiles.find((entry) => entry.id === key) || null;
+  return activeProfile(store);
 }
 
 export function listProfiles(store = loadGalleryStore()) {
-  return (store.profiles || []).map((entry) => ({ id: entry.id, name: entry.name || "Galería" }));
+  return (store.profiles || []).map((entry) => ({
+    id: entry.id,
+    name: entry.packed ? `${entry.name} · archivo` : (entry.name || "Galería"),
+    packed: Boolean(entry.packed),
+  }));
 }
 
 export function listGalleryPlays(store = loadGalleryStore(), profileId) {
@@ -18,6 +27,23 @@ export function listGalleryPlays(store = loadGalleryStore(), profileId) {
 
 export const PLAY_ASK = "babylon-play-request";
 export const PLAY_GIVE = "babylon-play-combo";
+export const PLAY_VIEW = "babylon-play-view";
+
+export function postPlayView(win, on) {
+  win?.postMessage({ type: PLAY_VIEW, on: Boolean(on) }, "*");
+}
+
+export function watchPlayFrame(frame, { rootMargin = "80px" } = {}) {
+  let inView = true;
+  const send = () => postPlayView(frame.contentWindow, !document.hidden && inView);
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) inView = entry.isIntersecting;
+    send();
+  }, { threshold: 0, rootMargin });
+  io.observe(frame);
+  document.addEventListener("visibilitychange", send);
+  return { send, disconnect: () => io.disconnect() };
+}
 
 export function comboById(id, store = loadGalleryStore(), profileId) {
   const key = String(id || "");
@@ -51,7 +77,14 @@ export function askParentCombo(id, profileId, ms = 2000) {
 }
 
 export async function resolvePlayCombo(id, profileId) {
-  return comboById(id, loadGalleryStore(), profileId) || await askParentCombo(id, profileId);
+  const incoming = askParentCombo(id, profileId, 2500);
+  try {
+    const local = comboById(id, await loadServeStore(), profileId);
+    if (local) return local;
+  } catch {
+    /* el archivo se pide al padre */
+  }
+  return incoming;
 }
 
 export function replyPlayCombo(lookup) {
@@ -133,6 +166,28 @@ export function playerHref(id, profileId) {
 
 export function profileName(profileId, store = loadGalleryStore()) {
   return profileById(profileId, store)?.name || "Galería";
+}
+
+export async function mountPlay(host, { profileId, playId, slotId, origin } = {}) {
+  if (!host) return null;
+  if (origin != null) setPlayerOrigin(origin);
+  const id = slotId || `ad-${playId}`;
+  const item = await resolvePlayCombo(playId, profileId);
+  if (!item) return null;
+  const propTag = await prepareComboMesh(item);
+  const format = formatById(item.ad);
+  host.style.setProperty("--ad-w", `${format.w}px`);
+  host.style.setProperty("--ad-h", `${format.h}px`);
+  host.innerHTML = adMarkup(format, id, item.in || "none", item.play, comboPlayExtras(item));
+  host.querySelector(".ad-slot")?.classList.add("is-in");
+  const box = host.querySelector(".ad-container");
+  if (box && (propTag || comboPropTag(item))) box.dataset.propTag = propTag || comboPropTag(item);
+  await bootContainers(host);
+  return { item, slotId: id };
+}
+
+export function unmountPlay(slotId) {
+  disposeAds(slotId);
 }
 
 export { formatById };

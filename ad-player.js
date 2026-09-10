@@ -1,7 +1,8 @@
 import { loadBanner, applyWaveToDom, startShapePlayer, wavePathD, STORAGE_KEY } from "./ad4-banner.js";
-import { resolvePalette, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam18";
+import { playById, resolvePalette, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam18";
 import { attachStudioLighting, parseStudioState } from "./studio-lights.js";
 import { writeClockLook, paintHostClock } from "./ad-clock.js";
+import { listFolderAssets, loadAssetFilesForMesh } from "./ad-assets.js";
 
 export const CONFIG = {
   particleCount: 140,
@@ -31,6 +32,7 @@ export const CONFIG = {
   skySegments: 20,
   propShadow: 512,
   propShadowBlur: 8,
+  propSsao: false,
   propFog: 0.018,
   propContact: 1,
   propBounds: 1,
@@ -87,6 +89,7 @@ export function applyAnimCost(values = {}) {
     ? Number(values.propShadow)
     : CONFIG.propShadow;
   CONFIG.propShadowBlur = Math.round(clampNum(values.propShadowBlur, 0, 16, CONFIG.propShadowBlur));
+  CONFIG.propSsao = values.propSsao === true;
   CONFIG.propFog = Math.round(clampNum(values.propFog, 0, 0.05, CONFIG.propFog) * 1000) / 1000;
   CONFIG.propContact = values.propContact === 0 || values.propContact === false ? 0 : 1;
   CONFIG.propBounds = [1, 2, 4, 8].includes(Number(values.propBounds))
@@ -102,39 +105,86 @@ export function getDrawFps() {
 const ads = new Map();
 const PROP_MESH_EXT = new Set([".glb", ".gltf", ".obj"]);
 const PROP_SIDE_EXT = new Set([".mtl", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tga", ".bin"]);
+const propSources = new Map();
+let propCurrent = "";
 const propModel = { url: "", name: "", ext: ".glb", file: null, files: [], blobs: [] };
-let propPrepared = { key: "", kind: "", data: null, ready: Promise.resolve(null) };
-
-function propCacheKey() {
-  return propModel.files.map((file) => `${file.name}:${file.size}:${file.lastModified}`).join("|");
-}
 
 function propFileExt(name) {
   return `.${String(name || "").split(".").pop().toLowerCase()}`;
 }
 
-function revokePropBlobs() {
-  for (const url of propModel.blobs) URL.revokeObjectURL(url);
-  propModel.blobs = [];
+function filesCacheKey(files) {
+  return (files || []).map((file) => `${file.name}:${file.size}:${file.lastModified}`).join("|");
 }
 
-function resetPropModel() {
-  revokePropBlobs();
-  propPrepared = { key: "", kind: "", data: null, ready: Promise.resolve(null) };
-  if (propModel.url.startsWith("blob:")) URL.revokeObjectURL(propModel.url);
-  propModel.url = "";
-  propModel.name = "";
-  propModel.ext = ".glb";
-  propModel.file = null;
-  propModel.files = [];
+function emptyPropSource(tag = "") {
+  return {
+    tag,
+    url: "",
+    name: "",
+    ext: ".glb",
+    file: null,
+    files: [],
+    prepared: { key: "", kind: "", data: null, ready: Promise.resolve(null) },
+    warmed: "",
+    warmToken: 0,
+  };
+}
+
+function sourceFromFiles(tag, list) {
+  const files = [...(list || [])];
+  const mesh = files.find((file) => PROP_MESH_EXT.has(propFileExt(file.name)));
+  const src = emptyPropSource(tag);
+  if (!mesh) return src;
+  src.file = mesh;
+  src.files = [mesh, ...files.filter((file) => {
+    const ext = propFileExt(file.name);
+    return file !== mesh && (PROP_MESH_EXT.has(ext) || PROP_SIDE_EXT.has(ext));
+  })];
+  src.name = mesh.name;
+  src.ext = propFileExt(mesh.name);
+  src.url = mesh.name;
+  return src;
+}
+
+function syncLegacyProp(src) {
+  propModel.url = src?.url || "";
+  propModel.name = src?.name || "";
+  propModel.ext = src?.ext || ".glb";
+  propModel.file = src?.file || null;
+  propModel.files = src?.files || [];
+}
+
+function getPropSource(tag) {
+  return tag ? propSources.get(tag) || null : null;
+}
+
+function currentPropSource() {
+  return getPropSource(propCurrent);
+}
+
+function propSourceFor(container) {
+  return getPropSource(container?.dataset?.propTag) || currentPropSource();
+}
+
+function usePropSource(src) {
+  if (!src?.tag) {
+    propCurrent = "";
+    syncLegacyProp(null);
+    return;
+  }
+  propSources.set(src.tag, src);
+  propCurrent = src.tag;
+  syncLegacyProp(src);
 }
 
 export function getPropModel() {
+  const src = currentPropSource();
   return {
-    url: propModel.url,
-    name: propModel.name,
-    ext: propModel.ext,
-    extras: propModel.files.filter((file) => file !== propModel.file).map((file) => file.name),
+    url: src?.url || "",
+    name: src?.name || "",
+    ext: src?.ext || ".glb",
+    extras: (src?.files || []).filter((file) => file !== src.file).map((file) => file.name),
   };
 }
 
@@ -143,41 +193,70 @@ export function setPropModelFile(file) {
 }
 
 export function setPropModelFiles(list) {
-  resetPropModel();
   const files = [...(list || [])];
-  const mesh = files.find((file) => PROP_MESH_EXT.has(propFileExt(file.name)));
-  if (!mesh) return getPropModel();
-  const sidecars = files.filter((file) => {
-    const ext = propFileExt(file.name);
-    return file !== mesh && (PROP_MESH_EXT.has(ext) || PROP_SIDE_EXT.has(ext));
-  });
-  propModel.file = mesh;
-  propModel.files = [mesh, ...sidecars];
-  propModel.name = mesh.name;
-  propModel.ext = propFileExt(mesh.name);
-  propModel.url = mesh.name;
-  preparePropSource();
+  const tag = files.length ? `files:${filesCacheKey(files)}` : "";
+  if (!tag) {
+    propCurrent = "";
+    syncLegacyProp(null);
+    return getPropModel();
+  }
+  let src = propSources.get(tag);
+  if (!src) {
+    src = sourceFromFiles(tag, files);
+    propSources.set(tag, src);
+    preparePropSourceFor(src);
+  }
+  usePropSource(src);
   return getPropModel();
 }
 
-export function preparePropSource() {
-  if (!propModel.file) {
-    propPrepared = { key: "", kind: "", data: null, ready: Promise.resolve(null) };
-    return propPrepared.ready;
+function preparePropSourceFor(src) {
+  if (!src?.file) {
+    if (src) src.prepared = { key: "", kind: "", data: null, ready: Promise.resolve(null) };
+    return Promise.resolve(null);
   }
-  const key = propCacheKey();
-  if (propPrepared.key === key) return propPrepared.ready;
-  const kind = propModel.ext === ".obj" ? "obj" : propModel.ext === ".glb" ? "glb" : "gltf";
+  const key = filesCacheKey(src.files);
+  if (src.prepared.key === key) return src.prepared.ready;
+  const kind = src.ext === ".obj" ? "obj" : src.ext === ".glb" ? "glb" : "gltf";
   const ready = kind === "obj"
-    ? propModel.file.text().then((text) => embedObjSidecars(text))
+    ? src.file.text().then((text) => embedObjSidecars(text, src))
     : kind === "glb"
-      ? propModel.file.arrayBuffer()
-      : propModel.file.text().then((text) => embedGltfSidecars(text));
-  propPrepared = { key, kind, data: null, ready };
+      ? src.file.arrayBuffer()
+      : src.file.text().then((text) => embedGltfSidecars(text, src));
+  src.prepared = { key, kind, data: null, ready };
   ready.then((data) => {
-    if (propPrepared.key === key) propPrepared.data = data;
+    if (src.prepared.key === key) src.prepared.data = data;
   }).catch(() => {});
   return ready;
+}
+
+export function preparePropSource() {
+  return preparePropSourceFor(currentPropSource());
+}
+
+export function comboPropTag(item) {
+  if (!item || playById(item.play).id !== "prop" || !item.pmesh) return "";
+  return item.pmesh.assetId ? `asset:${item.pmesh.assetId}` : `idb:${item.id}:${item.pmesh.name}`;
+}
+
+export async function prepareComboMesh(item, { warmup = true } = {}) {
+  const tag = comboPropTag(item);
+  if (!item?.pmesh?.assetId) return "";
+  let src = getPropSource(tag);
+  if (!src) {
+    const catalog = await listFolderAssets();
+    const asset = catalog.find((entry) => entry.id === item.pmesh.assetId);
+    const files = asset ? await loadAssetFilesForMesh(asset, catalog) : [];
+    if (!files.length) return "";
+    src = sourceFromFiles(tag, files);
+    propSources.set(tag, src);
+    await preparePropSourceFor(src);
+  } else {
+    await src.prepared.ready;
+  }
+  usePropSource(src);
+  if (warmup) await warmupPropGpu(tag);
+  return tag;
 }
 const AD4_BANNER = loadBanner();
 const AD4_FX = { burst: 0 };
@@ -187,6 +266,27 @@ let BABYLON = null;
 let observer = null;
 let stopShapes = null;
 let onResize = null;
+const propWarm = { key: "", token: 0, scene: null };
+
+function disposePropWarm() {
+  propWarm.token += 1;
+  propWarm.key = "";
+  if (propWarm.scene && !propWarm.scene.isDisposed) propWarm.scene.dispose();
+  propWarm.scene = null;
+}
+
+async function compileMeshMaterials(root) {
+  const jobs = [];
+  for (const mesh of root.getChildMeshes?.() || []) {
+    if (!mesh.getTotalVertices?.()) continue;
+    const mats = mesh.material?.subMaterials || (mesh.material ? [mesh.material] : []);
+    for (const mat of mats) {
+      if (!mat?.forceCompilationAsync) continue;
+      jobs.push(mat.forceCompilationAsync(mesh).catch(() => {}));
+    }
+  }
+  await Promise.all(jobs);
+}
 
 function hexToColor4(hex) {
   const n = String(hex || "").replace("#", "");
@@ -407,13 +507,13 @@ function resetPlay(container, unit) {
   unit.climax = false;
   unit.adIn = false;
   unit.journeyAt = 0;
+  unit.clockStarted = 0;
   container.classList.remove("is-climax", "is-pre-exit", "is-ad-in", "is-handoff", "is-handoff-hold", "is-handoff-done");
 }
 
 function attachTimedClimax(container, scene, ms) {
   const unit = ads.get(container.id);
   if (!unit) return;
-  let started = 0;
   const reveal = () => {
     if (unit.climax) return;
     finishClimax(container, unit);
@@ -421,17 +521,18 @@ function attachTimedClimax(container, scene, ms) {
   bindSkip(container, reveal);
   scene.onBeforeRenderObservable.add(() => {
     if (!unit.visible) {
-      started = 0;
       resetPlay(container, unit);
       return;
     }
-    if (unit.waitProp && !unit.propReady) return;
-    if (typeof unit.propT === "number") {
-      if (unit.propT >= 1) reveal();
-      return;
+    if (container.dataset.play === "prop") {
+      if (unit.propRewind) return;
+      if (typeof unit.propT === "number") {
+        if (unit.propT >= 1) reveal();
+        return;
+      }
     }
-    if (!started) started = performance.now();
-    if (performance.now() - started >= ms) reveal();
+    if (!unit.clockStarted) unit.clockStarted = performance.now();
+    if (performance.now() - unit.clockStarted >= ms) reveal();
   });
 }
 
@@ -444,7 +545,6 @@ function attachPlay(container, scene) {
 function attachPreEnter(container, scene) {
   const unit = ads.get(container.id);
   if (!unit) return;
-  let started = 0;
   const enterAd = () => {
     if (unit.adIn || unit.exitTimer) return;
     container.classList.add("is-pre-exit");
@@ -458,12 +558,11 @@ function attachPreEnter(container, scene) {
   bindSkip(container, enterAd);
   scene.onBeforeRenderObservable.add(() => {
     if (!unit.visible) {
-      started = 0;
       resetPlay(container, unit);
       return;
     }
-    if (!started) started = performance.now();
-    if (performance.now() - started >= CONFIG.preEnterMs) enterAd();
+    if (!unit.clockStarted) unit.clockStarted = performance.now();
+    if (performance.now() - unit.clockStarted >= CONFIG.preEnterMs) enterAd();
   });
 }
 
@@ -1755,17 +1854,18 @@ function textAsDataUrl(text) {
   return `data:text/plain;base64,${btoa(bin)}`;
 }
 
-async function embedObjSidecars(objText) {
+async function embedObjSidecars(objText, src = currentPropSource()) {
+  const files = src?.files || [];
   const lib = objText.match(/^\s*mtllib\s+(\S+)/im);
   if (!lib) return objText.replace(/^\s*mtllib\s+\S+/gim, "");
-  const mtlFile = propModel.files.find((file) => (
+  const mtlFile = files.find((file) => (
     propBaseName(file.name).toLowerCase() === propBaseName(lib[1]).toLowerCase()
   ));
   if (!mtlFile) return objText.replace(/^\s*mtllib\s+\S+/gim, "");
   let mtlText = await mtlFile.text();
-  for (const file of propModel.files) {
+  for (const file of files) {
     const ext = propFileExt(file.name);
-    if (file === propModel.file || file === mtlFile || ext === ".mtl" || ext === ".obj") continue;
+    if (file === src.file || file === mtlFile || ext === ".mtl" || ext === ".obj") continue;
     mtlText = rewriteAssetRefs(mtlText, file.name, await fileAsDataUrl(file));
   }
   return objText.replace(/^\s*mtllib\s+\S+/gim, `mtllib ${textAsDataUrl(mtlText)}`);
@@ -1788,24 +1888,24 @@ async function ensurePropLoader(ext) {
   return mod;
 }
 
-async function loadObjResult(scene) {
+async function loadObjResult(scene, src) {
   const mod = await ensurePropLoader(".obj");
-  const objText = await preparePropSource();
+  const objText = await preparePropSourceFor(src);
   return new mod.OBJFileLoader().importMeshAsync(null, scene, objText, "");
 }
 
-function sidecarByUri(uri) {
+function sidecarByUri(uri, src) {
   if (!uri || String(uri).startsWith("data:")) return null;
   const base = propBaseName(String(uri).split("?")[0]).toLowerCase();
-  return propModel.files.find((file) => propBaseName(file.name).toLowerCase() === base) || null;
+  return (src?.files || []).find((file) => propBaseName(file.name).toLowerCase() === base) || null;
 }
 
-async function embedGltfSidecars(json) {
+async function embedGltfSidecars(json, src = currentPropSource()) {
   const gltf = JSON.parse(json);
   for (const list of [gltf.buffers, gltf.images]) {
     if (!Array.isArray(list)) continue;
     for (const item of list) {
-      const file = sidecarByUri(item.uri);
+      const file = sidecarByUri(item.uri, src);
       if (file) item.uri = await fileAsDataUrl(file);
     }
   }
@@ -1819,24 +1919,24 @@ function gltfLoaderData(loader, scene, fileOrView, asBinary) {
   });
 }
 
-async function loadGltfResult(scene) {
-  const mod = await ensurePropLoader(propModel.ext);
+async function loadGltfResult(scene, src) {
+  const mod = await ensurePropLoader(src.ext);
   const loader = new mod.GLTFFileLoader();
   loader.validate = false;
-  const payload = await preparePropSource();
-  if (propModel.ext === ".glb") {
+  const payload = await preparePropSourceFor(src);
+  if (src.ext === ".glb") {
     const data = await gltfLoaderData(loader, scene, new Uint8Array(payload), true);
     return loader.importMeshAsync(null, scene, data, "");
   }
   return loader.importMeshAsync(null, scene, { json: structuredClone(payload), bin: null }, "");
 }
 
-async function loadPropImport(scene, parent, shadows) {
-  if (!propModel.file) return null;
+async function loadPropImport(scene, parent, shadows, src = currentPropSource()) {
+  if (!src?.file) return null;
   try {
-    const result = propModel.ext === ".obj"
-      ? await loadObjResult(scene)
-      : await loadGltfResult(scene);
+    const result = src.ext === ".obj"
+      ? await loadObjResult(scene, src)
+      : await loadGltfResult(scene, src);
     const wrap = new BABYLON.TransformNode("propImport", scene);
     wrap.parent = parent;
     const imported = [...(result.transformNodes || []), ...(result.meshes || [])];
@@ -2004,7 +2104,7 @@ function buildPropScene(scene) {
     ? attachStudioLighting(BABYLON, scene, camera, {
         initial: parseStudioState(host.dataset.studioLights),
         skyboxSize: 48,
-        ssao: true,
+        ssao: CONFIG.propSsao,
       })
     : null;
   if (studioRig) {
@@ -2200,20 +2300,19 @@ function buildPropScene(scene) {
   let customHalf = half;
   const customCenter = new BABYLON.Vector3(0, 0, 0);
   const unit0 = ads.get(id);
+  const propSrc = propSourceFor(host);
   if (unit0) {
-    unit0.waitProp = Boolean(propModel.file);
-    unit0.propReady = !propModel.file;
+    unit0.propTag = host?.dataset?.propTag || propSrc?.tag || "";
+    unit0.waitProp = Boolean(propSrc?.file);
+    unit0.propReady = !propSrc?.file;
   }
-  let boundTick = 0;
-  let lastSink = 0;
-  let lastLift = 0;
   let logicAcc = 0;
   let logicT = 0;
   let logicNow = 0;
   let logicAction = "";
   let posePrev = null;
   let poseCurr = null;
-  loadPropImport(scene, root, shadows).then((loaded) => {
+  loadPropImport(scene, root, shadows, propSrc).then((loaded) => {
     if (loaded) {
       if (scene.isDisposed) {
         loaded.wrap.dispose();
@@ -2282,9 +2381,8 @@ function buildPropScene(scene) {
     aimRim.intensity = aimMode === "multi" ? 8.5 * aimPunch : 0;
     aimFloor.intensity = aimOn && floorOn ? 1.7 * aimPunch * floorAim : 0;
     aimPool.setEnabled(aimOn && floorOn);
-    const waiting = Boolean(propModel.file) && !useCustom;
-    box.setEnabled(!useCustom && !sphere && !waiting);
-    ball.setEnabled(!useCustom && sphere && !waiting);
+    box.setEnabled(!useCustom && !sphere);
+    ball.setEnabled(!useCustom && sphere);
     custom?.setEnabled(useCustom);
     ground.setEnabled(floorOn);
     blob.setEnabled(floorOn && CONFIG.propContact === 1);
@@ -2328,6 +2426,16 @@ function buildPropScene(scene) {
       scene.clearColor = new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1);
     }
     const unit = ads.get(id);
+    if (unit?.propRewind) {
+      unit.propRewind = false;
+      logicAcc = 0;
+      logicT = 0;
+      logicNow = 0;
+      posePrev = null;
+      poseCurr = null;
+      unit.propT = 0;
+      unit.journeyAt = 0;
+    }
     const ms = propActionMs(action) / 1000;
     const dim = propBoxSize(host);
     box.scaling.set(dim.x / size, dim.y / size, dim.z / size);
@@ -2349,7 +2457,7 @@ function buildPropScene(scene) {
     }
     const poseHalf = useCustom ? customHalf * (dim.y / size) : dim.y * 0.5;
     const step = 1 / CONFIG.logicHz;
-    const ready = unit?.visible && !(unit.waitProp && !unit.propReady);
+    const ready = Boolean(unit?.visible);
     if (!ready) {
       logicAcc = 0;
       logicT = 0;
@@ -2398,8 +2506,10 @@ function buildPropScene(scene) {
     const spinV = Number(normalizePropSpin(host?.dataset.propRvrot)) * Math.PI / 180;
     p.ry += spinH;
     p.rx += spinV;
-    const floor = supportY(p, sphere, dim) + 0.012;
-    if (!useCustom) p.y = Math.max(p.y, floor);
+    const floor = supportY(p, sphere, useCustom
+      ? { x: dim.x, y: poseHalf * 2, z: dim.z }
+      : dim) + 0.012;
+    p.y = Math.max(p.y, floor);
     root.position.set(p.x, p.y, p.z);
     root.rotation.set(p.rx, p.ry, p.rz);
     root.scaling.set(p.sx, p.sy, p.sz);
@@ -2422,22 +2532,7 @@ function buildPropScene(scene) {
         placeAimPolar(aimFloor, aimTarget, aimDist, aimPose.h, aimPose.v, aimFrom, aimDir);
       }
     }
-    let lift = Math.max(0, p.y - floor);
-    if (useCustom) {
-      const every = CONFIG.propBounds;
-      if (boundTick % every === 0) {
-        custom.computeWorldMatrix(true);
-        const bounds = custom.getHierarchyBoundingVectors(true);
-        lastSink = Math.max(0, 0.012 - bounds.min.y);
-        lastLift = Math.max(0, bounds.min.y + lastSink - 0.012);
-      }
-      if (lastSink > 0) {
-        p.y += lastSink;
-        root.position.y = p.y;
-      }
-      lift = lastLift;
-      boundTick += 1;
-    }
+    const lift = Math.max(0, p.y - floor);
     blob.position.x = p.x;
     blob.position.z = p.z;
     blob.scaling.setAll((sphere ? 0.48 : 0.7) + lift * 1.05);
@@ -2897,8 +2992,17 @@ function visibleAdCount() {
   return n;
 }
 
+let pageShown = true;
+
+export function setPageShown(on) {
+  pageShown = Boolean(on);
+  for (const unit of ads.values()) {
+    setAdVisible(unit.container, true);
+  }
+}
+
 function isAdPlayable(container, intersecting) {
-  if (!intersecting || document.hidden) return false;
+  if (!pageShown || !intersecting || document.hidden) return false;
   const sticky = container.closest(".sticky-ad.hide-until-stuck");
   if (sticky && !sticky.classList.contains("is-stuck")) return false;
   return true;
@@ -2934,7 +3038,6 @@ function attachSharedLoop() {
       if (!unit.ctx) unit.ctx = dest.getContext("2d", { alpha: false });
       if (unit.paint2d) {
         unit.paint2d(unit.ctx, bw, bh);
-        paintHostClock(unit.container);
         continue;
       }
       if (!unit.scene) continue;
@@ -2945,7 +3048,6 @@ function attachSharedLoop() {
       }
       unit.scene.render();
       unit.ctx.drawImage(gl, 0, 0, gl.width || bw, gl.height || bh, 0, 0, bw, bh);
-      paintHostClock(unit.container);
     }
   };
   return {
@@ -2991,19 +3093,90 @@ export function setAdClockT(t) {
 export function restAds() {
   let any = false;
   for (const unit of ads.values()) {
-    if (unit.frozen && !unit.scene) continue;
+    if (unit.frozen && !unit.scene && !unit.paint2d) continue;
     unit.frozen = true;
     unit.visible = false;
-    unit.scene?.dispose();
-    unit.scene = null;
-    unit.booted = false;
     any = true;
   }
   if (any) sharedLoop?.stopLoop();
 }
 
+export function rewindAds() {
+  let any = false;
+  for (const unit of ads.values()) {
+    if (!unit.scene) return false;
+    unit.frozen = false;
+    unit.lastFrame = 0;
+    resetPlay(unit.container, unit);
+    if (unit.container.dataset.play === "prop") unit.propRewind = true;
+    unit.propT = 0;
+    unit.clockStarted = 0;
+    setAdVisible(unit.container, true);
+    any = true;
+  }
+  if (any) sharedLoop?.startLoop();
+  return any;
+}
+
 export function burstSticky() {
   AD4_FX.burst = 1;
+}
+
+export async function preloadEngine() {
+  await ensureEngine();
+}
+
+export async function warmupPropGpu(tag = propCurrent) {
+  await ensureEngine();
+  const src = getPropSource(tag) || currentPropSource();
+  if (!src?.file) return;
+  const key = filesCacheKey(src.files);
+  if (src.warmed === key) return;
+  const token = ++src.warmToken;
+  await preparePropSourceFor(src);
+  if (token !== src.warmToken) return;
+  const scene = new BABYLON.Scene(engine);
+  scene.autoClear = true;
+  const camera = new BABYLON.ArcRotateCamera(
+    "warmCam",
+    CAM_HOME,
+    1.12,
+    4.1,
+    new BABYLON.Vector3(0, 0.38, 0),
+    scene
+  );
+  camera.minZ = 0.05;
+  camera.fov = 0.52;
+  camera.inputs.clear();
+  attachStudioLighting(BABYLON, scene, camera, { ssao: false, skyboxSize: 48 });
+  const root = new BABYLON.TransformNode("warmRoot", scene);
+  try {
+    const loaded = await loadPropImport(scene, root, null, src);
+    if (token !== src.warmToken) {
+      scene.dispose();
+      return;
+    }
+    if (loaded?.wrap) {
+      if (scene.whenReadyAsync) {
+        await Promise.race([
+          scene.whenReadyAsync(),
+          new Promise((resolve) => setTimeout(resolve, 8000)),
+        ]);
+      }
+      if (token !== src.warmToken) {
+        scene.dispose();
+        return;
+      }
+      await compileMeshMaterials(loaded.wrap);
+      for (let i = 0; i < 3; i += 1) scene.render();
+    }
+    scene.dispose();
+    if (token !== src.warmToken) return;
+    src.warmed = key;
+  } catch (err) {
+    scene.dispose();
+    console.warn("No se pudo precalentar el modelo 3D", err);
+  }
 }
 
 async function ensureEngine() {
@@ -3044,15 +3217,19 @@ function enqueuePropBoot(work) {
   return next;
 }
 
+function adUnitAlive(unit) {
+  return Boolean(unit) && !unit.dead && ads.get(unit.container?.id) === unit;
+}
+
 async function bootAdUnit(container) {
   const unit = ads.get(container.id);
-  if (!unit || unit.booted || unit.booting || unit.frozen) return;
+  if (!unit || unit.booted || unit.booting || unit.frozen || unit.dead) return;
   unit.booting = true;
   const canvas = unit.display;
   const token = propBootToken;
   try {
     await waitForBox(container);
-    if (token !== propBootToken || !container.isConnected) return;
+    if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) return;
     const sized = syncAdSize(container);
     const play2d = {
       horizon: attachHorizon2D,
@@ -3066,8 +3243,12 @@ async function bootAdUnit(container) {
     };
     const attach2d = play2d[container.dataset.play];
     const start3d = async () => {
-      if (token !== propBootToken || !container.isConnected) return;
+      if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) return;
       const scene = new BABYLON.Scene(engine);
+      if (!adUnitAlive(unit)) {
+        scene.dispose();
+        return;
+      }
       scene.metadata = { displayCanvas: canvas, w: sized.width, h: sized.height, containerId: container.id, host: container };
       unit.scene = scene;
       if (container.dataset.play === "prop") buildPropScene(scene);
@@ -3077,7 +3258,13 @@ async function bootAdUnit(container) {
     if (attach2d) attach2d(container);
     else if (container.dataset.play === "prop") await enqueuePropBoot(start3d);
     else await start3d();
-    if (token !== propBootToken || !container.isConnected) return;
+    if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) {
+      if (unit.scene && unit.dead) {
+        unit.scene.dispose();
+        unit.scene = null;
+      }
+      return;
+    }
     if (container.querySelector(".ad-wave")) applyWaveToDom(container, AD4_BANNER);
     const shapeSvg = container.querySelector(".ad-2d");
     if (shapeSvg) {
@@ -3093,8 +3280,38 @@ async function bootAdUnit(container) {
   }
 }
 
-export function disposeAds() {
-  propBootToken += 1;
+function adUnitKey(id) {
+  if (id == null || id === "") return "";
+  if (typeof id === "object") return String(id.id || "");
+  return String(id);
+}
+
+function teardownAdUnit(unit) {
+  if (!unit || unit.dead) return;
+  unit.dead = true;
+  unit.frozen = true;
+  unit.visible = false;
+  unit.booted = false;
+  if (unit.exitTimer) {
+    clearTimeout(unit.exitTimer);
+    unit.exitTimer = 0;
+  }
+  if (unit.handoffTimer) {
+    clearTimeout(unit.handoffTimer);
+    unit.handoffTimer = 0;
+  }
+  const container = unit.container;
+  if (container) observer?.unobserve(container);
+  unit.scene?.dispose();
+  unit.scene = null;
+  if (container?.id) ads.delete(container.id);
+}
+
+function releasePlayerIfEmpty() {
+  if (ads.size) {
+    if (!visibleAdCount()) sharedLoop?.stopLoop();
+    return;
+  }
   stopShapes?.();
   stopShapes = null;
   observer?.disconnect();
@@ -3103,13 +3320,21 @@ export function disposeAds() {
     window.removeEventListener("resize", onResize);
     onResize = null;
   }
-  for (const [id, unit] of ads) {
-    if (unit.exitTimer) clearTimeout(unit.exitTimer);
-    if (unit.handoffTimer) clearTimeout(unit.handoffTimer);
-    unit.scene?.dispose();
-    ads.delete(id);
-  }
   sharedLoop?.stopLoop();
+}
+
+export function disposeAds(id) {
+  const key = adUnitKey(id);
+  if (key) {
+    const unit = ads.get(key);
+    if (!unit) return;
+    teardownAdUnit(unit);
+    releasePlayerIfEmpty();
+    return;
+  }
+  propBootToken += 1;
+  for (const unit of [...ads.values()]) teardownAdUnit(unit);
+  releasePlayerIfEmpty();
 }
 
 export async function bootContainers(root = document) {
@@ -3122,6 +3347,7 @@ export async function bootContainers(root = document) {
       scene: null,
       visible: false,
       frozen: false,
+      dead: false,
       container,
       display: canvas,
       lastFrame: 0,
@@ -3129,15 +3355,19 @@ export async function bootContainers(root = document) {
       booting: false,
     });
   }
-  observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) bootAdUnit(entry.target);
-      setAdVisible(entry.target, entry.isIntersecting);
-    }
-  }, { threshold: 0, rootMargin: "120px" });
+  if (!observer) {
+    observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) bootAdUnit(entry.target);
+        setAdVisible(entry.target, entry.isIntersecting);
+      }
+    }, { threshold: 0, rootMargin: "120px" });
+  }
   nodes.forEach((el) => observer.observe(el));
-  onResize = () => document.querySelectorAll(".ad-container").forEach(syncAdSize);
-  window.addEventListener("resize", onResize);
+  if (!onResize) {
+    onResize = () => document.querySelectorAll(".ad-container").forEach(syncAdSize);
+    window.addEventListener("resize", onResize);
+  }
 }
 
 export async function startAd(container) {
