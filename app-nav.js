@@ -12,10 +12,12 @@
            <a href="serve.html">Serve</a>
            <a href="many.html">Varios</a>
            <a href="lab.html">Lab</a>
+           <a href="cuerpo.html">Cuerpo</a>
+           <a href="poleas.html">Poleas</a>
            <a href="index.html">Artículo</a>
            <a href="editor.html">Editor</a>
          </nav>
-         <p class="app-drawer-note">POC de anuncios 3D · formatos IAB</p>
+         <p class="app-drawer-note">POC Soma · el cuerpo como paisaje</p>
        </aside>`
     );
   }

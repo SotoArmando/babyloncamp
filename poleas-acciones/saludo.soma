@@ -1,0 +1,22 @@
+# saludo
+# Brazo I arriba, el codo agita, y otra vez. Parar corta el ciclo.
+
+pose de-pie en 0.35
+
+repite siempre
+  junto
+    casco hombro I x a -0.62 en 0.4
+    casco hombro I z a -0.28 en 0.4
+    polea codo I a 0.22 en 0.32
+  fin
+  casco hombro I z a -0.72 en 0.16
+  casco hombro I z a -0.18 en 0.16
+  casco hombro I z a -0.72 en 0.16
+  casco hombro I z a -0.18 en 0.16
+  junto
+    casco hombro I x a 0 en 0.38
+    casco hombro I z a 0 en 0.38
+    polea codo I a 1 en 0.3
+  fin
+  espera 0.22
+fin

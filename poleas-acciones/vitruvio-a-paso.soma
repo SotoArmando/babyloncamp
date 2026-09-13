@@ -1,0 +1,8 @@
+# vitruvio a un paso
+# De la medida de Leonardo a un paso, y de vuelta.
+
+pose vitruvio en 0.7
+espera 0.35
+pose un-paso en 0.55
+espera 0.25
+pose de-pie en 0.5

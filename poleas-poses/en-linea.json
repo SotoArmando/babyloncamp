@@ -1,0 +1,32 @@
+{
+  "kind": "soma-poleas-pose",
+  "version": 1,
+  "name": "en linea",
+  "saved": "2026-09-12T15:20:00.000Z",
+  "sliders": {
+    "spine": 1,
+    "neck": 1,
+    "shoulderL": 1,
+    "shoulderR": 1,
+    "elbowL": 1,
+    "elbowR": 1,
+    "wristL": 1,
+    "wristR": 1,
+    "thumbL": 1,
+    "thumbR": 1,
+    "indexL": 1,
+    "indexR": 1,
+    "middleL": 1,
+    "middleR": 1,
+    "ringL": 1,
+    "ringR": 1,
+    "pinkyL": 1,
+    "pinkyR": 1,
+    "hipL": 1,
+    "hipR": 1,
+    "kneeL": 1,
+    "kneeR": 1,
+    "ankleL": 1,
+    "ankleR": 1
+  }
+}

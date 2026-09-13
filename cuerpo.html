@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soma · Cuerpo</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root {
+      --ink: #1a1414;
+      --muted: #6b5a5c;
+      --line: #e4d6d4;
+      --paper: #fff8f6;
+      --stage: #1a1113;
+      --breath: #c45a7a;
+      --rhythm: #c43a3a;
+      --intent: #c49a4a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #f6eeeb;
+      color: var(--ink);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100%;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      min-height: 0;
+    }
+    .stage {
+      position: relative;
+      min-height: 0;
+      background: var(--stage);
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .stage-note {
+      position: absolute;
+      left: 1rem;
+      bottom: 1rem;
+      margin: 0;
+      color: rgba(255, 236, 232, 0.7);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      max-width: 22rem;
+      pointer-events: none;
+    }
+    .legend {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .chip {
+      border: 0;
+      border-radius: 999px;
+      padding: 0.32rem 0.7rem;
+      font: 650 0.72rem/1.2 system-ui, sans-serif;
+      cursor: pointer;
+      color: #fff;
+    }
+    .chip[data-solo="all"] { background: #3a2a2c; }
+    .chip[data-solo="breath"] { background: var(--breath); }
+    .chip[data-solo="rhythm"] { background: var(--rhythm); }
+    .chip[data-solo="intent"] { background: var(--intent); }
+    .chip.is-on { outline: 2px solid #fff; outline-offset: 2px; }
+    .panel {
+      overflow: auto;
+      background: var(--paper);
+      border-left: 1px solid var(--line);
+      padding: 1rem 1rem 1.4rem;
+    }
+    .lead {
+      margin: 0 0 0.95rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+    .card {
+      margin: 0 0 0.75rem;
+      padding: 0.8rem 0.8rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .card[data-sec="breath"] { border-top: 3px solid var(--breath); }
+    .card[data-sec="rhythm"] { border-top: 3px solid var(--rhythm); }
+    .card[data-sec="intent"] { border-top: 3px solid var(--intent); }
+    .card[data-sec="layer"] { border-top: 3px solid #5a4a52; }
+    .card.is-dim { opacity: 0.48; }
+    .toggles { display: grid; gap: 0.45rem; margin: 0 0 0.65rem; }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .check input { accent-color: #8a3a5a; }
+    .chip[data-toggle] { background: #5a4a52; }
+    .chip[data-toggle].is-off { opacity: 0.45; }
+    .card h2 {
+      margin: 0 0 0.25rem;
+      font-size: 0.92rem;
+    }
+    .card .blurb {
+      margin: 0 0 0.65rem;
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.4;
+    }
+    .readout {
+      margin: 0 0 0.7rem;
+      font: 650 0.7rem/1.35 ui-monospace, monospace;
+      color: #4a3034;
+    }
+    label.f {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.15rem 0.6rem;
+      margin: 0 0 0.5rem;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+    label.f span:last-child { font-variant-numeric: tabular-nums; color: var(--ink); }
+    input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: #8a3a5a; }
+    .card[data-sec="breath"] input { accent-color: var(--breath); }
+    .card[data-sec="rhythm"] input { accent-color: var(--rhythm); }
+    .card[data-sec="intent"] input { accent-color: var(--intent); }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; grid-template-rows: minmax(46vh, 1fr) auto; }
+      .panel { border-left: 0; border-top: 1px solid var(--line); max-height: 46vh; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Soma</a>
+    <h1 class="app-page-title">Cuerpo</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+      <a class="app-quiet" href="index.html">Artículo</a>
+    </div>
+  </header>
+  <div class="shell">
+    <section class="stage">
+      <canvas id="soma" width="800" height="900" aria-label="Humano 3D seccionado"></canvas>
+      <div class="legend">
+        <button type="button" class="chip is-on" data-solo="all">Los tres</button>
+        <button type="button" class="chip" data-solo="breath">Respiración</button>
+        <button type="button" class="chip" data-solo="rhythm">Ritmo</button>
+        <button type="button" class="chip" data-solo="intent">Intención</button>
+        <button type="button" class="chip" data-toggle="shell">Cuerpo</button>
+        <button type="button" class="chip" data-toggle="activity">Actividad</button>
+      </div>
+      <p class="stage-note">Tren de cabinas + acción de caricatura. No simula el suelo: se leen dos poses, contacto y paso, con squash y stretch.</p>
+    </section>
+    <aside class="panel">
+      <p class="lead">Tres sistemas, no un personaje. Encima, una capa barata y un caminar en el sitio — las dos se pueden apagar.</p>
+
+      <article class="card" data-sec="layer">
+        <h2>Capa y actividad</h2>
+        <p class="blurb">No hay piso ni física. El andar es pose a pose, como en una caricatura: contacto achatado, paso alto estirado, brazos al contrario, todo en hold para que se lea de un vistazo.</p>
+        <div class="toggles">
+          <label class="check"><input id="opt-shell" type="checkbox" checked /> Cuerpo por encima</label>
+          <label class="check"><input id="opt-activity" type="checkbox" checked /> Actividad · andar de caricatura</label>
+        </div>
+        <label class="f">Opacidad de la capa <span id="v-shell-a">0.88</span>
+          <input id="shell-a" type="range" min="0.15" max="1" step="0.01" />
+        </label>
+        <label class="f">Tempo de la actividad <span id="v-act-speed">0.55</span>
+          <input id="act-speed" type="range" min="0.15" max="1" step="0.01" />
+        </label>
+      </article>
+
+      <article class="card" data-sec="breath">
+        <h2>Respiración</h2>
+        <p class="blurb">Volumen que entra y sale. Pecho y vientre se reparte el aire; la pausa deja ver el tope.</p>
+        <p class="readout" id="out-breath">—</p>
+        <label class="f">Amplitud <span id="v-b-amp">0.70</span>
+          <input id="b-amp" type="range" min="0" max="1" step="0.01" />
+        </label>
+        <label class="f">Ciclos / min <span id="v-b-rate">12</span>
+          <input id="b-rate" type="range" min="5" max="22" step="0.5" />
+        </label>
+        <label class="f">Centro · pecho → vientre <span id="v-b-center">0.38</span>
+          <input id="b-center" type="range" min="0" max="1" step="0.01" />
+        </label>
+        <label class="f">Pausa en el tope <span id="v-b-hold">0.12</span>
+          <input id="b-hold" type="range" min="0" max="0.35" step="0.01" />
+        </label>
+      </article>
+
+      <article class="card" data-sec="rhythm">
+        <h2>Ritmo</h2>
+        <p class="blurb">El reloj interno. El corazón pega; el pulso viaja por brazos y piernas si le das recorrido.</p>
+        <p class="readout" id="out-rhythm">—</p>
+        <label class="f">BPM <span id="v-r-bpm">72</span>
+          <input id="r-bpm" type="range" min="40" max="140" step="1" />
+        </label>
+        <label class="f">Fuerza <span id="v-r-force">0.75</span>
+          <input id="r-force" type="range" min="0" max="1" step="0.01" />
+        </label>
+        <label class="f">Recorrido <span id="v-r-travel">0.55</span>
+          <input id="r-travel" type="range" min="0" max="1" step="0.01" />
+        </label>
+      </article>
+
+      <article class="card" data-sec="intent">
+        <h2>Intención</h2>
+        <p class="blurb">Hacia dónde va el cuerpo antes de moverse. Mirada, peso e inclinación del pecho.</p>
+        <p class="readout" id="out-intent">—</p>
+        <label class="f">Mirada horizontal <span id="v-i-yaw">12°</span>
+          <input id="i-yaw" type="range" min="-50" max="50" step="1" />
+        </label>
+        <label class="f">Mirada vertical <span id="v-i-pitch">-4°</span>
+          <input id="i-pitch" type="range" min="-25" max="20" step="1" />
+        </label>
+        <label class="f">Peso / inclinación <span id="v-i-lean">0.18</span>
+          <input id="i-lean" type="range" min="-1" max="1" step="0.01" />
+        </label>
+        <label class="f">Alcance <span id="v-i-reach">0.22</span>
+          <input id="i-reach" type="range" min="0" max="1" step="0.01" />
+        </label>
+        <label class="f">Búsqueda <span id="v-i-search">0.15</span>
+          <input id="i-search" type="range" min="0" max="1" step="0.01" />
+        </label>
+      </article>
+    </aside>
+  </div>
+  <script src="app-nav.js?v=nav4"></script>
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3"
+    } }
+  </script>
+  <script type="module">
+    import * as BABYLON from "@babylonjs/core";
+    import { DEFAULT_SOMA, createSomaStudio, tickSomaFigure } from "./soma-body.js";
+
+    const canvas = document.getElementById("soma");
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    const { scene, figure } = createSomaStudio(BABYLON, engine, canvas);
+
+    const hashSolo = { respiracion: "breath", ritmo: "rhythm", intencion: "intent", breath: "breath", rhythm: "rhythm", intent: "intent" };
+    const state = structuredClone(DEFAULT_SOMA);
+    const fromHash = hashSolo[String(location.hash || "").replace(/^#/, "").toLowerCase()];
+    if (fromHash) state.solo = fromHash;
+
+    const bind = [
+      ["b-amp", "v-b-amp", (n) => { state.breath.amp = n; }, () => state.breath.amp, (n) => n.toFixed(2)],
+      ["b-rate", "v-b-rate", (n) => { state.breath.rate = n; }, () => state.breath.rate, (n) => n.toFixed(n % 1 ? 1 : 0)],
+      ["b-center", "v-b-center", (n) => { state.breath.center = n; }, () => state.breath.center, (n) => n.toFixed(2)],
+      ["b-hold", "v-b-hold", (n) => { state.breath.hold = n; }, () => state.breath.hold, (n) => n.toFixed(2)],
+      ["r-bpm", "v-r-bpm", (n) => { state.rhythm.bpm = n; }, () => state.rhythm.bpm, (n) => String(Math.round(n))],
+      ["r-force", "v-r-force", (n) => { state.rhythm.force = n; }, () => state.rhythm.force, (n) => n.toFixed(2)],
+      ["r-travel", "v-r-travel", (n) => { state.rhythm.travel = n; }, () => state.rhythm.travel, (n) => n.toFixed(2)],
+      ["i-yaw", "v-i-yaw", (n) => { state.intent.yaw = n; }, () => state.intent.yaw, (n) => `${Math.round(n)}°`],
+      ["i-pitch", "v-i-pitch", (n) => { state.intent.pitch = n; }, () => state.intent.pitch, (n) => `${Math.round(n)}°`],
+      ["i-lean", "v-i-lean", (n) => { state.intent.lean = n; }, () => state.intent.lean, (n) => n.toFixed(2)],
+      ["i-reach", "v-i-reach", (n) => { state.intent.reach = n; }, () => state.intent.reach, (n) => n.toFixed(2)],
+      ["i-search", "v-i-search", (n) => { state.intent.search = n; }, () => state.intent.search, (n) => n.toFixed(2)],
+      ["shell-a", "v-shell-a", (n) => { state.shell.opacity = n; }, () => state.shell.opacity, (n) => n.toFixed(2)],
+      ["act-speed", "v-act-speed", (n) => { state.activity.speed = n; }, () => state.activity.speed, (n) => n.toFixed(2)],
+    ];
+
+    for (const [id, vid, set, get, fmt] of bind) {
+      const input = document.getElementById(id);
+      const view = document.getElementById(vid);
+      input.value = String(get());
+      view.textContent = fmt(get());
+      input.addEventListener("input", () => {
+        const n = Number(input.value);
+        set(n);
+        view.textContent = fmt(n);
+      });
+    }
+
+    const chips = [...document.querySelectorAll(".chip[data-solo]")];
+    const cards = [...document.querySelectorAll(".card")];
+    const paintSolo = () => {
+      chips.forEach((chip) => chip.classList.toggle("is-on", chip.dataset.solo === state.solo));
+      cards.forEach((card) => {
+        const sec = card.dataset.sec;
+        card.classList.toggle("is-dim", state.solo !== "all" && sec !== "layer" && sec !== state.solo);
+      });
+    };
+    chips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        state.solo = chip.dataset.solo;
+        const pretty = { all: "", breath: "respiracion", rhythm: "ritmo", intent: "intencion" };
+        history.replaceState(null, "", pretty[state.solo] ? `#${pretty[state.solo]}` : `${location.pathname}${location.search}`);
+        paintSolo();
+      });
+    });
+    const optShell = document.getElementById("opt-shell");
+    const optAct = document.getElementById("opt-activity");
+    const chipShell = document.querySelector('.chip[data-toggle="shell"]');
+    const chipAct = document.querySelector('.chip[data-toggle="activity"]');
+    const paintToggles = () => {
+      optShell.checked = state.shell.on;
+      optAct.checked = state.activity.on;
+      chipShell.classList.toggle("is-off", !state.shell.on);
+      chipAct.classList.toggle("is-off", !state.activity.on);
+    };
+    optShell.addEventListener("change", () => { state.shell.on = optShell.checked; paintToggles(); });
+    optAct.addEventListener("change", () => { state.activity.on = optAct.checked; paintToggles(); });
+    chipShell.addEventListener("click", () => { state.shell.on = !state.shell.on; paintToggles(); });
+    chipAct.addEventListener("click", () => { state.activity.on = !state.activity.on; paintToggles(); });
+    cards.forEach((card) => {
+      card.addEventListener("pointerenter", () => { state.hover = card.dataset.sec === "layer" ? null : card.dataset.sec; });
+      card.addEventListener("pointerleave", () => { state.hover = null; });
+    });
+    paintSolo();
+    paintToggles();
+
+    const outB = document.getElementById("out-breath");
+    const outR = document.getElementById("out-rhythm");
+    const outI = document.getElementById("out-intent");
+
+    scene.onBeforeRenderObservable.add(() => {
+      tickSomaFigure(figure, state, performance.now() / 1000);
+      outB.textContent = figure.readouts.breath;
+      outR.textContent = figure.readouts.rhythm;
+      outI.textContent = figure.readouts.intent;
+    });
+
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>

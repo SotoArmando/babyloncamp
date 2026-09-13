@@ -1,0 +1,25 @@
+{
+  "kind": "soma-poleas-pose",
+  "version": 1,
+  "name": "sentado",
+  "hint": "Poleas a medias: el cuerpo se sienta sobre sí.",
+  "saved": "2026-09-12T15:30:00.000Z",
+  "sliders": {
+    "spine": 0.35, "neck": 0.35,
+    "shoulderL": 0.35, "shoulderR": 0.35, "elbowL": 0.35, "elbowR": 0.35,
+    "wristL": 0.35, "wristR": 0.35, "thumbL": 0.35, "thumbR": 0.35,
+    "indexL": 0.35, "indexR": 0.35, "middleL": 0.35, "middleR": 0.35,
+    "ringL": 0.35, "ringR": 0.35, "pinkyL": 0.35, "pinkyR": 0.35,
+    "hipL": 0.35, "hipR": 0.35, "kneeL": 0.35, "kneeR": 0.35, "ankleL": 0.35, "ankleR": 0.35,
+    "cascoShoulderLX": 0, "cascoShoulderLY": 0, "cascoShoulderLZ": 0,
+    "cascoShoulderRX": 0, "cascoShoulderRY": 0, "cascoShoulderRZ": 0,
+    "cascoHipLX": 0, "cascoHipLY": 0, "cascoHipLZ": 0,
+    "cascoHipRX": 0, "cascoHipRY": 0, "cascoHipRZ": 0,
+    "cascoNapeX": 0, "cascoNapeY": 0, "cascoNapeZ": 0,
+    "cascoBaseX": 0, "cascoBaseY": 0, "cascoBaseZ": 0,
+    "cascoWristLX": 0, "cascoWristLY": 0, "cascoWristLZ": 0,
+    "cascoWristRX": 0, "cascoWristRY": 0, "cascoWristRZ": 0,
+    "cascoSoleLX": 0, "cascoSoleLY": 0, "cascoSoleLZ": 0,
+    "cascoSoleRX": 0, "cascoSoleRY": 0, "cascoSoleRZ": 0
+  }
+}

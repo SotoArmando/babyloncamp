@@ -21,6 +21,6 @@
   },
   "scripts": {
     "build:player": "node scripts/build-player.mjs",
-    "start": "npx -y serve -p 8765 --cors"
+    "start": "node scripts/soma-serve.mjs"
   }
 }

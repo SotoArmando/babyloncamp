@@ -1,0 +1,25 @@
+{
+  "kind": "soma-poleas-pose",
+  "version": 1,
+  "name": "T",
+  "hint": "Brazos en cruz, piernas juntas. La vara de medir.",
+  "saved": "2026-09-12T15:30:00.000Z",
+  "sliders": {
+    "spine": 1, "neck": 1,
+    "shoulderL": 1, "shoulderR": 1, "elbowL": 1, "elbowR": 1,
+    "wristL": 1, "wristR": 1, "thumbL": 1, "thumbR": 1,
+    "indexL": 1, "indexR": 1, "middleL": 1, "middleR": 1,
+    "ringL": 1, "ringR": 1, "pinkyL": 1, "pinkyR": 1,
+    "hipL": 1, "hipR": 1, "kneeL": 1, "kneeR": 1, "ankleL": 1, "ankleR": 1,
+    "cascoShoulderLX": 0, "cascoShoulderLY": 0, "cascoShoulderLZ": -0.92,
+    "cascoShoulderRX": 0, "cascoShoulderRY": 0, "cascoShoulderRZ": 0.92,
+    "cascoHipLX": 0, "cascoHipLY": 0, "cascoHipLZ": 0,
+    "cascoHipRX": 0, "cascoHipRY": 0, "cascoHipRZ": 0,
+    "cascoNapeX": 0, "cascoNapeY": 0, "cascoNapeZ": 0,
+    "cascoBaseX": 0, "cascoBaseY": 0, "cascoBaseZ": 0,
+    "cascoWristLX": 0, "cascoWristLY": 0, "cascoWristLZ": 0,
+    "cascoWristRX": 0, "cascoWristRY": 0, "cascoWristRZ": 0,
+    "cascoSoleLX": 0, "cascoSoleLY": 0, "cascoSoleLZ": 0,
+    "cascoSoleRX": 0, "cascoSoleRY": 0, "cascoSoleRZ": 0
+  }
+}

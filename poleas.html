@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soma · Poleas</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root {
+      --ink: #1a1414;
+      --muted: #6b5a5c;
+      --line: #e4d6d4;
+      --paper: #fff8f6;
+      --stage: #161012;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #f6eeeb;
+      color: var(--ink);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      min-height: 100%;
+    }
+    .mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.8rem;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+    }
+    .tabs { display: flex; gap: 0.25rem; }
+    .tabs button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.32rem 0.85rem;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .tabs button[aria-selected="true"] {
+      background: #8a3a5a;
+      border-color: #8a3a5a;
+      color: #fff8f6;
+    }
+    button.ghost {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 0.32rem 0.7rem;
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .standby-chip { font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+    .shell {
+      display: grid;
+      grid-template-columns: 168px minmax(0, 1fr) minmax(230px, 280px);
+      grid-template-rows: minmax(0, 1fr);
+      grid-template-areas: "pick stage tune";
+      min-height: 0;
+    }
+    .shell.is-script {
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 46%);
+      grid-template-areas: "stage accion";
+    }
+    .shell:not(.is-script) .rail-accion { display: none; }
+    .shell.is-script .rail-pick,
+    .shell.is-script .rail-tune { display: none; }
+    .shell.is-anatomy {
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 300px);
+      grid-template-areas: "stage tune";
+    }
+    .shell.is-anatomy .rail-pick { display: none; }
+    .shell.is-anatomy #tuneHost { display: none; }
+    .shell:not(.is-anatomy) #anatomyHost { display: none; }
+    .rail-pick { grid-area: pick; overflow: auto; background: var(--paper); border-right: 1px solid var(--line); padding: 0.55rem 0.55rem 0.7rem; }
+    .rail-tune { grid-area: tune; overflow: auto; background: var(--paper); border-left: 1px solid var(--line); padding: 0.6rem 0.7rem 1rem; }
+    .rail-accion { grid-area: accion; display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 220px); gap: 0.7rem; border-top: 1px solid var(--line); background: #f3e8e3; padding: 0.55rem 0.8rem 0.7rem; min-height: 0; }
+    .stage { grid-area: stage; position: relative; min-height: 0; background: var(--stage); }
+    .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    .stage-tools {
+      position: absolute;
+      top: 0.7rem;
+      right: 0.8rem;
+      z-index: 2;
+      width: 9.5rem;
+      padding: 0.35rem 0.5rem 0.4rem;
+      border-radius: 10px;
+      background: rgba(255, 248, 246, 0.82);
+      color: var(--ink);
+    }
+    .stage.is-light .stage-tools { background: rgba(26, 20, 20, 0.08); }
+    .stage-tools label { margin: 0; font-size: 0.68rem; }
+    .stage-tools select {
+      width: 100%;
+      margin-top: 0.15rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.18rem 0.3rem;
+      font: inherit;
+      font-size: 0.72rem;
+      background: #fff;
+      color: var(--ink);
+    }
+    .stage-fps {
+      margin: 0 0 0.25rem;
+      font: 0.72rem/1 ui-monospace, "Cascadia Mono", monospace;
+      font-variant-numeric: tabular-nums;
+      font-weight: 650;
+      color: var(--ink);
+    }
+    .accion-now {
+      position: absolute;
+      left: 1rem;
+      right: 11rem;
+      bottom: 2.4rem;
+      margin: 0;
+      color: #8a3a5a;
+      font: 0.92rem/1.35 ui-monospace, "Cascadia Mono", monospace;
+      text-shadow: 0 1px 0 rgba(255,248,246,0.7);
+      pointer-events: none;
+      min-height: 1.2em;
+    }
+    .stage:not(.is-run) .accion-now { opacity: 0.35; }
+    .stage.is-light .accion-now { color: #6b2a44; }
+    .stage-note {
+      position: absolute;
+      left: 1rem;
+      bottom: 0.7rem;
+      margin: 0;
+      color: rgba(255, 236, 232, 0.7);
+      font-size: 0.68rem;
+      line-height: 1.35;
+      max-width: 28rem;
+      pointer-events: none;
+    }
+    .stage.is-light .stage-note { color: rgba(42, 30, 32, 0.55); }
+    .body-pick {
+      display: block;
+      width: 100%;
+      max-height: none;
+      height: auto;
+      margin: 0 0 0.25rem;
+    }
+    .body-pick .flesh {
+      fill: #e8c8bc;
+      stroke: #9a6e68;
+      stroke-width: 1.6;
+      pointer-events: none;
+    }
+    .body-pick .hint {
+      fill: #8a3a5a;
+      font-size: 9px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .body-pick .hit {
+      fill: #d4a24a;
+      fill-opacity: 0.08;
+      stroke: #8a3a5a;
+      stroke-width: 1.1;
+      stroke-opacity: 0.28;
+      cursor: pointer;
+    }
+    .body-pick .hit:hover {
+      fill-opacity: 0.28;
+      stroke-opacity: 0.7;
+    }
+    .body-pick .hit.is-on {
+      fill-opacity: 0.42;
+      stroke-opacity: 1;
+      stroke-width: 1.8;
+    }
+    .pick-label {
+      margin: 0;
+      font-size: 0.76rem;
+      color: var(--ink);
+      font-weight: 650;
+      text-align: center;
+    }
+    .rail-pick .lead { display: none; }
+    .lead { margin: 0 0 0.45rem; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+    .card {
+      margin: 0 0 0.55rem;
+      padding: 0.55rem 0.65rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .card.is-invert { border-top: 3px solid #e07088; }
+    .card.is-casco { border-top: 3px solid #d4a24a; }
+    .card.is-scale { border-top: 3px solid #8a3a5a; }
+    .card.is-anatomy { border-top: 3px solid #4a6a7a; }
+    .preset-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0; }
+    .preset-row button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.28rem 0.65rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .preset-row button.is-on {
+      background: #4a6a7a;
+      border-color: #4a6a7a;
+      color: #fff8f6;
+    }
+    .card h2 { margin: 0 0 0.15rem; font-size: 0.84rem; }
+    .card .blurb { margin: 0 0 0.35rem; color: var(--muted); font-size: 0.7rem; line-height: 1.35; }
+    .rail-tune .card .blurb { display: none; }
+    #anatomyHost .card .blurb { display: block; margin: 0.15rem 0 0.45rem; }
+    .ends {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+    }
+    label.f { display: block; font-size: 0.74rem; color: var(--muted); }
+    label.f strong { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #8a3a5a; }
+    .card.is-invert input { accent-color: #e07088; }
+    .card.is-pose { border-top: 3px solid #8a3a5a; }
+    .pose-row { display: flex; gap: 0.4rem; margin-bottom: 0.45rem; }
+    .pose-row input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.38rem 0.5rem;
+      font: inherit;
+      font-size: 0.78rem;
+    }
+    .pose-row button, .pose-item button {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.38rem 0.65rem;
+      font: inherit;
+      font-size: 0.74rem;
+      font-weight: 650;
+      cursor: pointer;
+      background: #8a3a5a;
+      color: #fff8f6;
+    }
+    .pose-list, .accion-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+    .pose-item {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      margin: 0;
+    }
+    .pose-item button.use {
+      flex: 1;
+      text-align: left;
+      background: #f6eeeb;
+      color: var(--ink);
+    }
+    .pose-item button.drop, .pose-item button.hold {
+      background: transparent;
+      color: var(--muted);
+      padding: 0.3rem 0.4rem;
+    }
+    .pose-item.is-standby .use { outline: 2px solid #8a3a5a; }
+    .pose-item.is-standby .hold { color: #8a3a5a; }
+    .pose-standby { display: flex; align-items: center; gap: 0.4rem; margin: 0; flex: 0 0 auto; }
+    .pose-standby select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.38rem 0.45rem;
+      font: inherit;
+      font-size: 0.78rem;
+      background: #fff;
+      min-width: 8rem;
+    }
+    .pose-status { margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--muted); min-height: 1em; }
+    .card.is-accion { border: 0; background: transparent; padding: 0; margin: 0; display: flex; flex-direction: column; min-height: 0; }
+    .card.is-accion h2 { margin: 0; align-self: center; }
+    .accion-desk { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, 34%); gap: 0.55rem; min-height: 0; flex: 1; }
+    #accionSource, #accionScore {
+      min-height: 0;
+      height: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.45rem 0.5rem;
+      font: 0.73rem/1.45 ui-monospace, "Cascadia Mono", monospace;
+      background: #fffdfb;
+      color: var(--ink);
+    }
+    #accionSource { display: block; width: 100%; resize: none; }
+    #accionSource.is-run { outline: 2px solid #4a6a7a; }
+    #accionScore { overflow: auto; margin: 0; white-space: pre; }
+    #accionScore div { padding: 0 0.2rem; border-radius: 4px; }
+    #accionScore div.is-now { background: #e8c090; color: #3a1818; }
+    .accion-side { display: flex; flex-direction: column; min-height: 0; }
+    .accion-side .accion-list { overflow: auto; }
+    dialog.pose-dialog {
+      width: min(28rem, calc(100vw - 2rem));
+      max-height: min(80vh, 36rem);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.9rem 1rem 1rem;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: 0 18px 50px rgba(26, 20, 20, 0.22);
+    }
+    dialog.pose-dialog .pose-list { max-height: 12rem; overflow: auto; }
+    dialog.pose-dialog::backdrop { background: rgba(26, 20, 20, 0.35); }
+    dialog.pose-dialog h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+    dialog.pose-dialog .blurb { margin: 0 0 0.7rem; }
+    dialog.pose-dialog menu { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 0.7rem 0 0; padding: 0; }
+    @media (max-width: 980px) {
+      .shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(38vh, 1fr) auto auto;
+        grid-template-areas:
+          "stage"
+          "pick"
+          "tune";
+      }
+      .shell.is-script {
+        grid-template-rows: minmax(32vh, 1fr) minmax(240px, 42vh);
+        grid-template-areas:
+          "stage"
+          "accion";
+      }
+      .shell.is-anatomy {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(38vh, 1fr) auto;
+        grid-template-areas:
+          "stage"
+          "tune";
+      }
+      .rail-pick { border-right: 0; border-top: 1px solid var(--line); max-height: 28vh; }
+      .rail-tune { border-left: 0; border-top: 1px solid var(--line); max-height: 28vh; }
+      .body-pick { max-height: 200px; margin-inline: auto; }
+      .accion-desk { grid-template-columns: 1fr; }
+      #accionSource { min-height: 8rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Soma</a>
+    <h1 class="app-page-title">Poleas</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="cuerpo.html">Cuerpo</a>
+      <a class="app-quiet" href="gallery.html">Galería</a>
+    </div>
+  </header>
+  <div class="mode-bar">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabPoleas" aria-selected="true">Poleas</button>
+      <button type="button" role="tab" id="tabAnatomy" aria-selected="false">Anatomía</button>
+      <button type="button" role="tab" id="tabScript" aria-selected="false">Script</button>
+    </div>
+    <button type="button" class="ghost" id="poseReset">Volver</button>
+    <button type="button" class="ghost" id="poseDialogOpen">Poses…</button>
+    <span class="standby-chip" id="standbyChip">Standby: vitruvio</span>
+  </div>
+  <div class="shell" id="shell">
+    <aside class="rail-pick">
+      <p class="lead">Toca el cuerpo. I y D van aparte.</p>
+      <svg class="body-pick" id="bodyPick" viewBox="0 0 200 250" role="img" aria-label="Cuerpo para elegir qué tunear">
+        <ellipse class="flesh" cx="100" cy="22" rx="16" ry="17"></ellipse>
+        <path class="flesh" d="M88 38c-2 6-3 14-3 22s2 18 3 24h24c1-6 3-16 3-24s-1-16-3-22z"></path>
+        <path class="flesh" d="M84 84h32c8 4 16 8 20 14 2 4-1 8-6 9H70c-5-1-8-5-6-9 4-6 12-10 20-14z"></path>
+        <path class="flesh" d="M88 40c-16 4-30 12-38 24-4 6-1 14 8 16 7 2 12-2 16-8 4-7 8-18 14-32z"></path>
+        <path class="flesh" d="M112 40c16 4 30 12 38 24 4 6 1 14-8 16-7 2-12-2-16-8-4-7-8-18-14-32z"></path>
+        <path class="flesh" d="M82 104c-1 18-2 38-1 56 0 6 5 11 12 11s12-3 13-9c1-14 1-32 1-58z"></path>
+        <path class="flesh" d="M118 104c1 18 2 38 1 56 0 6-5 11-12 11s-12-3-13-9c-1-14-1-32-1-58z"></path>
+        <ellipse class="flesh" cx="82" cy="180" rx="14" ry="7"></ellipse>
+        <ellipse class="flesh" cx="118" cy="180" rx="14" ry="7"></ellipse>
+        <text class="hint" x="22" y="48">I</text>
+        <text class="hint" x="170" y="48">D</text>
+        <circle class="hit" data-zone="head" cx="100" cy="20" r="17"><title>Cabeza</title></circle>
+        <rect class="hit" data-zone="spine" x="88" y="38" width="24" height="38" rx="7"><title>Columna</title></rect>
+        <rect class="hit" data-zone="base" x="80" y="76" width="40" height="18" rx="7"><title>Base</title></rect>
+        <circle class="hit" data-zone="shoulderL" cx="60" cy="46" r="13"><title>Hombro izquierdo</title></circle>
+        <circle class="hit" data-zone="shoulderR" cx="140" cy="46" r="13"><title>Hombro derecho</title></circle>
+        <rect class="hit" data-zone="elbowL" x="28" y="58" width="22" height="32" rx="7"><title>Codo izquierdo</title></rect>
+        <rect class="hit" data-zone="elbowR" x="150" y="58" width="22" height="32" rx="7"><title>Codo derecho</title></rect>
+        <rect class="hit" data-zone="handL" x="12" y="90" width="26" height="18" rx="7"><title>Mano izquierda</title></rect>
+        <rect class="hit" data-zone="handR" x="162" y="90" width="26" height="18" rx="7"><title>Mano derecha</title></rect>
+        <circle class="hit" data-zone="hipL" cx="82" cy="100" r="12"><title>Cadera izquierda</title></circle>
+        <circle class="hit" data-zone="hipR" cx="118" cy="100" r="12"><title>Cadera derecha</title></circle>
+        <rect class="hit" data-zone="kneeL" x="68" y="118" width="22" height="40" rx="7"><title>Rodilla izquierda</title></rect>
+        <rect class="hit" data-zone="kneeR" x="110" y="118" width="22" height="40" rx="7"><title>Rodilla derecha</title></rect>
+        <rect class="hit" data-zone="footL" x="62" y="168" width="32" height="18" rx="7"><title>Pie izquierdo</title></rect>
+        <rect class="hit" data-zone="footR" x="106" y="168" width="32" height="18" rx="7"><title>Pie derecho</title></rect>
+      </svg>
+      <p class="pick-label" id="pickLabel">Cabeza</p>
+    </aside>
+    <section class="stage">
+      <div class="stage-tools">
+        <p class="stage-fps" id="stageFps">— fps</p>
+        <label class="f">Fondo <strong id="v-backdrop">0.00</strong>
+          <input id="s-backdrop" type="range" min="0" max="1" step="0.01" value="0" />
+        </label>
+        <label class="f">Cuerpo
+          <select id="s-bodyMode">
+            <option value="flesh" selected>mujer</option>
+            <option value="both">mujer + rayas</option>
+            <option value="lines">solo rayas</option>
+          </select>
+        </label>
+      </div>
+      <canvas id="poleas" width="800" height="900" aria-label="Humano de líneas con poleas"></canvas>
+      <p class="accion-now" id="accionNow"></p>
+      <p class="stage-note">El casco solo gira. El script y las poleas cuentan el gesto.</p>
+    </section>
+    <aside class="rail-tune">
+      <div id="tuneHost"></div>
+      <div id="anatomyHost"></div>
+    </aside>
+    <section class="rail-accion">
+      <article class="card is-accion">
+        <div class="pose-row">
+          <h2>Acción</h2>
+          <input id="accionName" type="text" maxlength="60" placeholder="nombre de la acción" value="saludo" />
+          <button type="button" id="accionPlay">Play</button>
+          <button type="button" id="accionStop">Parar</button>
+          <button type="button" id="accionFreeze">Congelar</button>
+          <button type="button" id="accionSave">Guardar</button>
+        </div>
+        <p class="pose-status" id="accionStatus"></p>
+        <div class="accion-desk">
+          <textarea id="accionSource" spellcheck="false"></textarea>
+          <pre id="accionScore" aria-label="Línea que suena"></pre>
+        </div>
+      </article>
+      <div class="accion-side">
+        <p class="lead">Scripts en <code>poleas-acciones/</code></p>
+        <div class="accion-list" id="accionList"></div>
+      </div>
+    </section>
+  </div>
+  <dialog class="pose-dialog" id="poseDialog">
+    <h2>Poses</h2>
+    <p class="blurb">Elige el standby, aplica una pose o guarda la que tienes ahora.</p>
+    <div class="pose-row">
+      <label class="f pose-standby">Standby
+        <select id="poseStandby"></select>
+      </label>
+    </div>
+    <div class="pose-row">
+      <input id="poseName" type="text" maxlength="60" placeholder="nombre de la pose" />
+      <button type="button" id="poseSave">Guardar</button>
+    </div>
+    <div class="pose-list" id="poseList"></div>
+    <p class="pose-status" id="poseStatus"></p>
+    <menu>
+      <button type="button" class="ghost" id="poseDialogClose">Cerrar</button>
+    </menu>
+  </dialog>
+  <script src="app-nav.js?v=nav5"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+        "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+        "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+        "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+        "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+        "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as BABYLON from "@babylonjs/core";
+    import { PULLEY_SLIDERS, CASCO_GROUPS, CASCO_AXES, BODY_ZONES, ANATOMY_PARTS, ANATOMY_PRESETS, defaultPulleyState, defaultAnatomy, applyAnatomy, applyAnatomyPreset, snapshotPulleyPose, applyPulleyPose, builtInPoseByFile, mergePoseList, createPulleyStudio, hangWomanSculpt, posePulleyFigure, drawPulleyFigure, applyPulleyBackdrop, setPulleyBodyMode } from "./soma-poleas.js";
+    import { ACCION_EXAMPLE, createAccionPlayer } from "./soma-accion.js";
+
+    const canvas = document.getElementById("poleas");
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    const { scene, camera, figure, ground } = createPulleyStudio(BABYLON, engine, canvas);
+    hangWomanSculpt(BABYLON, scene, figure).catch((err) => {
+      console.warn("No pude colgar el GLB", err);
+    });
+    const state = defaultPulleyState();
+    const anatomy = defaultAnatomy();
+    const ANATOMY_KEY = "soma-poleas-anatomy-v3";
+    try {
+      const saved = JSON.parse(localStorage.getItem(ANATOMY_KEY) || "");
+      if (saved && typeof saved === "object") {
+        for (const part of ANATOMY_PARTS) {
+          const n = Number(saved[part.id]);
+          if (Number.isFinite(n)) anatomy[part.id] = n;
+        }
+      }
+    } catch {
+      /* defaults */
+    }
+    const stage = document.querySelector(".stage");
+    const tuneHost = document.getElementById("tuneHost");
+    const anatomyHost = document.getElementById("anatomyHost");
+    const pickLabel = document.getElementById("pickLabel");
+    const savedBg = Number(localStorage.getItem("soma-poleas-bg"));
+    state.backdrop = Number.isFinite(savedBg) ? Math.min(1, Math.max(0, savedBg)) : 0;
+    let selectedZone = "head";
+    let activeTab = "poleas";
+    let anatomyPreset = "";
+
+    function saveAnatomy() {
+      localStorage.setItem(ANATOMY_KEY, JSON.stringify(anatomy));
+    }
+
+    function fitCameraToAnatomy() {
+      const y = figure.hips.position.y;
+      camera.setTarget(new BABYLON.Vector3(0, y * 0.55 + 0.4, 0));
+    }
+
+    applyAnatomy(figure, anatomy);
+    fitCameraToAnatomy();
+
+    function setBackdrop(amount) {
+      state.backdrop = amount;
+      applyPulleyBackdrop(BABYLON, scene, figure, ground, amount);
+      const hex = (r, g, b) =>
+        "#" + [r, g, b].map((n) => Math.round(n).toString(16).padStart(2, "0")).join("");
+      stage.style.background = hex(23 + 222 * amount, 16 + 221 * amount, 18 + 213 * amount);
+      stage.classList.toggle("is-light", amount > 0.5);
+      localStorage.setItem("soma-poleas-bg", String(amount));
+      const bg = document.getElementById("s-backdrop");
+      const view = document.getElementById("v-backdrop");
+      if (bg && bg.value !== String(amount)) bg.value = String(amount);
+      if (view) view.textContent = Number(amount).toFixed(2);
+    }
+
+    function bindRange(input, view, id, asSpin) {
+      input.addEventListener("input", () => {
+        const n = Number(input.value);
+        state[id] = n;
+        view.textContent = n.toFixed(2);
+      });
+    }
+
+    function renderTune(zoneId) {
+      const zone = BODY_ZONES.find((z) => z.id === zoneId) || BODY_ZONES[0];
+      selectedZone = zone.id;
+      pickLabel.textContent = zone.label;
+      document.querySelectorAll("#bodyPick .hit").forEach((el) => {
+        el.classList.toggle("is-on", el.dataset.zone === zone.id);
+      });
+      tuneHost.replaceChildren();
+
+      const side = zone.side || "";
+      for (const cascoId of zone.cascos) {
+        const item = CASCO_GROUPS.find((c) => c.id === cascoId);
+        const card = document.createElement("article");
+        card.className = "card is-casco";
+        const sliders = CASCO_AXES.map((axis) => {
+          const id = item.id + side + axis;
+          const val = state[id] ?? 0;
+          return `<label class="f">Giro ${axis} <strong id="v-${id}">${val.toFixed(2)}</strong>
+            <input id="s-${id}" type="range" min="-1" max="1" step="0.01" value="${val}" /></label>`;
+        }).join("");
+        card.innerHTML = `<h2>${item.label}</h2><p class="blurb">${item.hint}</p>
+          <div class="ends"><span>−</span><span>rotar el casco</span></div>${sliders}`;
+        tuneHost.appendChild(card);
+        for (const axis of CASCO_AXES) {
+          const id = item.id + side + axis;
+          bindRange(card.querySelector("#s-" + id), card.querySelector("#v-" + id), id, true);
+        }
+      }
+
+      for (const pulleyId of zone.pulleys) {
+        const item = PULLEY_SLIDERS.find((p) => p.id === pulleyId);
+        const id = item.pair ? item.id + side : item.id;
+        const val = state[id] ?? 0.35;
+        const card = document.createElement("article");
+        card.className = item.invert ? "card is-invert" : "card";
+        card.innerHTML = `
+          <h2>${item.label}${item.invert ? " · invertida" : ""}</h2>
+          <p class="blurb">${item.hint}</p>
+          <div class="ends"><span>sentados</span><span>${item.invert ? "atrás / en línea" : "en línea"}</span></div>
+          <label class="f">${item.label} <strong id="v-${id}">${val.toFixed(2)}</strong>
+            <input id="s-${id}" type="range" min="0" max="1" step="0.01" value="${val}" />
+          </label>`;
+        tuneHost.appendChild(card);
+        bindRange(card.querySelector("#s-" + id), card.querySelector("#v-" + id), id);
+      }
+    }
+
+    function syncTuneValues() {
+      tuneHost.querySelectorAll("input[type=range]").forEach((input) => {
+        const id = input.id.replace(/^s-/, "");
+        if (!Number.isFinite(Number(state[id]))) return;
+        input.value = String(state[id]);
+        const view = document.getElementById("v-" + id);
+        if (view) view.textContent = Number(state[id]).toFixed(2);
+      });
+    }
+
+    const ANATOMY_GROUPS = [
+      { id: "size", title: "Tamaño", ids: ["scale"], kind: "scale" },
+      { id: "shape", title: "Cuerpo", ids: ["bust", "waist", "belly", "hip", "glute", "gluteRise", "gluteH", "gluteFill", "pelvisH", "hair"] },
+      { id: "trunk", title: "Tronco", ids: ["head", "neck", "chest"] },
+      { id: "arms", title: "Brazos", ids: ["shoulderW", "upper", "fore", "hand", "finger"] },
+      { id: "legs", title: "Piernas", ids: ["hipW", "thigh", "shin", "foot"] },
+    ];
+
+    function renderAnatomy() {
+      anatomyHost.replaceChildren();
+      const intro = document.createElement("article");
+      intro.className = "card is-anatomy";
+      intro.innerHTML = `<h2>Propiedades</h2><p class="blurb">Como un Sim: cada control es una propiedad. Pecho y cintura cambian el volumen; torso y muslo cambian el largo. Las poleas siguen doblando las mismas secciones.</p>
+        <div class="preset-row"></div>`;
+      const row = intro.querySelector(".preset-row");
+      for (const preset of ANATOMY_PRESETS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = preset.name;
+        btn.title = preset.hint || preset.name;
+        btn.classList.toggle("is-on", anatomyPreset === preset.id);
+        btn.addEventListener("click", () => {
+          applyAnatomyPreset(anatomy, preset.id);
+          anatomyPreset = preset.id;
+          saveAnatomy();
+          applyAnatomy(figure, anatomy);
+          fitCameraToAnatomy();
+          renderAnatomy();
+        });
+        row.appendChild(btn);
+      }
+      anatomyHost.appendChild(intro);
+
+      for (const group of ANATOMY_GROUPS) {
+        const card = document.createElement("article");
+        card.className = group.kind === "scale" ? "card is-scale" : "card is-anatomy";
+        const sliders = group.ids.map((id) => {
+          const part = ANATOMY_PARTS.find((item) => item.id === id);
+          const val = anatomy[id] ?? part.def;
+          return `<label class="f">${part.label} <strong id="v-ana-${id}">${Number(val).toFixed(2)}</strong>
+            <input id="s-ana-${id}" type="range" min="${part.min}" max="${part.max}" step="0.01" value="${val}" />
+            <p class="blurb">${part.hint}</p></label>`;
+        }).join("");
+        card.innerHTML = `<h2>${group.title}</h2>${sliders}`;
+        anatomyHost.appendChild(card);
+        for (const id of group.ids) {
+          const input = card.querySelector("#s-ana-" + id);
+          const view = card.querySelector("#v-ana-" + id);
+          input.addEventListener("input", () => {
+            anatomy[id] = Number(input.value);
+            view.textContent = Number(input.value).toFixed(2);
+            anatomyPreset = "";
+            saveAnatomy();
+            applyAnatomy(figure, anatomy);
+            if (id === "scale" || id === "thigh" || id === "shin") fitCameraToAnatomy();
+            intro.querySelectorAll("button").forEach((btn) => btn.classList.remove("is-on"));
+          });
+        }
+      }
+    }
+
+    function paintAccionScore(source) {
+      const box = document.getElementById("accionScore");
+      box.replaceChildren();
+      String(source || "").replace(/\r/g, "").split("\n").forEach((text, index) => {
+        const row = document.createElement("div");
+        row.dataset.line = String(index + 1);
+        row.textContent = text || " ";
+        box.appendChild(row);
+      });
+    }
+
+    function markAccionLine(line) {
+      const box = document.getElementById("accionScore");
+      let nowText = "";
+      box.querySelectorAll("[data-line]").forEach((row) => {
+        const on = Number(row.dataset.line) === Number(line);
+        row.classList.toggle("is-now", on);
+        if (on) {
+          nowText = row.textContent.trim();
+          row.scrollIntoView({ block: "nearest" });
+        }
+      });
+      document.getElementById("accionNow").textContent = nowText && !nowText.startsWith("#") ? nowText : "";
+    }
+
+    document.getElementById("bodyPick").addEventListener("click", (event) => {
+      const hit = event.target.closest("[data-zone]");
+      if (hit) renderTune(hit.dataset.zone);
+    });
+
+    const poseName = document.getElementById("poseName");
+    const poseStatus = document.getElementById("poseStatus");
+    const poseList = document.getElementById("poseList");
+    const poseStandby = document.getElementById("poseStandby");
+    const STANDBY_KEY = "soma-poleas-standby";
+    const DEFAULT_STANDBY = "vitruvio.json";
+    let standbyFile = localStorage.getItem(STANDBY_KEY) || DEFAULT_STANDBY;
+
+    function sayPose(text) {
+      poseStatus.textContent = text;
+    }
+
+    function setStandby(file, applyNow) {
+      standbyFile = file;
+      localStorage.setItem(STANDBY_KEY, file);
+      poseStandby.value = file;
+      if (applyNow) loadPose(file, true);
+      else refreshPoseMarks();
+    }
+
+    function refreshPoseMarks() {
+      poseList.querySelectorAll(".pose-item").forEach((row) => {
+        row.classList.toggle("is-standby", row.dataset.file === standbyFile);
+      });
+      if ([...poseStandby.options].some((opt) => opt.value === standbyFile)) {
+        poseStandby.value = standbyFile;
+      }
+      const opt = poseStandby.selectedOptions[0];
+      const label = (opt?.textContent || standbyFile).replace(/\s*·\s*standby$/i, "");
+      document.getElementById("standbyChip").textContent = "Standby: " + label;
+    }
+
+    function downloadPose(pose, file) {
+      const blob = new Blob([JSON.stringify(pose, null, 2) + "\n"], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = file;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function refreshPoses() {
+      poseList.replaceChildren();
+      poseStandby.replaceChildren();
+      let disk = [];
+      try {
+        const res = await fetch("/api/poleas-poses", { cache: "no-store" });
+        if (res.ok) disk = (await res.json()).items || [];
+      } catch {
+        /* built-ins still work */
+      }
+      const items = mergePoseList(disk);
+      if (!items.some((item) => item.file === standbyFile)) standbyFile = DEFAULT_STANDBY;
+      for (const item of items) {
+        const opt = document.createElement("option");
+        opt.value = item.file;
+        opt.textContent = item.name + (item.file === standbyFile ? " · standby" : "");
+        poseStandby.appendChild(opt);
+        const row = document.createElement("div");
+        row.className = "pose-item";
+        row.dataset.file = item.file;
+        const use = document.createElement("button");
+        use.type = "button";
+        use.className = "use";
+        use.textContent = item.name;
+        use.title = item.hint || item.name;
+        use.addEventListener("click", () => loadPose(item.file));
+        const hold = document.createElement("button");
+        hold.type = "button";
+        hold.className = "hold";
+        hold.textContent = "★";
+        hold.title = "Usar como standby";
+        hold.addEventListener("click", () => {
+          setStandby(item.file, false);
+          sayPose("Standby: " + item.name);
+          refreshPoses();
+        });
+        row.append(use, hold);
+        if (!item.builtin) {
+          const drop = document.createElement("button");
+          drop.type = "button";
+          drop.className = "drop";
+          drop.textContent = "Quitar";
+          drop.addEventListener("click", () => removePose(item.file, item.name));
+          row.append(drop);
+        }
+        poseList.appendChild(row);
+      }
+      refreshPoseMarks();
+    }
+
+    async function loadPose(file, asStandby) {
+      let pose = null;
+      try {
+        const res = await fetch("/poleas-poses/" + encodeURIComponent(file), { cache: "no-store" });
+        if (res.ok) pose = await res.json();
+      } catch {
+        pose = null;
+      }
+      if (!pose) {
+        const built = builtInPoseByFile(file);
+        if (!built) {
+          sayPose("No pude leer " + file);
+          return;
+        }
+        pose = { name: built.name, sliders: built.sliders };
+      }
+      applyPulleyPose(state, pose);
+      if (activeTab === "poleas") renderTune(selectedZone);
+      poseName.value = pose.name || "";
+      sayPose((asStandby ? "Standby: " : "Cargada: ") + (pose.name || file));
+    }
+
+    async function removePose(file, name) {
+      const res = await fetch("/api/poleas-poses/" + encodeURIComponent(file.replace(/\.json$/i, "")), {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        sayPose("No pude quitar " + name);
+        return;
+      }
+      if (standbyFile === file) setStandby(DEFAULT_STANDBY, false);
+      sayPose("Quitada: " + name);
+      refreshPoses();
+    }
+
+    document.getElementById("poseSave").addEventListener("click", async () => {
+      const pose = snapshotPulleyPose(state, poseName.value);
+      const slug = pose.name;
+      try {
+        const res = await fetch("/api/poleas-poses/" + encodeURIComponent(slug), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pose),
+        });
+        if (!res.ok) throw new Error("save");
+        const data = await res.json();
+        sayPose("Guardada en poleas-poses/" + data.file);
+        refreshPoses();
+      } catch {
+        downloadPose(pose, slug.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".json");
+        sayPose("No pude escribir en el proyecto. Bajé el JSON para que lo copies a poleas-poses/.");
+      }
+    });
+
+    poseStandby.addEventListener("change", () => setStandby(poseStandby.value, true));
+    document.getElementById("poseReset").addEventListener("click", () => loadPose(standbyFile, true));
+    const poseDialog = document.getElementById("poseDialog");
+    document.getElementById("poseDialogOpen").addEventListener("click", () => poseDialog.showModal());
+    document.getElementById("poseDialogClose").addEventListener("click", () => poseDialog.close());
+
+    const TAB_KEY = "soma-poleas-tab";
+    function setTab(name) {
+      const next = name === "script" || name === "anatomy" ? name : "poleas";
+      activeTab = next;
+      document.getElementById("shell").classList.toggle("is-script", next === "script");
+      document.getElementById("shell").classList.toggle("is-anatomy", next === "anatomy");
+      document.getElementById("tabPoleas").setAttribute("aria-selected", next === "poleas" ? "true" : "false");
+      document.getElementById("tabAnatomy").setAttribute("aria-selected", next === "anatomy" ? "true" : "false");
+      document.getElementById("tabScript").setAttribute("aria-selected", next === "script" ? "true" : "false");
+      document.querySelector(".stage-note").textContent = next === "anatomy"
+        ? "Las propiedades cambian el volumen. Las poleas doblan las secciones."
+        : "Un cuerpo estilo Sim. Las poleas doblan las secciones; el gesto se lee en la carne.";
+      localStorage.setItem(TAB_KEY, next);
+      if (next === "poleas") renderTune(selectedZone);
+      if (next === "anatomy") renderAnatomy();
+      requestAnimationFrame(() => engine.resize());
+    }
+    document.getElementById("tabPoleas").addEventListener("click", () => setTab("poleas"));
+    document.getElementById("tabAnatomy").addEventListener("click", () => setTab("anatomy"));
+    document.getElementById("tabScript").addEventListener("click", () => setTab("script"));
+
+    const accionName = document.getElementById("accionName");
+    const accionSource = document.getElementById("accionSource");
+    const accionStatus = document.getElementById("accionStatus");
+    const accionList = document.getElementById("accionList");
+    accionSource.value = ACCION_EXAMPLE;
+
+    function sayAccion(text) {
+      accionStatus.textContent = text;
+    }
+
+    async function readPose(file) {
+      try {
+        const res = await fetch("/poleas-poses/" + encodeURIComponent(file), { cache: "no-store" });
+        if (res.ok) return await res.json();
+      } catch {
+        /* built-in fallback */
+      }
+      const built = builtInPoseByFile(file);
+      return built ? { name: built.name, sliders: built.sliders } : null;
+    }
+
+    const accionPlayer = createAccionPlayer({
+      state,
+      loadPose: readPose,
+      standbySliders: async () => (await readPose(standbyFile))?.sliders || null,
+      onStart() {
+        accionSource.classList.add("is-run");
+        stage.classList.add("is-run");
+        paintAccionScore(accionSource.value);
+        sayAccion("en marcha");
+      },
+      onStep(op) {
+        markAccionLine(op.line);
+        sayAccion("línea " + op.line);
+      },
+      onDone() {
+        if (activeTab === "poleas") renderTune(selectedZone);
+        sayAccion("fin");
+      },
+      onStop() {
+        accionSource.classList.remove("is-run");
+        stage.classList.remove("is-run");
+        if (activeTab === "poleas") renderTune(selectedZone);
+      },
+      onError(errors) {
+        sayAccion(errors.map((item) => item.error).join(" · "));
+      },
+      onFreeze(name) {
+        sayAccion("congelada en el script: " + name);
+      },
+    });
+
+    async function refreshAcciones() {
+      accionList.replaceChildren();
+      try {
+        const res = await fetch("/api/poleas-acciones", { cache: "no-store" });
+        if (!res.ok) throw new Error("list");
+        const data = await res.json();
+        for (const item of data.items || []) {
+          const row = document.createElement("div");
+          row.className = "pose-item";
+          const use = document.createElement("button");
+          use.type = "button";
+          use.className = "use";
+          use.textContent = item.name;
+          use.addEventListener("click", () => openAccion(item.file));
+          const drop = document.createElement("button");
+          drop.type = "button";
+          drop.className = "drop";
+          drop.textContent = "Quitar";
+          drop.addEventListener("click", () => removeAccion(item.file, item.name));
+          row.append(use, drop);
+          accionList.appendChild(row);
+        }
+      } catch {
+        sayAccion("Arranca con npm start para guardar acciones en el proyecto.");
+      }
+    }
+
+    async function openAccion(file) {
+      const res = await fetch("/poleas-acciones/" + encodeURIComponent(file), { cache: "no-store" });
+      if (!res.ok) {
+        sayAccion("No pude leer " + file);
+        return;
+      }
+      accionSource.value = await res.text();
+      accionName.value = file.replace(/\.soma$/i, "");
+      paintAccionScore(accionSource.value);
+      sayAccion("Abierta: " + file);
+    }
+
+    async function removeAccion(file, name) {
+      const res = await fetch("/api/poleas-acciones/" + encodeURIComponent(file.replace(/\.soma$/i, "")), {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        sayAccion("No pude quitar " + name);
+        return;
+      }
+      sayAccion("Quitada: " + name);
+      refreshAcciones();
+    }
+
+    document.getElementById("accionPlay").addEventListener("click", async () => {
+      const result = await accionPlayer.play(accionSource.value);
+      if (result && !result.ok) sayAccion((result.errors || []).map((item) => item.error).join(" · "));
+    });
+    document.getElementById("accionStop").addEventListener("click", () => accionPlayer.stop());
+    document.getElementById("accionFreeze").addEventListener("click", async () => {
+      const name = (poseName.value || accionName.value || "cue").trim();
+      const pose = snapshotPulleyPose(state, name);
+      try {
+        await fetch("/api/poleas-poses/" + encodeURIComponent(name), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pose),
+        });
+        await refreshPoses();
+      } catch {
+        /* still insert the cue */
+      }
+      accionSource.value = accionSource.value.replace(/\s*$/, "") + `\npose ${name} en 0.5\n`;
+      sayAccion("Congelada: pose " + name + " en 0.5");
+    });
+    document.getElementById("accionSave").addEventListener("click", async () => {
+      const name = accionName.value.trim() || "accion";
+      try {
+        const res = await fetch("/api/poleas-acciones/" + encodeURIComponent(name), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, source: accionSource.value }),
+        });
+        if (!res.ok) throw new Error("save");
+        const data = await res.json();
+        sayAccion("Guardada en poleas-acciones/" + data.file);
+        refreshAcciones();
+      } catch {
+        sayAccion("No pude guardar la acción en el proyecto.");
+      }
+    });
+
+    const bgInput = document.getElementById("s-backdrop");
+    bindRange(bgInput, document.getElementById("v-backdrop"), "backdrop");
+    bgInput.addEventListener("input", () => setBackdrop(state.backdrop));
+    setBackdrop(state.backdrop);
+
+    const BODY_KEY = "soma-poleas-body";
+    const bodyMode = document.getElementById("s-bodyMode");
+    const savedBody = localStorage.getItem(BODY_KEY);
+    bodyMode.value = savedBody === "lines" || savedBody === "both" ? savedBody : "flesh";
+    setPulleyBodyMode(figure, bodyMode.value);
+    bodyMode.addEventListener("change", () => {
+      setPulleyBodyMode(figure, bodyMode.value);
+      localStorage.setItem(BODY_KEY, bodyMode.value);
+    });
+    paintAccionScore(accionSource.value);
+    renderTune(selectedZone);
+    refreshPoses().then(() => loadPose(standbyFile, true));
+    refreshAcciones();
+
+    const stageFps = document.getElementById("stageFps");
+    let fpsFrames = 0;
+    let fpsMs = 0;
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = engine.getDeltaTime();
+      accionPlayer.tick(dt / 1000);
+      if (accionPlayer.playing) syncTuneValues();
+      applyAnatomy(figure, anatomy);
+      posePulleyFigure(figure, state);
+      drawPulleyFigure(BABYLON, figure);
+      fpsFrames += 1;
+      fpsMs += dt;
+      if (fpsMs >= 400) {
+        stageFps.textContent = Math.round((fpsFrames * 1000) / fpsMs) + " fps";
+        fpsFrames = 0;
+        fpsMs = 0;
+      }
+    });
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+    globalThis.somaPoleas = { scene, camera, figure, state, anatomy };
+    const savedTab = localStorage.getItem(TAB_KEY);
+    setTab(savedTab === "script" || savedTab === "anatomy" ? savedTab : "poleas");
+    requestAnimationFrame(() => engine.resize());
+  </script>
+</body>
+</html>
