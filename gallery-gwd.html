@@ -1,0 +1,4908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galería GWD · Plays guardados</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --paper: #ffffff;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #101514;
+      --ad-w: 300px;
+      --ad-h: 250px;
+      --cols: 4;
+      --gap: 0.7rem;
+      --card-w: 132px;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; background: var(--bg); }
+    html, body {
+      margin: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .app-bar { border-bottom: none; background: rgba(255, 255, 255, 0.94); }
+    .g-pane {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      background: rgb(247, 246, 248) radial-gradient(rgba(244, 246, 248, 0), rgb(244, 246, 248));
+    }
+    .shell {
+      --preview-w: 66%;
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) 1px minmax(280px, var(--preview-w));
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+    }
+    body.is-belt .shell {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+    body.is-belt .g-pane,
+    body.is-belt .split {
+      display: none;
+    }
+    body.is-belt.is-shelf .g-pane {
+      display: grid;
+      position: fixed;
+      z-index: 80;
+      top: 7vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(52rem, 92vw);
+      height: min(82vh, 860px);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 22px 64px rgba(16, 21, 20, 0.28);
+    }
+    body.is-belt .side::before { display: none; }
+    body.is-belt .side { position: relative; }
+    .g-shelf-scrim {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      margin: 0;
+      border: 0;
+      padding: 0;
+      background: rgba(16, 21, 20, 0.4);
+      cursor: pointer;
+    }
+    body.is-belt.is-shelf .g-shelf-scrim { display: block; }
+    .g-belt {
+      display: none;
+      position: absolute;
+      z-index: 14;
+      left: 50%;
+      bottom: 5.35rem;
+      transform: translateX(-50%);
+      max-width: min(86%, 52rem);
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.28rem 0.34rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 28px rgba(16, 21, 20, 0.16);
+    }
+    body.is-belt .g-belt { display: flex; }
+    .g-belt-open {
+      flex: 0 0 auto;
+      width: 2.2rem;
+      height: 2.2rem;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--neon);
+      color: #fff;
+      cursor: pointer;
+    }
+    .g-belt-open svg { width: 1.05rem; height: 1.05rem; }
+    .g-belt-open:hover { filter: brightness(1.12); }
+    .g-belt-track {
+      display: flex;
+      align-items: center;
+      justify-content: safe center;
+      gap: 0.28rem;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .g-belt-track::-webkit-scrollbar { display: none; }
+    .g-belt-item {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.38rem;
+      max-width: 9.5rem;
+      margin: 0;
+      padding: 0.18rem 0.55rem 0.18rem 0.18rem;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .g-belt-item:hover { background: rgba(16, 21, 20, 0.06); }
+    .g-belt-item.is-on { background: rgba(16, 21, 20, 0.1); color: var(--neon); }
+    .g-belt-thumb {
+      width: 1.85rem;
+      height: 1.85rem;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #d8e0e8;
+    }
+    .g-belt-thumb svg,
+    .g-belt-thumb .g-poster {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .g-belt-name {
+      font-size: 0.72rem;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .layout-picks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+    }
+    .g-modal .layout-pick {
+      display: grid;
+      gap: 0.28rem;
+      width: auto;
+      min-height: 6.2rem;
+      padding: 0.7rem 0.65rem;
+      text-align: center;
+      align-content: center;
+    }
+    .g-modal .layout-pick.is-on {
+      border-color: var(--neon);
+      color: var(--neon);
+      background: rgba(16, 21, 20, 0.05);
+    }
+    .layout-pick small {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: var(--muted);
+      text-wrap: pretty;
+    }
+    .split {
+      width: 1px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      cursor: col-resize;
+      background: var(--line);
+      position: relative;
+      z-index: 6;
+    }
+    .split::after {
+      content: "";
+      position: absolute;
+      inset: 0 -7px;
+    }
+    .split:hover,
+    .split:focus-visible,
+    .shell.is-resize .split {
+      background: var(--neon);
+      outline: none;
+    }
+    body.is-resize { cursor: col-resize; user-select: none; }
+    body.is-resize .g-grid, body.is-resize .side { pointer-events: none; }
+    .g-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+      gap: var(--gap);
+      align-content: start;
+      padding: 0.9rem 1rem 1.6rem;
+      min-height: 0;
+      height: 100%;
+      overflow: auto;
+    }
+    .g-grid[data-cols="auto"] {
+      grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+    }
+    .g-grid[data-size="s"] { --card-w: 108px; }
+    .g-grid[data-size="m"] { --card-w: 132px; }
+    .g-grid[data-size="l"] { --card-w: 168px; }
+    .g-grid[data-gap="sm"] { --gap: 0.4rem; }
+    .g-grid[data-gap="md"] { --gap: 0.7rem; }
+    .g-grid[data-gap="lg"] { --gap: 1.15rem; }
+    .g-head {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: var(--bg);
+    }
+    .g-bar {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.7rem 0.45rem;
+      background: var(--bg);
+      box-shadow: 0 0 0 transparent;
+      transition: box-shadow 0.22s ease;
+    }
+    .g-ops-dock[hidden] {
+      display: none !important;
+    }
+    .g-ops-dock {
+      display: none;
+      min-width: 0;
+      padding: 0.5rem 0.7rem 0.55rem;
+      background: var(--bg);
+    }
+    .g-pane.is-ops-dock .g-ops-dock {
+      display: block;
+    }
+    .g-pane.is-ops-dock .g-bar {
+      padding-bottom: 0.2rem;
+    }
+    .g-pane.is-ops-dock .g-bar.is-lift {
+      box-shadow: none;
+    }
+    .g-head.is-lift {
+      box-shadow:
+        0 1px 0 var(--line),
+        0 8px 20px rgba(26, 35, 48, 0.1);
+    }
+    .g-pane.is-ops-dock .g-card-ops {
+      display: none;
+    }
+    .g-ops-dock-name {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+    .g-ops-dock-btns {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.32rem;
+    }
+    .g-ops-dock.is-empty .g-ops-dock-btns {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .g-ops-dock .g-op {
+      width: 100%;
+      height: 30px;
+      border-radius: 999px;
+      color: var(--ink);
+      background: #fff;
+    }
+    .g-ops-dock .g-op:hover,
+    .g-ops-dock .g-op:focus-visible {
+      color: var(--neon);
+      background: #fff;
+      outline: none;
+    }
+    .g-ops-dock .g-op.is-pin {
+      color: #fff;
+      background: var(--neon);
+    }
+    .g-bar.is-lift {
+      box-shadow:
+        0 1px 0 var(--line),
+        0 8px 20px rgba(26, 35, 48, 0.1);
+    }
+    .g-search {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+    }
+    .g-search input {
+      font: inherit;
+      font-size: 0.82rem;
+      width: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.38rem 2.55rem 0.38rem 0.75rem;
+      background: #fff;
+      color: var(--ink);
+    }
+    .g-search input:focus {
+      outline: 1px solid var(--neon);
+      outline-offset: 0;
+    }
+    .g-search input::-webkit-search-cancel-button {
+      appearance: none;
+    }
+    .g-count {
+      position: absolute;
+      right: 0.32rem;
+      z-index: 1;
+      min-width: 1.35rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 650;
+      line-height: 1.35;
+      text-align: center;
+      color: var(--muted);
+      background: var(--line);
+      pointer-events: none;
+    }
+    .g-cats {
+      position: sticky;
+      bottom: 0;
+      z-index: 4;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 0.32rem;
+      padding: 0.45rem 0.7rem 0.65rem;
+      background: var(--bg);
+      box-shadow: 0 0 0 transparent;
+      transition: box-shadow 0.22s ease;
+    }
+    .g-cats.is-lift {
+      box-shadow:
+        0 -1px 0 var(--line),
+        0 -8px 20px rgba(26, 35, 48, 0.1);
+    }
+    .g-pill {
+      appearance: none;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 650;
+      margin: 0;
+      padding: 0.28rem 0.62rem;
+      border: 0;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .g-pill:hover,
+    .g-pill:focus-visible {
+      color: var(--neon);
+      outline: none;
+    }
+    .g-pill.is-on {
+      color: #fff;
+      background: var(--neon);
+    }
+    .g-bar button {
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: none;
+      color: var(--ink);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .g-bar button:hover,
+    .g-bar button:focus-visible {
+      color: var(--neon);
+      background: rgba(11, 143, 120, 0.1);
+      outline: none;
+    }
+    .g-bar svg {
+      display: block;
+      width: 18px;
+      height: 18px;
+    }
+    .g-modal {
+      border: 0;
+      padding: 1.15rem 1.2rem 1.05rem;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      width: min(22rem, calc(100% - 2rem));
+    }
+    .g-modal::backdrop {
+      background: rgba(26, 35, 48, 0.32);
+    }
+    .g-modal h2 {
+      margin: 0 0 0.85rem;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+    .g-modal-fields {
+      display: grid;
+      gap: 0.7rem;
+    }
+    .g-modal .nav-field {
+      display: grid;
+      gap: 0.28rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .g-modal select,
+    .g-modal .layout-pick,
+    .g-modal-actions button {
+      font: inherit;
+      font-size: 0.85rem;
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 0.42rem 0.5rem;
+      text-align: left;
+    }
+    .g-modal-actions button {
+      cursor: pointer;
+    }
+    .g-modal-wide {
+      box-sizing: border-box;
+      width: min(44rem, calc(100% - 3rem));
+      max-height: min(84vh, 52rem);
+      padding: 1.45rem 1.55rem 1.25rem;
+      overflow: hidden;
+    }
+    .g-modal-wide[open] {
+      display: flex;
+      flex-direction: column;
+    }
+    .g-modal-wide h2 {
+      flex: 0 0 auto;
+      margin-bottom: 1rem;
+    }
+    .g-modal-wide .g-modal-body {
+      overflow: auto;
+      min-height: 0;
+      flex: 1 1 auto;
+      margin: 0 0 1.1rem;
+      padding: 0.2rem 0.55rem 0.55rem 0.15rem;
+    }
+    .g-modal-wide .g-modal-actions {
+      flex: 0 0 auto;
+      margin-top: 0;
+    }
+    .g-modal-wide .nav-field input[type="text"] {
+      font: inherit;
+      font-size: 0.88rem;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.48rem 0.6rem;
+      color: var(--ink);
+      background: #fff;
+    }
+    .hand-tune .nav-field {
+      margin-top: 0.7rem;
+    }
+    .hand-tune .prop-check {
+      margin-top: 0.45rem;
+    }
+    .g-modal-wide .g-modal-body > .prop-lint:first-child {
+      margin-top: 0.1rem;
+    }
+    .g-modal-wide .ph-panel h3 {
+      margin: 1.25rem 0 0.7rem;
+    }
+    .g-modal-wide .ph-panel h3:first-child {
+      margin-top: 0.15rem;
+    }
+    .g-modal-wide .ph-panel h3 + .ph-styles,
+    .g-modal-wide .ph-panel h3 + .ph-chips,
+    .g-modal-wide .ph-panel h3 + .ph-colors,
+    .g-modal-wide .ph-panel h3 + .ph-shots {
+      margin-bottom: 1.05rem;
+    }
+    .g-modal-wide .ph-styles {
+      gap: 0.55rem;
+    }
+    .g-modal-wide .ph-colors {
+      gap: 0.7rem;
+    }
+    .g-modal-wide .ph-colors label {
+      gap: 0.85rem;
+      min-height: 2.1rem;
+    }
+    .g-modal-wide .prop-file {
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .g-modal-wide .studio-extras {
+      gap: 0.7rem;
+      margin-top: 0.7rem;
+    }
+    .g-modal-wide .studio-extra {
+      padding: 0.65rem 0.7rem 0.75rem;
+    }
+    .g-modal-wide .studio-extra-bar {
+      gap: 0.5rem;
+    }
+    .g-modal-wide .prop-check {
+      margin-top: 1.05rem;
+    }
+    .g-modal-wide .prop-check.prop-cam-plane {
+      margin-top: 0.65rem;
+    }
+    .asset-pick-search {
+      display: grid;
+      gap: 0.4rem;
+      margin: 0 0 0.9rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
+    .asset-pick-search input {
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.48rem 0.6rem;
+      color: var(--ink);
+      background: #fff;
+    }
+    .asset-pick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(7.6rem, 1fr));
+      gap: 0.55rem;
+    }
+    .asset-pick {
+      appearance: none;
+      display: grid;
+      gap: 0.35rem;
+      margin: 0;
+      padding: 0.4rem 0.4rem 0.5rem;
+      border: 0;
+      border-radius: 10px;
+      background: #f4f6f8;
+      color: #1a2330;
+      cursor: pointer;
+      text-align: left;
+    }
+    .asset-pick:hover,
+    .asset-pick:focus-visible { outline: 1px solid var(--neon); }
+    .asset-pick.is-on { outline: 2px solid var(--neon); background: #fff; }
+    .asset-pick-thumb {
+      aspect-ratio: 1;
+      border-radius: 7px;
+      overflow: hidden;
+      background: color-mix(in srgb, #121318 calc(100% - var(--a-void-l, 14) * 1%), #e6e7e2 calc(var(--a-void-l, 14) * 1%));
+    }
+    .asset-pick-thumb img,
+    .asset-pick-thumb svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .asset-pick-name {
+      margin: 0;
+      font-size: 0.7rem;
+      font-weight: 650;
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .g-modal-wide .ph-panel {
+      position: static;
+      right: auto;
+      bottom: auto;
+      z-index: auto;
+      width: auto;
+      max-width: none;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      padding: 0 3px;
+      padding-right: 18px;
+    }
+    .g-modal-actions {
+      display: grid;
+      gap: 0.45rem;
+      margin-top: 0.2rem;
+    }
+    .g-modal .primary {
+      border-color: var(--neon);
+      color: var(--neon);
+      text-align: center;
+    }
+    .g-modal .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+    }
+    .g-modal .check-row input {
+      width: auto;
+      margin: 0;
+    }
+    .g-fps-hint {
+      margin: 0;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+    .g-fps-hint output {
+      font-weight: 650;
+      color: var(--ink);
+    }
+    .g-card {
+      position: relative;
+      min-width: 0;
+      container-type: inline-size;
+    }
+    .g-card[hidden] {
+      display: none;
+    }
+    .g-pick {
+      appearance: none;
+      font: inherit;
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0 0 1.35rem;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      position: relative;
+    }
+    .g-pick::after {
+      display: none;
+    }
+    .g-pick:focus {
+      outline: none;
+    }
+    .g-card-ops {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 5;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.16s ease;
+    }
+    .g-card:hover .g-card-ops,
+    .g-card.is-on .g-card-ops,
+    .g-card:focus-within .g-card-ops {
+      opacity: 1;
+    }
+    .g-op {
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(12, 14, 18, 0.58);
+    }
+    .g-op:hover,
+    .g-op:focus-visible {
+      outline: none;
+      background: var(--neon);
+    }
+    .g-op svg {
+      display: block;
+      width: 14px;
+      height: 14px;
+    }
+    .g-card.is-off .g-thumb {
+      opacity: 0.42;
+    }
+    .g-card.is-pin .g-card-ops [data-op="pin"] {
+      display: none;
+    }
+    .g-pin-mark {
+      appearance: none;
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      z-index: 5;
+      width: 22px;
+      height: 22px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #fff;
+      background: var(--neon);
+    }
+    .g-pin-mark:hover,
+    .g-pin-mark:focus-visible {
+      outline: none;
+      background: var(--neon);
+    }
+    .g-pin-mark svg {
+      display: block;
+      width: 12px;
+      height: 12px;
+      grid-area: 1 / 1;
+    }
+    .g-pin-mark .g-pin-x {
+      display: none;
+    }
+    .g-pin-mark:hover .g-pin-icon,
+    .g-pin-mark:focus-visible .g-pin-icon {
+      display: none;
+    }
+    .g-pin-mark:hover .g-pin-x,
+    .g-pin-mark:focus-visible .g-pin-x {
+      display: block;
+    }
+    .g-op.is-pin {
+      background: var(--neon);
+      color: #fff;
+    }
+    .g-op.is-pin:hover,
+    .g-op.is-pin:focus-visible {
+      color: #fff;
+      background: var(--neon);
+    }
+    .g-thumb {
+      position: relative;
+      z-index: 1;
+      aspect-ratio: 1 / 1;
+      border-radius: 16px;
+      overflow: hidden;
+      isolation: isolate;
+      outline: none;
+      background: #efefef;
+      box-shadow: none;
+      filter: none;
+    }
+    .g-thumb::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: transparent;
+      transition: background 0.16s ease;
+      pointer-events: none;
+    }
+    .g-card:hover .g-thumb::after,
+    .g-pick:focus-visible .g-thumb::after {
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .g-card.is-on .g-thumb {
+      box-shadow:
+        0 0 0 2px #fff,
+        0 0 0 3.5px var(--ink);
+    }
+    .g-thumb > svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      vertical-align: top;
+    }
+    .g-play {
+      --play-size: min(46%, 5.75rem);
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 3;
+      width: var(--play-size);
+      height: var(--play-size);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.92);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+    }
+    .g-play::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      z-index: 0;
+      border-radius: 50%;
+      background: rgba(12, 14, 18, 0.46);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+    .g-card:hover .g-play,
+    .g-card.is-playing .g-play,
+    .g-pick:focus-visible .g-play {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .g-play-icon,
+    .g-play-fill svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .g-play-icon {
+      position: relative;
+      z-index: 1;
+    }
+    .g-play-fill {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      overflow: hidden;
+      color: var(--neon);
+      clip-path: inset(calc((1 - var(--play-t, 0)) * 100%) 0 0 0);
+    }
+    .g-play-fill svg {
+      width: 100%;
+      height: 100%;
+    }
+    .g-name {
+      position: absolute;
+      left: 0px;
+      right: 6px;
+      bottom: 0;
+      z-index: 2;
+      transform: translateY(50%);
+      margin: 0;
+      padding: 0.12rem 0.28rem;
+      border: 0;
+      border-radius: 4px;
+      font-size: clamp(0.75rem, 8cqi, 0.85rem);
+      font-weight: normal ;
+      letter-spacing: 0;
+      line-height: 1.25;
+      text-transform: none;
+      text-align: left;
+      text-wrap: balance;
+      color: var(--ink);
+      /* background: #fff; */
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      pointer-events: none;
+    }
+    .g-card.is-on .g-name {
+      color: var(--neon);
+    }
+    .empty, .side-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .side {
+      --void-l: 14;
+      --void: color-mix(in srgb, #0c0e12 calc(100% - var(--void-l) * 1%), #e6e7e2 calc(var(--void-l) * 1%));
+      position: sticky;
+      top: 0;
+      align-self: start;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      border-left: 0;
+      background: var(--void, #14161b);
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+    .side::before {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 88px;
+      pointer-events: none;
+      background: linear-gradient(to right, var(--void) 18%, transparent 100%);
+    }
+    .preview-title {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 8;
+      padding: 0.85rem 1rem;
+      pointer-events: none;
+      background: none;
+    }
+    .preview-title h2,
+    .preview-title .side-empty {
+      display: inline-flex;
+      margin: 0;
+      max-width: min(100%, 22rem);
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      line-height: 1.25;
+      text-transform: uppercase;
+      color: #fff;
+      background: rgba(12, 14, 18, 0.5);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.16),
+        0 8px 20px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transform: translateY(0);
+      opacity: 1;
+      transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .preview-title h2.is-out,
+    .preview-title .side-empty.is-out {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    .preview-title h2.is-in,
+    .preview-title .side-empty.is-in {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .preview-title h2,
+      .preview-title .side-empty {
+        transition: none;
+      }
+    }
+    .side[data-ink="light"] .preview-title h2,
+    .side[data-ink="light"] .preview-title .side-empty {
+      color: #1a2330;
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.9),
+        0 8px 18px rgba(26, 35, 48, 0.12);
+    }
+    .fmt-rail {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      z-index: 9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .fmt-btn {
+      appearance: none;
+      width: 34px;
+      height: 34px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.88);
+      background: rgba(12, 14, 18, 0.42);
+    }
+    .side[data-ink="light"] .fmt-btn {
+      color: #1a2330;
+      background: rgba(255, 255, 255, 0.78);
+    }
+    .fmt-btn:hover,
+    .fmt-btn:focus-visible {
+      outline: 1px solid var(--neon);
+      outline-offset: 0;
+    }
+    .fmt-btn.is-on {
+      color: #fff;
+      background: var(--neon);
+      outline: 0;
+    }
+    .fmt-glyph {
+      display: block;
+      width: var(--gw, 12px);
+      height: var(--gh, 8px);
+      border-radius: 1px;
+      background: currentColor;
+      opacity: 0.92;
+    }
+    .stage-tools {
+      position: absolute;
+      left: 0.85rem;
+      right: 0.85rem;
+      bottom: 0.85rem;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      pointer-events: none;
+    }
+    .stage-tools > * { pointer-events: auto; }
+    .stage-sliders {
+      display: grid;
+      gap: 0.42rem;
+      width: min(12.6rem, 46%);
+    }
+    .light-row,
+    .zoom-row {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr) 14px;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+    }
+    .light-row i {
+      display: block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .light-row .dim { background: #2a2e34; }
+    .light-row .lit { background: #f2f2ee; }
+    .light-row input[type="range"],
+    .zoom-row input[type="range"] {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      accent-color: #d8d4c8;
+      cursor: pointer;
+    }
+    .zoom-row svg {
+      display: block;
+      width: 13px;
+      height: 13px;
+      color: #d8d4c8;
+      justify-self: center;
+    }
+    .side[data-ink="light"] .zoom-row svg { color: #3a4450; }
+    .zoom-cue {
+      position: absolute;
+      left: 50%;
+      bottom: 4.8rem;
+      transform: translateX(-50%);
+      z-index: 11;
+      margin: 0;
+      font-size: clamp(1.85rem, 4.6vw, 2.9rem);
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: #fff;
+      text-shadow: 0 1px 14px rgba(0, 0, 0, 0.42);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.16s ease, visibility 0.16s ease;
+    }
+    .zoom-cue.is-on {
+      opacity: 1;
+      visibility: visible;
+    }
+    .side[data-ink="light"] .zoom-cue {
+      color: #1a2330;
+      text-shadow: 0 1px 12px rgba(255, 255, 255, 0.5);
+    }
+    .preload-cue {
+      position: absolute;
+      left: 50%;
+      top: 1.1rem;
+      transform: translateX(-50%);
+      z-index: 12;
+      margin: 0;
+      padding: 0.28rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 750;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #fff;
+      background: rgba(12, 14, 16, 0.46);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.18s ease, visibility 0.18s ease;
+    }
+    .preload-cue.is-wait,
+    .preload-cue.is-ready {
+      opacity: 1;
+      visibility: visible;
+    }
+    .preload-cue.is-ready {
+      background: rgba(11, 143, 120, 0.72);
+    }
+    .side[data-ink="light"] .preload-cue {
+      color: #1a2330;
+      background: rgba(255, 255, 255, 0.62);
+    }
+    .side[data-ink="light"] .preload-cue.is-ready {
+      background: rgba(11, 143, 120, 0.28);
+    }
+    .play-fab {
+      appearance: none;
+      width: 64px;
+      height: 64px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(12, 14, 18, 0.5);
+      transform: scale(1);
+      transition: background 0.2s ease, color 0.2s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .side[data-ink="light"] .play-fab {
+      color: #1a2330;
+      background: rgba(255, 255, 255, 0.78);
+    }
+    .play-fab:not(:disabled):hover,
+    .play-fab:not(:disabled):focus-visible {
+      color: #fff;
+      background: var(--neon);
+      transform: scale(1.08);
+      outline: none;
+    }
+    .play-fab:not(:disabled):active {
+      transform: scale(0.9);
+      transition-duration: 0.08s;
+    }
+    .play-fab.is-press {
+      animation: play-fab-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes play-fab-pop {
+      0% { transform: scale(1); }
+      32% { transform: scale(0.84); }
+      68% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .play-fab:disabled {
+      opacity: 0.35;
+      cursor: default;
+      transform: none;
+    }
+    .play-fab svg {
+      display: block;
+      width: 26px;
+      height: 26px;
+      margin: 0;
+      justify-self: center;
+      align-self: center;
+    }
+    .tool-end {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .ph-wrap { position: relative; }
+    .ph-fab {
+      appearance: none;
+      width: 44px;
+      height: 44px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #fff;
+      background: rgba(12, 14, 18, 0.5);
+    }
+    .side[data-ink="light"] .ph-fab {
+      color: #1a2330;
+      background: rgba(255, 255, 255, 0.78);
+    }
+    .ph-fab:hover,
+    .ph-fab:focus-visible,
+    .ph-wrap.is-open .ph-fab {
+      color: #fff;
+      background: var(--neon);
+      outline: none;
+    }
+    .ph-fab svg { display: block; width: 20px; height: 20px; }
+    .ph-wrap[hidden] { display: none; }
+    .prop-file {
+      display: grid;
+      gap: 0.35rem;
+      margin: 0 0 0.55rem;
+    }
+    .prop-file span {
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
+    .prop-file input[type="file"] {
+      width: 100%;
+      font: inherit;
+      font-size: 0.72rem;
+    }
+    .prop-file-name {
+      margin: 0 0 0.45rem;
+      font-size: 0.78rem;
+      color: #5c6b7a;
+      line-height: 1.4;
+    }
+    .prop-file-clear {
+      appearance: none;
+      font: inherit;
+      font-size: 0.75rem;
+      margin: 0;
+      padding: 0.28rem 0.5rem;
+      border: 1px solid #d8e0e8;
+      border-radius: 6px;
+      background: #fff;
+      color: #1a2330;
+      cursor: pointer;
+    }
+    .prop-file-clear:hover,
+    .prop-file-clear:focus-visible {
+      outline: 1px solid var(--neon);
+    }
+    .prop-file-clear + h3,
+    .prop-file-name + h3 {
+      margin-top: 0.9rem;
+    }
+    .prop-lint {
+      display: grid;
+      gap: 0.3rem;
+      margin: 0.7rem 0 0;
+    }
+    .prop-lint span {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
+    .prop-lint output {
+      font-weight: 650;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .prop-lint input[type="range"] {
+      width: 100%;
+      margin: 0.12rem 0 0.2rem;
+      accent-color: var(--neon);
+    }
+    .prop-lint input[type="color"] {
+      width: 1.45rem;
+      height: 1.1rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .studio-extras { display: grid; gap: 0.55rem; margin-top: 0.55rem; }
+    .studio-extra {
+      padding: 0.45rem 0.5rem 0.55rem;
+      border-radius: 8px;
+      background: #f4f6f8;
+    }
+    .studio-extra-bar {
+      display: grid;
+      grid-template-columns: 1.5rem minmax(0, 1fr) 2.2rem 1.2rem;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .studio-extra-bar output {
+      font-size: 0.68rem;
+      font-weight: 650;
+      color: #1a2330;
+      text-align: right;
+    }
+    .studio-extra-bar input[type="range"] { accent-color: var(--neon); }
+    .studio-extra-del {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #5c6b7a;
+      font: 700 1rem/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+      padding: 0;
+    }
+    .studio-xplaces {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      margin-top: 0.4rem;
+    }
+    .studio-xplaces .ph-style { padding: 0.22rem 0.4rem; font-size: 0.68rem; }
+    .prop-lcol {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      margin: 0.65rem 0 0;
+    }
+    .prop-lcol span {
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
+    .prop-lcol input[type="color"] {
+      width: 2.1rem;
+      height: 1.45rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .prop-check {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0.75rem 0 0;
+      font-size: 0.78rem;
+      color: #1a2330;
+      cursor: pointer;
+    }
+    .prop-check input {
+      margin: 0;
+      accent-color: var(--neon);
+    }
+    .ph-panel h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
+    .ph-panel h3 + .ph-styles,
+    .ph-panel h3 + .ph-chips,
+    .ph-panel h3 + .ph-colors,
+    .ph-panel h3 + .ph-shots { margin-bottom: 0.85rem; }
+    .ph-shots {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+    .ph-shot {
+      appearance: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #eceff2;
+      cursor: pointer;
+      aspect-ratio: 1;
+    }
+    .ph-shot img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .ph-shot-none {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      font-size: 0.62rem;
+      font-weight: 650;
+      color: #5c6b7a;
+    }
+    .ph-shot:hover,
+    .ph-shot:focus-visible { outline: 1px solid var(--neon); }
+    .ph-shot.is-on { outline: 2px solid var(--neon); }
+    .ph-styles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+    .ph-style {
+      appearance: none;
+      font: inherit;
+      margin: 0;
+      padding: 0.28rem 0.28rem 0.35rem;
+      border: 0;
+      border-radius: 8px;
+      background: #f4f6f8;
+      color: #1a2330;
+      cursor: pointer;
+      text-align: center;
+    }
+    .ph-style:hover,
+    .ph-style:focus-visible { outline: 1px solid var(--neon); }
+    .ph-style.is-on { outline: 2px solid var(--neon); background: #fff; }
+    .ph-thumb {
+      display: grid;
+      place-items: center;
+      height: 38px;
+      margin-bottom: 0.28rem;
+      border-radius: 5px;
+      overflow: hidden;
+      color: var(--ph-ink, #3d2a18);
+      background:
+        radial-gradient(120% 90% at 10% 0%, color-mix(in srgb, var(--ph-paper, #efe0c4) 70%, transparent), transparent 52%),
+        radial-gradient(90% 80% at 100% 110%, color-mix(in srgb, var(--ph-accent, #8b5a2b) 58%, transparent), transparent 56%),
+        var(--ph-bg, #b89a6e);
+    }
+    .ph-thumb .ad-ph-art { grid-area: 1 / 1; width: 100%; height: 100%; }
+    .ph-thumb .ad-ph-icon { width: 58%; max-height: 78%; }
+    .ph-thumb .ad-ph-frame { width: 70%; height: 70%; }
+    .ph-thumb .ad-ph-size { font-size: 0.52rem; letter-spacing: 0.02em; }
+    .ph-style > span:last-child {
+      display: block;
+      font-size: 0.64rem;
+      font-weight: 650;
+    }
+    .ph-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.38rem;
+    }
+    .ph-chip {
+      appearance: none;
+      width: 1.45rem;
+      height: 1.45rem;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      background: var(--chip, #c4b191);
+      box-shadow: inset 0 0 0 1px rgba(26, 35, 48, 0.12);
+    }
+    .ph-chip:hover,
+    .ph-chip:focus-visible { outline: 2px solid var(--neon); outline-offset: 1px; }
+    .ph-chip.is-on { outline: 2px solid var(--neon); outline-offset: 2px; }
+    .ph-colors {
+      display: grid;
+      gap: 0.4rem;
+    }
+    .ph-colors label {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.74rem;
+      color: #5c6b7a;
+    }
+    .ph-colors input[type="color"],
+    .ph-fit-mat input[type="color"] {
+      width: 2.1rem;
+      height: 1.45rem;
+      padding: 0;
+      border: 1px solid #d8e0e8;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .ph-fit-mat {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.55rem 0 0;
+      font-size: 0.74rem;
+      color: #5c6b7a;
+    }
+    #play-colors {
+      max-height: none;
+      overflow: visible;
+    }
+    #play-colors + .prop-file-clear {
+      margin-top: 0.7rem;
+    }
+
+    .stage {
+      --void-l: 14;
+      --void: color-mix(in srgb, #0c0e12 calc(100% - var(--void-l) * 1%), #e6e7e2 calc(var(--void-l) * 1%));
+      --void-mid: color-mix(in srgb, #171b21 calc(100% - var(--void-l) * 1%), #f0f1ed calc(var(--void-l) * 1%));
+      --glow: color-mix(in srgb, rgba(214, 198, 168, 0.22) calc(100% - var(--void-l) * 1%), rgba(255, 255, 255, 0.55) calc(var(--void-l) * 1%));
+      --vignette: color-mix(in srgb, rgba(4, 5, 8, 0.72) calc(100% - var(--void-l) * 1%), rgba(90, 96, 94, 0.18) calc(var(--void-l) * 1%));
+      --plinth: color-mix(in srgb, rgba(0, 0, 0, 0.32) calc(100% - var(--void-l) * 1%), rgba(26, 35, 48, 0.16) calc(var(--void-l) * 1%));
+      --item-line: color-mix(in srgb, rgba(255, 255, 255, 0.1) calc(100% - var(--void-l) * 1%), rgba(26, 35, 48, 0.14) calc(var(--void-l) * 1%));
+      position: relative;
+      display: grid;
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+      min-height: 0;
+      overflow: hidden;
+      margin: 0;
+      height: 100%;
+      background: var(--void);
+      border: 0;
+    }
+    .void {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .void-wash {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(90% 80% at 62% 38%, var(--void-mid) 0%, transparent 72%);
+    }
+    .void-glow {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      width: min(78%, 720px);
+      height: min(62%, 460px);
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse at center, var(--glow) 0%, transparent 72%);
+      filter: blur(10px);
+    }
+    .void-vignette {
+      position: absolute;
+      inset: 0;
+      box-shadow:
+        inset -56px 0 120px var(--vignette),
+        inset 0 -72px 130px var(--vignette),
+        inset 0 64px 88px color-mix(in srgb, rgba(0, 0, 0, 0.22) calc(100% - var(--void-l) * 1%), rgba(255, 255, 255, 0.12) calc(var(--void-l) * 1%));
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 72px);
+      mask-image: linear-gradient(to right, transparent 0, #000 72px);
+    }
+    .stage-core {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: 4.6rem 9% 3.4rem;
+      overflow: auto;
+      background: transparent;
+    }
+    .stage[data-ratio="wide"] .stage-core { padding: 4.2rem 6% 3rem; }
+    .stage[data-ratio="tall"] .stage-core { padding: 4.4rem 16% 3.2rem; }
+    .stage-center {
+      width: 100%;
+      display: grid;
+      place-items: center;
+    }
+    .ad-plinth {
+      position: relative;
+      width: min(100%, var(--ad-w, 300px));
+      display: grid;
+      place-items: center;
+      zoom: var(--preview-zoom, 1);
+    }
+    .ad-plinth::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -0.85rem;
+      width: 70%;
+      height: 1.35rem;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse at center, var(--plinth) 0%, transparent 74%);
+      filter: blur(10px);
+      pointer-events: none;
+    }
+    .stage-slot { width: 100%; }
+    .stage-slot .ad-slot { width: min(100%, var(--ad-w)); margin: 0; }
+    body.gwd-visor .stage-slot iframe.gwd-play-frame {
+      display: block;
+      border: 0;
+      width: var(--ad-w);
+      height: var(--ad-h);
+      max-width: 100%;
+      background: transparent;
+    }
+    .slot-idle {
+      width: min(100%, var(--ad-w));
+      aspect-ratio: var(--ad-w) / var(--ad-h);
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      border: 0;
+      color: var(--ph-ink, #6f5d45);
+      background: var(--ph-bg, #c4b191);
+    }
+    .slot-idle .ad-ph {
+      width: 100%;
+      height: 100%;
+    }
+    .slot-kicker {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .slot-size { font-size: 0.92rem; font-weight: 650; color: inherit; }
+    .slot-hint { font-size: 0.72rem; opacity: 0.8; }
+
+    .ad-slot { --ad-w: 300px; --ad-h: 250px; width: min(100%, var(--ad-w)); max-width: 100%; }
+    .ad-label {
+      font-size: 0.62rem;
+      font-weight: 650;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, rgba(226, 232, 238, 0.62) calc(100% - var(--void-l) * 1%), #5c6b7a calc(var(--void-l) * 1%));
+      text-align: center;
+      margin-bottom: 0.4rem;
+    }
+    .ad-frame {
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: var(--ad-ratio, var(--ad-w) / var(--ad-h));
+      padding-bottom: 0;
+      box-shadow: 0 0 0 1px var(--item-line);
+    }
+    .ad-container {
+      position: absolute;
+      inset: 0;
+      overflow: clip;
+      isolation: isolate;
+      background: color-mix(in srgb, #05080f calc(100% - var(--void-l) * 1%), #e4e6e2 calc(var(--void-l) * 1%));
+      cursor: pointer;
+    }
+    .ad-container.is-idle canvas,
+    .ad-container.is-idle .ad-hint,
+    .ad-container.is-idle .ad-fallback {
+      visibility: hidden;
+    }
+    .ad-container.is-idle .ad-creative {
+      opacity: 1;
+      transform: none;
+      animation: none;
+      pointer-events: none;
+    }
+    .ad-clock-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .ad-clock {
+      appearance: none;
+      position: absolute;
+      z-index: 41;
+      top: 0.38rem;
+      right: 0.38rem;
+      width: calc(2.2rem * var(--clock-size, 1));
+      height: calc(2.2rem * var(--clock-size, 1));
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .clock-look {
+      display: grid;
+      gap: 0.45rem;
+    }
+    .clock-look-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .clock-size-row {
+      display: grid;
+      gap: 0.28rem;
+      font-size: 0.85rem;
+    }
+    .clock-size-row span {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .clock-size-row output { font-weight: 650; }
+    .clock-size-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--neon);
+    }
+    .clock-style-picks,
+    .clock-tone-picks {
+      grid-template-columns: 1fr 1fr;
+    }
+    .g-modal .clock-style-picks .layout-pick,
+    .g-modal .clock-tone-picks .layout-pick {
+      min-height: 0;
+      padding: 0.55rem 0.5rem;
+    }
+    .ad-slot.is-in .ad-clock,
+    .ad-container.is-visible .ad-clock {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ad-container.is-idle .ad-clock,
+    .ad-container.is-idle .ad-clock-layer,
+    body.clock-off .ad-clock,
+    body.clock-off .ad-clock-layer {
+      display: none;
+    }
+    body.gwd-visor .ad-clock,
+    body.gwd-visor .ad-clock-layer { display: none; }
+    body.gwd-visor .ad-container canvas { display: none; }
+    body.gwd-visor .ad-container model-viewer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: var(--gwd-stage, #f5f2ed);
+      --poster-color: var(--gwd-stage, #f5f2ed);
+      opacity: 0;
+      transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
+    }
+    body.gwd-visor .ad-container model-viewer.is-mesh-in { opacity: 1; }
+    body.gwd-visor .ad-container.is-climax model-viewer.is-mesh-in { opacity: 0.42; }
+    body.gwd-visor .ad-container[data-play="prop"].is-climax model-viewer.is-mesh-in { opacity: 0.72; }
+    .ad-slot[data-in]:not([data-in="none"]) .ad-frame { will-change: transform, opacity, filter; }
+    .ad-slot.is-in[data-in="fade"] .ad-frame { animation: ad-in-fade 0.45s ease both; }
+    .ad-slot.is-in[data-in="fade-up"] .ad-frame { animation: ad-in-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="fade-down"] .ad-frame { animation: ad-in-fade-down 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="scale"] .ad-frame { animation: ad-in-scale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="pop"] .ad-frame { animation: ad-in-pop 0.7s ease both; }
+    .ad-slot.is-in[data-in="slide-left"] .ad-frame { animation: ad-in-slide-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="slide-right"] .ad-frame { animation: ad-in-slide-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .ad-slot.is-in[data-in="blur"] .ad-frame { animation: ad-in-blur 0.55s ease both; }
+    @keyframes ad-in-fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes ad-in-fade-up { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-fade-down { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-scale { from { opacity: 0; transform: scale(0.84); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-pop {
+      0% { opacity: 0; transform: scale(0.72); }
+      62% { opacity: 1; transform: scale(1.06); }
+      100% { opacity: 1; transform: none; }
+    }
+    @keyframes ad-in-slide-left { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-slide-right { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+    @keyframes ad-in-blur { from { opacity: 0; filter: blur(14px); } to { opacity: 1; filter: none; } }
+    .ad-container canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
+    }
+    .ad-fallback { display: none; }
+    .ad-hint {
+      position: absolute; left: 8px; bottom: 6px; z-index: 3;
+      font-size: 0.65rem;
+      color: color-mix(in srgb, rgba(215, 226, 242, 0.75) calc(100% - var(--void-l) * 1%), #3a4450 calc(var(--void-l) * 1%));
+      pointer-events: none;
+    }
+    .ad-container.is-climax .ad-hint,
+    .ad-container.is-ad-in .ad-hint { opacity: 0; }
+    .ad-container.is-climax canvas { opacity: 0.42; }
+    .ad-container[data-play="horizon"].is-climax canvas,
+    .ad-container[data-play="sundown"].is-climax canvas,
+    .ad-container[data-play="storm"].is-climax canvas,
+    .ad-container[data-play="aurora"].is-climax canvas,
+    .ad-container[data-play="erupt"].is-climax canvas,
+    .ad-container[data-play="migrate"].is-climax canvas,
+    .ad-container[data-play="breaker"].is-climax canvas,
+    .ad-container[data-play="calve"].is-climax canvas,
+    .ad-container[data-play="prop"].is-climax canvas { opacity: 0.72; }
+    .ad-container[data-play="pre-enter"].is-pre-exit canvas {
+      opacity: 0; transform: scale(1.14); filter: blur(10px);
+    }
+    .ad-creative {
+      position: absolute; inset: 0; z-index: 4;
+      display: grid; place-items: center; padding: 0;
+      color: var(--ph-ink, #6f5d45);
+      background: var(--ph-bg, #c4b191);
+      opacity: 0; transform: translateY(14px); pointer-events: none;
+      transition: opacity 0.65s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .ad-ph {
+      position: relative;
+      width: 100%; height: 100%;
+      display: grid; place-items: center;
+      overflow: hidden;
+      color: var(--ph-ink, #3d2a18);
+      background:
+        radial-gradient(120% 85% at 12% 8%, color-mix(in srgb, var(--ph-paper, #efe0c4) 78%, transparent) 0%, transparent 46%),
+        radial-gradient(82% 72% at 94% 100%, color-mix(in srgb, var(--ph-accent, #8b5a2b) 64%, transparent) 0%, transparent 54%),
+        linear-gradient(165deg, var(--ph-paper, #efe0c4) 0%, var(--ph-bg, #b89a6e) 48%, color-mix(in srgb, var(--ph-ink, #3d2a18) 24%, var(--ph-bg, #b89a6e)) 100%);
+    }
+    .ad-ph::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--ph-ink, #3d2a18) 18%, transparent),
+        inset 0 -34% 50% color-mix(in srgb, var(--ph-accent, #8b5a2b) 26%, transparent);
+    }
+    .ad-ph-art {
+      grid-area: 1 / 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .ad-ph-shot {
+      display: block;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: var(--ph-fit, cover);
+      object-position: var(--ph-fit-x, 50%) var(--ph-fit-y, 50%);
+      transform: scale(var(--ph-fit-z, 1));
+      transform-origin: var(--ph-fit-x, 50%) var(--ph-fit-y, 50%);
+    }
+    .ad-ph[data-fit="contain"] .ad-ph-shot { object-fit: contain; }
+    .ad-ph[data-fit="fill"] .ad-ph-shot { object-fit: fill; }
+    .ad-ph[data-fit="cover"] .ad-ph-shot { object-fit: cover; }
+    .ad-ph:has(.ad-ph-shot),
+    .ad-ph-art:has(.ad-ph-shot),
+    .ad-ph-shot {
+      background: var(--ph-fit-mat, #111);
+    }
+    .ad-ph:has(.ad-ph-shot)::after { display: none; }
+    .ad-ph-size {
+      grid-area: 1 / 1;
+      z-index: 1;
+      font-size: clamp(0.72rem, 5.6cqw, 1.2rem);
+      font-weight: 750;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      white-space: nowrap;
+      color: var(--ph-ink, #6f5d45);
+      pointer-events: none;
+    }
+    .ad-ph-icon {
+      display: block;
+      width: min(46%, 7.2rem);
+      height: auto;
+      max-height: 58%;
+      opacity: 0.55;
+    }
+    .ad-ph-frame {
+      width: 72%;
+      height: 72%;
+      border: 2px solid var(--ph-ink, #3d2a18);
+      background: var(--ph-paper, #efe0c4);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ph-accent, #8b5a2b) 55%, transparent);
+      border-radius: 4px;
+    }
+    .ad-ph-bars {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+    .ad-ph-bars i { flex: 1; display: block; }
+    .ad-ph-bars i:nth-child(1) { background: var(--ph-bg, #c4b191); }
+    .ad-ph-bars i:nth-child(2) { background: var(--ph-paper, #d6c6ab); }
+    .ad-ph-bars i:nth-child(3) { background: var(--ph-accent, #8b5a2b); }
+    .ad-ph-grid {
+      width: 100%;
+      height: 100%;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 18px, color-mix(in srgb, var(--ph-accent, #8b5a2b) 42%, transparent) 18px 19px),
+        repeating-linear-gradient(90deg, transparent 0 18px, color-mix(in srgb, var(--ph-ink, #3d2a18) 28%, transparent) 18px 19px),
+        var(--ph-paper, #efe0c4);
+    }
+    .ad-container.is-climax .ad-creative {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+      animation: ad-climax-arrive 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes ad-climax-arrive {
+      0% { opacity: 0; transform: scale(0.78); filter: brightness(2.4); }
+      52% { opacity: 1; transform: scale(1.03); filter: brightness(1.12); }
+      100% { opacity: 1; transform: none; filter: none; }
+    }
+    .ad-container[data-play="pre-enter"] .ad-creative {
+      opacity: 0;
+      transform: none;
+    }
+    .ad-container[data-play="pre-enter"].is-ad-in .ad-creative {
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+      animation: ad-climax-arrive 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .ad-handoff {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: none;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .ad-container.is-handoff .ad-handoff {
+      display: grid;
+    }
+    .ad-container[data-handoff="wipe"].is-handoff .ad-handoff,
+    .ad-container[data-handoff="pulse"].is-handoff .ad-handoff {
+      grid-template-rows: repeat(var(--handoff-bands, 3), minmax(0, 1fr));
+      gap: 0;
+      background: none;
+    }
+    .ad-container[data-handoff="wipe"] .ad-handoff-band,
+    .ad-container[data-handoff="pulse"] .ad-handoff-band {
+      min-height: 0;
+      align-self: stretch;
+      box-shadow: 0 1px 0 var(--band, var(--ph-accent, #8b5a2b));
+    }
+    .ad-container[data-handoff="veil"].is-handoff .ad-handoff {
+      display: block;
+      animation: handoff-veil-cover var(--handoff-in, 0.64s) cubic-bezier(0.22, 0.72, 0.18, 1) both;
+    }
+    .ad-container[data-handoff="veil"] .ad-handoff-band {
+      position: absolute;
+      inset: 0;
+    }
+    .ad-handoff-band {
+      --band: var(--ph-accent, #8b5a2b);
+      position: relative;
+      display: block;
+      min-height: 0;
+      background: var(--band);
+    }
+    .ad-handoff-band:nth-child(4n+1) { --band: var(--ph-ink, #3d2a18); }
+    .ad-handoff-band:nth-child(4n+2) { --band: var(--ph-accent, #8b5a2b); }
+    .ad-handoff-band:nth-child(4n+3) { --band: var(--ph-paper, #efe0c4); }
+    .ad-handoff-band:nth-child(4n+4) { --band: var(--ph-bg, #c4b191); }
+    .ad-handoff-claim {
+      display: none;
+      height: 100%;
+      place-items: center;
+      padding: 0 0.85rem;
+      font-size: clamp(0.78rem, 6.2cqw, 1.15rem);
+      font-weight: 750;
+      letter-spacing: 0.06em;
+      line-height: 1.2;
+      text-align: center;
+      color: var(--ph-paper, #efe0c4);
+      text-wrap: balance;
+    }
+    .ad-container.is-handoff.is-climax:not([data-handoff="none"]):not(.is-handoff-done) canvas,
+    .ad-container.is-handoff.is-pre-exit:not([data-handoff="none"]):not(.is-handoff-done) canvas {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+    .ad-container.is-handoff.is-climax:not([data-handoff="none"]):not([data-handoff="veil"]) .ad-creative,
+    .ad-container.is-handoff.is-ad-in:not([data-handoff="none"]) .ad-creative {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+    .ad-container[data-handoff="veil"].is-climax:not(.is-handoff-hold):not(.is-handoff-done) .ad-creative {
+      animation: none;
+      opacity: 0;
+      transform: none;
+      filter: none;
+    }
+    .ad-container[data-handoff="veil"].is-climax.is-handoff-hold .ad-creative,
+    .ad-container[data-handoff="veil"].is-climax.is-handoff-done .ad-creative {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+    .ad-container[data-handoff="wipe"].is-handoff .ad-handoff-band {
+      transform: translateX(-104%);
+      opacity: 0;
+      animation:
+        handoff-wipe var(--handoff-ms, 2.25s) cubic-bezier(0.16, 0.84, 0.22, 1) both,
+        handoff-wipe-rise var(--handoff-rise, 0.42s) ease-out both;
+      animation-delay: calc(var(--i, 0) * var(--handoff-stagger, 120ms));
+    }
+    .ad-container[data-handoff="wipe"] .ad-handoff-band:nth-child(1) .ad-handoff-claim {
+      display: grid;
+    }
+    @keyframes handoff-wipe-rise {
+      0% { opacity: 0; filter: blur(10px); }
+      100% { opacity: 1; filter: none; }
+    }
+    @keyframes handoff-wipe {
+      0% { transform: translateX(-104%); }
+      34% { transform: translateX(0); }
+      62% { transform: translateX(0); }
+      100% { transform: translateX(104%); }
+    }
+    .ad-container[data-handoff="pulse"].is-handoff .ad-handoff {
+      animation: handoff-wipe-rise var(--handoff-rise, 0.42s) ease-out both;
+    }
+    .ad-container[data-handoff="veil"].is-handoff .ad-handoff-band {
+      opacity: 1;
+      z-index: calc(30 - var(--i, 0));
+      animation: none;
+    }
+    .ad-container[data-handoff="veil"].is-handoff-hold:not(.is-handoff-done) .ad-handoff-band {
+      animation: handoff-veil var(--handoff-fade, 0.7s) cubic-bezier(0.4, 0.05, 0.2, 1) forwards;
+      animation-delay: calc(var(--i, 0) * var(--handoff-fade, 0.7s));
+    }
+    .ad-container[data-handoff="veil"] .ad-handoff-band:nth-child(1) .ad-handoff-claim {
+      display: grid;
+    }
+    @keyframes handoff-veil-cover {
+      0% { opacity: 0; filter: blur(16px); }
+      100% { opacity: 1; filter: blur(0); }
+    }
+    @keyframes handoff-veil {
+      0% { opacity: 1; filter: none; transform: scale(1); }
+      100% { opacity: 0; filter: blur(10px); transform: scale(1.03); }
+    }
+    .ad-container[data-handoff="pulse"].is-handoff:not(.is-handoff-hold):not(.is-handoff-done) .ad-handoff-band {
+      animation: handoff-pulse-hit var(--handoff-beat, 440ms) ease-out infinite;
+    }
+    .ad-container[data-handoff="pulse"].is-handoff .ad-handoff-band {
+      animation-delay: calc(var(--i, 0) * 50ms);
+    }
+    .ad-container[data-handoff="pulse"].is-handoff-hold:not(.is-handoff-done) .ad-handoff-band {
+      animation: none;
+      opacity: 1;
+    }
+    .ad-container[data-handoff="pulse"].is-handoff-done .ad-handoff-band {
+      animation: handoff-veil 0.52s ease forwards;
+    }
+    @keyframes handoff-pulse-hit {
+      0% { opacity: 0.06; }
+      14% { opacity: 1; }
+      42% { opacity: 0.42; }
+      100% { opacity: 0.1; }
+    }
+    .ad-container[data-handoff="iris"].is-handoff .ad-handoff,
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff,
+    .ad-container[data-handoff="doors"].is-handoff .ad-handoff {
+      display: block;
+    }
+    .ad-container[data-handoff="iris"] .ad-handoff-band:nth-child(n+2),
+    .ad-container[data-handoff="mist"] .ad-handoff-band:nth-child(n+2),
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(n+3) {
+      display: none;
+    }
+    .ad-container[data-handoff="iris"].is-handoff .ad-handoff {
+      background: transparent;
+      animation: handoff-iris-plate var(--handoff-ms, 2.25s) cubic-bezier(0.2, 0.72, 0.18, 1) both;
+    }
+    .ad-container[data-handoff="iris"].is-handoff .ad-handoff::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 220%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 3px solid color-mix(in srgb, var(--ph-paper, #efe0c4) 72%, var(--ph-accent, #8b5a2b));
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--ph-ink, #3d2a18) 55%, transparent),
+        0 0 0 140vmax var(--ph-ink, #3d2a18);
+      transform: translate(-50%, -50%) scale(1.08);
+      animation: handoff-iris-shutter var(--handoff-ms, 2.25s) cubic-bezier(0.18, 0.82, 0.16, 1) both;
+    }
+    .ad-container[data-handoff="iris"] .ad-handoff-band:first-child {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: transparent;
+      animation: handoff-iris-hold var(--handoff-ms, 2.25s) ease both;
+    }
+    .ad-container[data-handoff="iris"] .ad-handoff-band:first-child .ad-handoff-claim {
+      display: grid;
+      animation: handoff-iris-claim var(--handoff-ms, 2.25s) ease both;
+    }
+    @keyframes handoff-iris-shutter {
+      0% { transform: translate(-50%, -50%) scale(1.12); }
+      26% { transform: translate(-50%, -50%) scale(0.03); }
+      58% { transform: translate(-50%, -50%) scale(0.03); }
+      100% { transform: translate(-50%, -50%) scale(1.18); }
+    }
+    @keyframes handoff-iris-plate {
+      0%, 20% { background: transparent; }
+      28%, 56% { background: var(--ph-ink, #3d2a18); }
+      70%, 100% { background: transparent; }
+    }
+    @keyframes handoff-iris-hold {
+      0%, 22% { opacity: 0; }
+      30%, 56% { opacity: 1; }
+      68%, 100% { opacity: 0; }
+    }
+    @keyframes handoff-iris-claim {
+      0%, 24% { opacity: 0; letter-spacing: 0.2em; filter: blur(6px); }
+      34%, 54% { opacity: 1; letter-spacing: 0.07em; filter: none; }
+      68%, 100% { opacity: 0; letter-spacing: 0.16em; filter: blur(4px); }
+    }
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff {
+      background: color-mix(in srgb, var(--ph-paper, #efe0c4) 22%, transparent);
+      animation: handoff-mist-air var(--handoff-ms, 2.25s) ease both;
+    }
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff::before,
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff::after,
+    .ad-container[data-handoff="mist"] .ad-handoff-band:first-child {
+      position: absolute;
+      inset: -38%;
+      background: transparent;
+    }
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff::before {
+      content: "";
+      background:
+        radial-gradient(ellipse 72% 54% at 18% 38%, color-mix(in srgb, var(--ph-paper, #efe0c4) 92%, white) 0%, transparent 62%),
+        radial-gradient(ellipse 58% 48% at 62% 22%, color-mix(in srgb, var(--ph-paper, #efe0c4) 78%, var(--ph-accent, #8b5a2b)) 0%, transparent 60%);
+      animation: handoff-mist-a var(--handoff-ms, 2.25s) cubic-bezier(0.22, 0.6, 0.2, 1) both;
+    }
+    .ad-container[data-handoff="mist"].is-handoff .ad-handoff::after {
+      content: "";
+      background:
+        radial-gradient(ellipse 80% 60% at 82% 58%, color-mix(in srgb, var(--ph-paper, #efe0c4) 88%, var(--ph-ink, #3d2a18)) 0%, transparent 64%),
+        radial-gradient(ellipse 50% 42% at 40% 78%, color-mix(in srgb, var(--ph-paper, #efe0c4) 70%, white) 0%, transparent 58%);
+      animation: handoff-mist-b var(--handoff-ms, 2.25s) cubic-bezier(0.22, 0.6, 0.2, 1) both;
+    }
+    .ad-container[data-handoff="mist"] .ad-handoff-band:first-child {
+      background:
+        radial-gradient(ellipse 90% 70% at 50% 48%, color-mix(in srgb, var(--ph-paper, #efe0c4) 62%, transparent) 0%, transparent 70%);
+      animation: handoff-mist-c var(--handoff-ms, 2.25s) ease both;
+    }
+    @keyframes handoff-mist-air {
+      0% { opacity: 0; backdrop-filter: blur(0); }
+      20% { opacity: 1; backdrop-filter: blur(12px); }
+      52% { opacity: 1; backdrop-filter: blur(16px); }
+      100% { opacity: 0; backdrop-filter: blur(2px); }
+    }
+    @keyframes handoff-mist-a {
+      0% { opacity: 0; transform: translate(-10%, 8%) scale(1.18); }
+      24% { opacity: 1; transform: translate(-2%, 1%) scale(1.04); }
+      54% { opacity: 1; transform: translate(2%, -2%) scale(1.08); }
+      100% { opacity: 0; transform: translate(12%, -10%) scale(1.28); }
+    }
+    @keyframes handoff-mist-b {
+      0% { opacity: 0; transform: translate(12%, 6%) scale(1.2); }
+      26% { opacity: 0.95; transform: translate(3%, 0) scale(1.06); }
+      56% { opacity: 0.9; transform: translate(-4%, -3%) scale(1.1); }
+      100% { opacity: 0; transform: translate(-14%, -8%) scale(1.3); }
+    }
+    @keyframes handoff-mist-c {
+      0% { opacity: 0; transform: scale(1.08); }
+      28% { opacity: 0.85; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+      100% { opacity: 0; transform: translateY(-8%) scale(1.22); }
+    }
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(1),
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(2) {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 52%;
+      overflow: hidden;
+    }
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(1) {
+      left: 0;
+      animation:
+        handoff-door-l var(--handoff-ms, 2.25s) cubic-bezier(0.16, 0.84, 0.22, 1) both,
+        handoff-wipe-rise var(--handoff-rise, 0.42s) ease-out both;
+    }
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(2) {
+      right: 0;
+      animation:
+        handoff-door-r var(--handoff-ms, 2.25s) cubic-bezier(0.16, 0.84, 0.22, 1) both,
+        handoff-wipe-rise var(--handoff-rise, 0.42s) ease-out both;
+    }
+    .ad-container[data-handoff="doors"] .ad-handoff-band:nth-child(1) .ad-handoff-claim {
+      display: grid;
+    }
+    @keyframes handoff-door-l {
+      0% { transform: translateX(-102%); }
+      32% { transform: translateX(0); }
+      60% { transform: translateX(0); }
+      100% { transform: translateX(-102%); }
+    }
+    @keyframes handoff-door-r {
+      0% { transform: translateX(102%); }
+      32% { transform: translateX(0); }
+      60% { transform: translateX(0); }
+      100% { transform: translateX(102%); }
+    }
+    .ad-container.is-handoff-done:not([data-handoff="pulse"]) .ad-handoff {
+      display: none;
+    }
+    .hand-blurb {
+      margin: 0.65rem 0 0;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #4a5868;
+    }
+    .hand-tune {
+      margin-top: 0.35rem;
+    }
+    .hand-tune[hidden],
+    .hand-tune [hidden] {
+      display: none;
+    }
+    .hand-tune h3 {
+      margin: 1rem 0 0;
+    }
+    .ad-container[data-layout="wide"] .ad-creative,
+    .ad-container[data-layout="tall"] .ad-creative {
+      display: grid; place-items: center; padding: 0;
+      background: var(--ph-bg, #c4b191);
+    }
+    .ad-2d { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; }
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; grid-template-rows: minmax(0, 38%) minmax(0, 1fr); }
+      .split, #btn-reset-width { display: none; }
+      .side { position: static; height: 100%; max-height: 100%; border-left: none; border-top: none; }
+      .g-grid:not([data-cols="auto"]) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      body.is-belt .shell { grid-template-rows: minmax(0, 1fr); }
+      body.is-belt .g-belt { max-width: 94%; bottom: 5.8rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="ad-play.css?v=gwd8" />
+</head>
+<body data-visor="gwd">
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title" id="app-page-title">Galería GWD</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="index.html">Sitio</a>
+      <a class="app-quiet" href="ads.html">Anuncios</a>
+      <a class="app-quiet" href="assets.html">Assets</a>
+      <a class="app-quiet" href="lab.html">Lab</a>
+      <a class="app-quiet" href="gallery-gwd.html" id="app-gwd-link">Galería GWD</a>
+      <button type="button" class="app-tool" id="btn-layout" aria-haspopup="dialog" aria-controls="layout-opts">Estilo</button>
+      <div class="app-user" id="app-user">
+        <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
+        <div class="app-user-menu" role="menu">
+          <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
+          <a href="#" role="menuitem">Perfil</a>
+          <a href="#" role="menuitem">Preferencias</a>
+          <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="shell">
+    <div class="g-pane" id="g-pane">
+      <div class="g-head" id="g-head">
+        <div class="g-bar" id="g-bar">
+          <label class="g-search">
+            <input type="search" id="g-search" placeholder="Buscar" autocomplete="off" spellcheck="false" />
+            <span class="g-count" id="g-count">0</span>
+          </label>
+          <button type="button" id="btn-gallery-opts" aria-haspopup="dialog" aria-controls="gallery-opts" aria-label="Vista">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 17h16"/>
+              <circle cx="9" cy="7" r="2.1" fill="currentColor" stroke="none"/>
+              <circle cx="15" cy="17" r="2.1" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+        </div>
+        <div class="g-ops-dock" id="g-ops-dock" hidden role="toolbar" aria-label="Elegí un play">
+          <span class="g-ops-dock-name" id="g-ops-dock-name">Elegí un play</span>
+          <div class="g-ops-dock-btns">
+            <button type="button" class="g-op" data-op="pin" title="Pinned" aria-label="Pinned">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.7 3.3a1 1 0 0 0-1.4 0l-2.1 2.1-.8-.3a1 1 0 0 0-1.1.3L7.6 7.1a1 1 0 0 0 .1 1.4l3.1 2.6-3.9 3.9 1.4 1.4 3.9-3.9 2.6 3.1a1 1 0 0 0 1.4.1l1.7-1.7a1 1 0 0 0 .3-1.1l-.3-.8 2.1-2.1a1 1 0 0 0 0-1.4z"/></svg>
+            </button>
+            <button type="button" class="g-op" data-op="rename" title="Cambiar nombre" aria-label="Cambiar nombre">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.2L19 9.2a1.8 1.8 0 0 0 0-2.5L17.3 5a1.8 1.8 0 0 0-2.5 0L4 15.8V20z"/><path d="M13.6 6.2l4.2 4.2"/></svg>
+            </button>
+            <button type="button" class="g-op" data-op="hide" title="Esconder" aria-label="Esconder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M6.7 6.8C4.6 8.2 3.2 10.1 2.5 12c1.8 4.6 6 7.5 9.5 7.5 1.6 0 3.2-.5 4.6-1.4"/><path d="M14.1 9.1A3.7 3.7 0 0 0 9.7 8"/><path d="M21.5 12c-.6 1.5-1.6 2.9-2.9 4"/></svg>
+            </button>
+            <button type="button" class="g-op" data-op="clone" title="Clonar" aria-label="Clonar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <main class="g-grid" id="grid" data-cols="4" data-size="m" data-gap="md"></main>
+      <nav class="g-cats" id="g-cats" aria-label="Catálogo"></nav>
+    </div>
+    <button type="button" class="split" id="split" aria-label="Arrastrar para cambiar el ancho de la vista previa"></button>
+    <aside class="side" id="side">
+      <div class="stage" id="stage" data-ratio="rect">
+        <div class="preview-title" id="side-copy">
+          <p class="side-empty">Elegí un play</p>
+        </div>
+        <div class="fmt-rail" id="fmt-rail" role="radiogroup" aria-label="Formato"></div>
+        <div class="void" aria-hidden="true">
+          <div class="void-wash"></div>
+          <div class="void-glow"></div>
+          <div class="void-vignette"></div>
+        </div>
+        <div class="stage-core">
+          <div class="stage-center">
+            <div class="ad-plinth">
+              <div class="stage-slot" id="slot"></div>
+            </div>
+          </div>
+        </div>
+        <output class="zoom-cue" id="preview-zoom-val" for="sel-preview-zoom" aria-hidden="true">100%</output>
+        <output class="preload-cue" id="preload-cue" aria-live="polite"></output>
+        <div class="stage-tools">
+          <div class="stage-sliders">
+            <div class="light-row">
+              <i class="dim" aria-hidden="true"></i>
+              <input id="sel-void-l" type="range" min="0" max="100" step="1" value="14" aria-label="Claridad del fondo" />
+              <i class="lit" aria-hidden="true"></i>
+            </div>
+            <div class="zoom-row">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.1"/><path d="M10.2 10.2 L13.2 13.2"/><path d="M5.2 7 H8.8"/></svg>
+              <input id="sel-preview-zoom" type="range" min="50" max="200" step="5" value="100" aria-label="Zoom de la previa" />
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.1"/><path d="M10.2 10.2 L13.2 13.2"/><path d="M5.2 7 H8.8"/><path d="M7 5.2 V8.8"/></svg>
+            </div>
+          </div>
+          <div class="tool-end">
+            <div class="ph-wrap" id="pal-wrap" hidden>
+              <button type="button" class="ph-fab" id="btn-pal" aria-haspopup="dialog" aria-expanded="false" aria-controls="pal-panel" aria-label="Colores del play">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3.5 A8.5 8.5 0 1 0 20.2 14.2 C20.2 12.6 18.8 12.2 17.8 12.2 H16.4 C14.7 12.2 13.6 11 13.6 9.4 V8.2 C13.6 5.8 12.4 3.5 12 3.5 Z"/>
+                  <circle cx="8.2" cy="10.2" r="1.05" fill="currentColor" stroke="none"/>
+                  <circle cx="7.4" cy="14.4" r="1.05" fill="currentColor" stroke="none"/>
+                  <circle cx="10.6" cy="17.2" r="1.05" fill="currentColor" stroke="none"/>
+                  <circle cx="15.1" cy="16.6" r="1.05" fill="currentColor" stroke="none"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ph-wrap" id="prop-wrap" hidden>
+              <button type="button" class="ph-fab" id="btn-prop" aria-haspopup="dialog" aria-expanded="false" aria-controls="prop-panel" aria-label="Objeto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3 L21 8 L12 13 L3 8 Z"/>
+                  <path d="M3 8 V16 L12 21 V13"/>
+                  <path d="M21 8 V16 L12 21"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ph-wrap" id="asset-wrap" hidden>
+              <button type="button" class="ph-fab" id="btn-asset" aria-haspopup="dialog" aria-expanded="false" aria-controls="asset-panel" aria-label="Assets 3D">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/>
+                  <rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/>
+                  <rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/>
+                  <path d="M14.2 17.2 H20.2 M17.2 14.2 V20.2"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ph-wrap" id="hand-wrap">
+              <button type="button" class="ph-fab" id="btn-hand" aria-haspopup="dialog" aria-expanded="false" aria-controls="hand-panel" aria-label="Transición">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M3 6.5 H21"/>
+                  <path d="M3 12 H21"/>
+                  <path d="M3 17.5 H21"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ph-wrap" id="ph-wrap">
+              <button type="button" class="ph-fab" id="btn-ph" aria-haspopup="dialog" aria-expanded="false" aria-controls="ph-panel" aria-label="Anuncio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="8.5" cy="10" r="1.4" fill="currentColor" stroke="none"/>
+                  <path d="M3 16.5 L9 11.5 L13 14.5 L16 12 L21 16.5"/>
+                </svg>
+              </button>
+            </div>
+            <button type="button" class="play-fab" id="btn-play" disabled aria-label="Play">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 6.8v10.4L16.8 12z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="g-belt" id="g-belt">
+        <button type="button" class="g-belt-open" id="btn-shelf" aria-expanded="false" aria-controls="g-pane" aria-label="Abrir galería">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1.4"/>
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1.4"/>
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.4"/>
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.4"/>
+          </svg>
+        </button>
+        <div class="g-belt-track" id="g-belt-track"></div>
+      </div>
+    </aside>
+  </div>
+  <button type="button" class="g-shelf-scrim" id="g-shelf-scrim" aria-label="Cerrar galería"></button>
+
+  <dialog class="g-modal" id="layout-opts" aria-labelledby="layout-opts-title">
+    <h2 id="layout-opts-title">Estilo</h2>
+    <div class="layout-picks">
+      <button type="button" class="layout-pick" data-shelf="column">
+        Columna
+        <small>La galería queda al lado de la previa.</small>
+      </button>
+      <button type="button" class="layout-pick" data-shelf="belt">
+        Cinturón
+        <small>Previa a todo el ancho y menú abajo.</small>
+      </button>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" class="primary" id="btn-layout-close">Listo</button>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal" id="gallery-opts" aria-labelledby="gallery-opts-title">
+    <h2 id="gallery-opts-title">Vista</h2>
+    <div class="g-modal-fields">
+      <label class="nav-field">
+        <span>Perfil</span>
+        <select id="sel-profile"></select>
+      </label>
+      <label class="nav-field">
+        <span>Columnas</span>
+        <select id="sel-cols">
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="auto">Auto</option>
+        </select>
+      </label>
+      <label class="nav-field">
+        <span>Tamaño</span>
+        <select id="sel-size">
+          <option value="s">Chico</option>
+          <option value="m">Medio</option>
+          <option value="l">Grande</option>
+        </select>
+      </label>
+      <label class="nav-field">
+        <span>Espacio</span>
+        <select id="sel-gap">
+          <option value="sm">Estrecho</option>
+          <option value="md">Medio</option>
+          <option value="lg">Amplio</option>
+        </select>
+      </label>
+      <label class="check-row">
+        <span>Mostrar escondidos</span>
+        <input type="checkbox" id="sel-show-off" />
+      </label>
+      <label class="check-row">
+        <span>Reloj del anuncio</span>
+        <input type="checkbox" id="sel-clock" checked />
+      </label>
+      <div class="clock-look" id="clock-look">
+        <span class="clock-look-label">Estilo</span>
+        <div class="layout-picks clock-style-picks" id="clock-styles"></div>
+        <span class="clock-look-label">Tono</span>
+        <div class="layout-picks clock-tone-picks" id="clock-tones"></div>
+        <label class="clock-size-row">
+          <span>Tamaño <output id="clock-size-val">100%</output></span>
+          <input id="sel-clock-size" type="range" min="50" max="200" step="5" value="100" aria-label="Tamaño del reloj" />
+        </label>
+      </div>
+      <label class="nav-field">
+        <span>Blit</span>
+        <label class="clock-size-row">
+          <span>Resolución <output id="view-blit-val">1.5×</output></span>
+          <input id="sel-blit" type="range" min="1" max="3" step="0.25" value="1.5" aria-label="Resolución de blit" />
+        </label>
+        <p class="g-fps-hint">Nitidez del anuncio al copiar el 3D. Más alto, más GPU.</p>
+      </label>
+      <label class="nav-field">
+        <span>Dibujo</span>
+        <select id="sel-afps">
+          <option value="0">Vsync (monitor)</option>
+          <option value="60">Tope 60</option>
+          <option value="30">Tope 30</option>
+        </select>
+        <p class="g-fps-hint">Ahora <output id="view-fps-val">—</output>. La lógica del objeto va a 60 Hz; este tope es el dibujo.</p>
+      </label>
+      <div class="g-modal-actions">
+        <button type="button" id="btn-export-profile">Exportar perfil</button>
+        <button type="button" id="btn-import-profile">Importar perfil</button>
+        <input id="file-import-profile" type="file" accept="application/json,.json" hidden />
+        <button type="button" id="btn-new-profile">Nuevo perfil</button>
+        <button type="button" id="btn-reset-width" hidden>Restaurar ancho</button>
+        <button type="button" class="primary" id="btn-gallery-opts-close">Listo</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal g-modal-wide" id="pal-panel" aria-labelledby="pal-panel-title">
+    <h2 id="pal-panel-title">Colores del play</h2>
+    <div class="g-modal-body ph-panel">
+      <div class="ph-colors" id="play-colors"></div>
+      <button type="button" class="prop-file-clear" id="play-colors-reset">Restablecer</button>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" class="primary" data-close-modal>Listo</button>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal g-modal-wide" id="prop-panel" aria-labelledby="prop-panel-title">
+    <h2 id="prop-panel-title">Objeto</h2>
+    <div class="g-modal-body ph-panel">
+      <h3>Cámara</h3>
+      <label class="prop-lint">
+        <span>Distancia <output id="prop-cam-val">4.1</output></span>
+        <input id="sel-prop-cam" type="range" min="2.2" max="8" step="0.1" value="4.1" />
+      </label>
+      <label class="prop-check prop-cam-plane">
+        <input id="sel-prop-campan" type="checkbox" />
+        <span>Mover en plano</span>
+      </label>
+      <label class="prop-lint">
+        <span><span id="prop-camh-lab">Horizontal</span> <output id="prop-camh-val">0°</output></span>
+        <input id="sel-prop-camh" type="range" min="-180" max="180" step="5" value="0" />
+      </label>
+      <label class="prop-lint">
+        <span><span id="prop-camv-lab">Vertical</span> <output id="prop-camv-val">0°</output></span>
+        <input id="sel-prop-camv" type="range" min="-55" max="55" step="1" value="0" />
+      </label>
+      <h3>Giro del objeto</h3>
+      <label class="prop-lint">
+        <span>Horizontal <output id="prop-rhrot-val">0°</output></span>
+        <input id="sel-prop-rhrot" type="range" min="-180" max="180" step="5" value="0" />
+      </label>
+      <label class="prop-lint">
+        <span>Vertical <output id="prop-rvrot-val">0°</output></span>
+        <input id="sel-prop-rvrot" type="range" min="-180" max="180" step="5" value="0" />
+      </label>
+      <h3>Luces de estudio</h3>
+      <div class="ph-styles" id="studio-presets"></div>
+      <label class="prop-lint">
+        <span>Luz ambiente <output id="studio-world-val">0.70</output><input id="studio-world-col" data-scol="worldCol" type="color" value="#ede8e0" aria-label="Color de la luz ambiente" /></span>
+        <input id="studio-world" data-ch="world" type="range" min="0" max="1.2" step="0.02" value="0.7" />
+      </label>
+      <label class="prop-lint">
+        <span>Key <output id="studio-key-val">0.55</output><input id="studio-key-col" data-scol="keyCol" type="color" value="#fff7eb" aria-label="Color key" /></span>
+        <input id="studio-key" data-ch="key" type="range" min="0" max="1.2" step="0.02" value="0.55" />
+      </label>
+      <label class="prop-lint">
+        <span>Fill <output id="studio-fill-val">0.42</output><input id="studio-fill-col" data-scol="fillCol" type="color" value="#ebf2ff" aria-label="Color fill" /></span>
+        <input id="studio-fill" data-ch="fill" type="range" min="0" max="1.2" step="0.02" value="0.42" />
+      </label>
+      <label class="prop-lint">
+        <span>Rim <output id="studio-rim-val">0.20</output><input id="studio-rim-col" data-scol="rimCol" type="color" value="#d9e6ff" aria-label="Color rim" /></span>
+        <input id="studio-rim" data-ch="rim" type="range" min="0" max="1.2" step="0.02" value="0.20" />
+      </label>
+      <label class="prop-lint">
+        <span>Exposición <output id="studio-exposure-val">1.02</output></span>
+        <input id="studio-exposure" data-ch="exposure" type="range" min="0.6" max="1.4" step="0.02" value="1.02" />
+      </label>
+      <h3>Luces de color</h3>
+      <div class="studio-extras" id="studio-extras"></div>
+      <button type="button" class="prop-file-clear" id="studio-extra-add">Agregar luz</button>
+      <label class="prop-check">
+        <input id="sel-prop-cog" type="checkbox" checked />
+        <span>Alinear a la caja</span>
+      </label>
+      <label class="prop-check">
+        <input id="sel-prop-floor" type="checkbox" checked />
+        <span>Suelo</span>
+      </label>
+      <label class="prop-check">
+        <input id="sel-prop-flat" type="checkbox" />
+        <span>Fondo 2D</span>
+      </label>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" class="primary" data-close-modal>Listo</button>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal g-modal-wide" id="hand-panel" aria-labelledby="hand-panel-title">
+    <h2 id="hand-panel-title">Transición</h2>
+    <div class="g-modal-body ph-panel">
+      <h3>Puente visual → anuncio</h3>
+      <div class="ph-styles" id="hand-styles"></div>
+      <p class="hand-blurb" id="hand-blurb"></p>
+      <div class="hand-tune" id="hand-tune" hidden>
+        <h3>Ajuste</h3>
+        <label class="nav-field" id="hand-txt-row" hidden>
+          <span>Texto</span>
+          <input id="sel-hand-txt" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Oferta del anuncio" />
+        </label>
+        <label class="prop-check" id="hand-empty-row" hidden>
+          <input id="sel-hand-empty" type="checkbox" />
+          <span>Vacío</span>
+        </label>
+        <label class="prop-lint" id="hand-ms-row">
+          <span>Duración <output id="hand-ms-val">2.4s</output></span>
+          <input id="sel-hand-ms" type="range" min="800" max="4800" step="100" value="2400" />
+        </label>
+        <label class="prop-lint" id="hand-nb-row">
+          <span>Franjas <output id="hand-nb-val">3</output></span>
+          <input id="sel-hand-nb" type="range" min="2" max="8" step="1" value="3" />
+        </label>
+        <label class="prop-lint" id="hand-st-row" hidden>
+          <span>Desfase <output id="hand-st-val">120ms</output></span>
+          <input id="sel-hand-st" type="range" min="0" max="280" step="10" value="120" />
+        </label>
+        <label class="prop-lint" id="hand-in-row" hidden>
+          <span>Entrada <output id="hand-in-val">0.42s</output></span>
+          <input id="sel-hand-in" type="range" min="80" max="900" step="10" value="420" />
+        </label>
+        <label class="prop-lint" id="hand-hd-row" hidden>
+          <span>Espera <output id="hand-hd-val">0.7s</output></span>
+          <input id="sel-hand-hd" type="range" min="200" max="1800" step="50" value="700" />
+        </label>
+        <label class="prop-lint" id="hand-bt-row" hidden>
+          <span>Golpes <output id="hand-bt-val">4</output></span>
+          <input id="sel-hand-bt" type="range" min="2" max="8" step="1" value="4" />
+        </label>
+        <label class="prop-lint" id="hand-tm-row" hidden>
+          <span>Tempo <output id="hand-tm-val">Auto</output></span>
+          <input id="sel-hand-tm" type="range" min="0" max="800" step="20" value="0" />
+        </label>
+      </div>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" class="primary" data-close-modal>Listo</button>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal g-modal-wide" id="ph-panel" aria-labelledby="ph-panel-title">
+    <h2 id="ph-panel-title">Anuncio</h2>
+    <div class="g-modal-body ph-panel">
+      <h3>Imagen</h3>
+      <div class="ph-shots" id="ph-shots"></div>
+      <div id="ph-fit-tune" hidden>
+        <h3>Encaje</h3>
+        <div class="ph-styles" id="ph-fits"></div>
+        <label class="prop-lint" id="ph-fitx-row">
+          <span>Horizontal <output id="ph-fitx-val">50%</output></span>
+          <input id="sel-ph-fitx" type="range" min="0" max="100" step="1" value="50" />
+        </label>
+        <label class="prop-lint" id="ph-fity-row">
+          <span>Vertical <output id="ph-fity-val">50%</output></span>
+          <input id="sel-ph-fity" type="range" min="0" max="100" step="1" value="50" />
+        </label>
+        <label class="prop-lint" id="ph-fitz-row">
+          <span>Zoom <output id="ph-fitz-val">100%</output></span>
+          <input id="sel-ph-fitz" type="range" min="80" max="220" step="5" value="100" />
+        </label>
+        <label class="ph-fit-mat" id="ph-fitm-row">
+          <span>Tono</span>
+          <input id="sel-ph-fitm" type="color" value="#111111" />
+        </label>
+      </div>
+      <h3>Estilo</h3>
+      <div class="ph-styles" id="ph-styles"></div>
+      <h3>Paleta</h3>
+      <div class="ph-chips" id="ph-chips"></div>
+      <h3>Colores</h3>
+      <div class="ph-colors" id="ph-colors"></div>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" id="btn-ph-save" disabled>Guardar en el play</button>
+      <button type="button" class="primary" data-close-modal>Listo</button>
+    </div>
+  </dialog>
+
+  <dialog class="g-modal g-modal-wide" id="asset-panel" aria-labelledby="asset-panel-title">
+    <h2 id="asset-panel-title">Assets 3D</h2>
+    <div class="g-modal-body">
+      <label class="asset-pick-search">
+        <span>Buscar</span>
+        <input type="search" id="asset-pick-search" placeholder="Nombre del modelo" autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="asset-pick-grid" id="asset-pick-grid"></div>
+    </div>
+    <div class="g-modal-actions">
+      <button type="button" id="asset-pick-clear">Cubo de prueba</button>
+      <button type="button" class="primary" data-close-modal>Listo</button>
+    </div>
+  </dialog>
+
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
+      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module">
+    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam24";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop50";
+    import { isGwdGallery, ensureModelViewer, gwdPlayDurationMs, mountGwdPlay, disposeGwdPlay, rewindGwdPlay, applyGwdViewerLive, markGwdUnsupported, markGwdCats } from "./gwd-gallery-play.js";
+    import {
+      loadGalleryStore,
+      loadServeStore,
+      saveGalleryStore,
+      activeProfile,
+      createProfile,
+      serializeProfileExport,
+      profileExportFilename,
+      addProfileFromExport,
+      comboTitle,
+      comboShortTitle,
+      comboPosterMarkup,
+      cloneCombo,
+      setComboOff,
+      setComboAlias,
+      setComboPin,
+      setComboPmesh,
+      loadComboPropFiles,
+      deleteComboPropFiles,
+    } from "./ad-profile.js?v=poster40";
+    import { comboById, comboPlayExtras, replyPlayCombo } from "./play-route.js?v=8";
+    import { gwdLightFromCombo, gwdPlayMarkup } from "./gwd-light.js";
+    import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
+    import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
+
+    const GWD_VISOR = isGwdGallery();
+    if (GWD_VISOR) {
+      ensureModelViewer();
+      document.body.classList.add("gwd-visor");
+      document.body.dataset.visor = "gwd";
+      document.title = "Galería GWD · Plays guardados";
+      const title = document.getElementById("app-page-title");
+      if (title) title.textContent = "Galería GWD";
+      const swap = document.getElementById("app-gwd-link");
+      if (swap) {
+        swap.href = "gallery.html";
+        swap.textContent = "Galería Babylon";
+      }
+    }
+
+    const grid = document.getElementById("grid");
+    const gPane = document.getElementById("g-pane");
+    const gHead = document.getElementById("g-head");
+    const gBar = document.getElementById("g-bar");
+    const gOpsDock = document.getElementById("g-ops-dock");
+    const gOpsDockName = document.getElementById("g-ops-dock-name");
+    const OPS_DOCK_MIN = 136;
+    const gSearch = document.getElementById("g-search");
+    const gCount = document.getElementById("g-count");
+    const gCats = document.getElementById("g-cats");
+    const shell = document.querySelector(".shell");
+    const split = document.getElementById("split");
+    const btnResetWidth = document.getElementById("btn-reset-width");
+    const stage = document.getElementById("stage");
+    const slot = document.getElementById("slot");
+    const sideCopy = document.getElementById("side-copy");
+    const selProfile = document.getElementById("sel-profile");
+    const selCols = document.getElementById("sel-cols");
+    const selSize = document.getElementById("sel-size");
+    const selGap = document.getElementById("sel-gap");
+    const fmtRail = document.getElementById("fmt-rail");
+    const selVoidL = document.getElementById("sel-void-l");
+    const selPreviewZoom = document.getElementById("sel-preview-zoom");
+    const previewZoomVal = document.getElementById("preview-zoom-val");
+    const btnPlay = document.getElementById("btn-play");
+    const side = document.getElementById("side");
+    const btnGalleryOpts = document.getElementById("btn-gallery-opts");
+    const galleryOpts = document.getElementById("gallery-opts");
+    const btnLayout = document.getElementById("btn-layout");
+    const layoutOpts = document.getElementById("layout-opts");
+    const btnLayoutClose = document.getElementById("btn-layout-close");
+    const gBelt = document.getElementById("g-belt");
+    const gBeltTrack = document.getElementById("g-belt-track");
+    const btnShelf = document.getElementById("btn-shelf");
+    const gShelfScrim = document.getElementById("g-shelf-scrim");
+    const btnHand = document.getElementById("btn-hand");
+    const handWrap = document.getElementById("hand-wrap");
+    const handPanel = document.getElementById("hand-panel");
+    const handStyles = document.getElementById("hand-styles");
+    const handBlurb = document.getElementById("hand-blurb");
+    const handTune = document.getElementById("hand-tune");
+    const handMsRow = document.getElementById("hand-ms-row");
+    const handNbRow = document.getElementById("hand-nb-row");
+    const handStRow = document.getElementById("hand-st-row");
+    const handInRow = document.getElementById("hand-in-row");
+    const handHdRow = document.getElementById("hand-hd-row");
+    const handBtRow = document.getElementById("hand-bt-row");
+    const handTmRow = document.getElementById("hand-tm-row");
+    const handTxtRow = document.getElementById("hand-txt-row");
+    const handEmptyRow = document.getElementById("hand-empty-row");
+    const selHandMs = document.getElementById("sel-hand-ms");
+    const selHandNb = document.getElementById("sel-hand-nb");
+    const selHandSt = document.getElementById("sel-hand-st");
+    const selHandIn = document.getElementById("sel-hand-in");
+    const selHandHd = document.getElementById("sel-hand-hd");
+    const selHandBt = document.getElementById("sel-hand-bt");
+    const selHandTm = document.getElementById("sel-hand-tm");
+    const selHandTxt = document.getElementById("sel-hand-txt");
+    const selHandEmpty = document.getElementById("sel-hand-empty");
+    const handMsVal = document.getElementById("hand-ms-val");
+    const handNbVal = document.getElementById("hand-nb-val");
+    const handStVal = document.getElementById("hand-st-val");
+    const handInVal = document.getElementById("hand-in-val");
+    const handHdVal = document.getElementById("hand-hd-val");
+    const handBtVal = document.getElementById("hand-bt-val");
+    const handTmVal = document.getElementById("hand-tm-val");
+    const btnPh = document.getElementById("btn-ph");
+    const phWrap = document.getElementById("ph-wrap");
+    const phPanel = document.getElementById("ph-panel");
+    const phStyles = document.getElementById("ph-styles");
+    const phShots = document.getElementById("ph-shots");
+    const phFitTune = document.getElementById("ph-fit-tune");
+    const phFits = document.getElementById("ph-fits");
+    const phFitXRow = document.getElementById("ph-fitx-row");
+    const phFitYRow = document.getElementById("ph-fity-row");
+    const phFitZRow = document.getElementById("ph-fitz-row");
+    const selPhFitX = document.getElementById("sel-ph-fitx");
+    const selPhFitY = document.getElementById("sel-ph-fity");
+    const selPhFitZ = document.getElementById("sel-ph-fitz");
+    const selPhFitM = document.getElementById("sel-ph-fitm");
+    const phFitXVal = document.getElementById("ph-fitx-val");
+    const phFitYVal = document.getElementById("ph-fity-val");
+    const phFitZVal = document.getElementById("ph-fitz-val");
+    const phChips = document.getElementById("ph-chips");
+    const phColors = document.getElementById("ph-colors");
+    const btnPhSave = document.getElementById("btn-ph-save");
+    const selShowOff = document.getElementById("sel-show-off");
+    const selClock = document.getElementById("sel-clock");
+    const clockLook = document.getElementById("clock-look");
+    const clockStyles = document.getElementById("clock-styles");
+    const clockTones = document.getElementById("clock-tones");
+    const selClockSize = document.getElementById("sel-clock-size");
+    const clockSizeVal = document.getElementById("clock-size-val");
+    clockStyles.innerHTML = CLOCK_STYLES.map((item) => `<button type="button" class="layout-pick" data-clock-style="${item.id}">${item.label}<small>${item.blurb}</small></button>`).join("");
+    clockTones.innerHTML = CLOCK_TONES.map((item) => `<button type="button" class="layout-pick" data-clock-tone="${item.id}">${item.label}</button>`).join("");
+    const selAfps = document.getElementById("sel-afps");
+    const viewFpsVal = document.getElementById("view-fps-val");
+    const selBlit = document.getElementById("sel-blit");
+    const viewBlitVal = document.getElementById("view-blit-val");
+    const propWrap = document.getElementById("prop-wrap");
+    const btnProp = document.getElementById("btn-prop");
+    const propPanel = document.getElementById("prop-panel");
+    const assetWrap = document.getElementById("asset-wrap");
+    const btnAsset = document.getElementById("btn-asset");
+    const assetPanel = document.getElementById("asset-panel");
+    const assetPickSearch = document.getElementById("asset-pick-search");
+    const assetPickGrid = document.getElementById("asset-pick-grid");
+    try {
+      const voidL = localStorage.getItem("nexus-asset-void-l");
+      if (voidL != null) document.documentElement.style.setProperty("--a-void-l", voidL);
+    } catch { /* optional */ }
+    const assetPickClear = document.getElementById("asset-pick-clear");
+    const studioPresets = document.getElementById("studio-presets");
+    const studioWorld = document.getElementById("studio-world");
+    const studioWorldCol = document.getElementById("studio-world-col");
+    const studioKey = document.getElementById("studio-key");
+    const studioFill = document.getElementById("studio-fill");
+    const studioRim = document.getElementById("studio-rim");
+    const studioExposure = document.getElementById("studio-exposure");
+    const studioKeyCol = document.getElementById("studio-key-col");
+    const studioFillCol = document.getElementById("studio-fill-col");
+    const studioRimCol = document.getElementById("studio-rim-col");
+    const studioExtras = document.getElementById("studio-extras");
+    const studioExtraAdd = document.getElementById("studio-extra-add");
+    const selPropFloor = document.getElementById("sel-prop-floor");
+    const selPropFlat = document.getElementById("sel-prop-flat");
+    const selPropCog = document.getElementById("sel-prop-cog");
+    const selPropCam = document.getElementById("sel-prop-cam");
+    const propCamVal = document.getElementById("prop-cam-val");
+    const selPropCamPan = document.getElementById("sel-prop-campan");
+    const selPropCamH = document.getElementById("sel-prop-camh");
+    const propCamHLab = document.getElementById("prop-camh-lab");
+    const propCamHVal = document.getElementById("prop-camh-val");
+    const selPropCamV = document.getElementById("sel-prop-camv");
+    const propCamVLab = document.getElementById("prop-camv-lab");
+    const propCamVVal = document.getElementById("prop-camv-val");
+    const selPropRhrot = document.getElementById("sel-prop-rhrot");
+    const propRhrotVal = document.getElementById("prop-rhrot-val");
+    const selPropRvrot = document.getElementById("sel-prop-rvrot");
+    const propRvrotVal = document.getElementById("prop-rvrot-val");
+    const palWrap = document.getElementById("pal-wrap");
+    const btnPal = document.getElementById("btn-pal");
+    const palPanel = document.getElementById("pal-panel");
+    const playColors = document.getElementById("play-colors");
+    const playColorsReset = document.getElementById("play-colors-reset");
+
+    let store = await loadServeStore("gwd");
+    replyPlayCombo((id, profileId) => comboById(id, store, profileId || store.activeId));
+    let selectedId = "";
+    let playGen = 0;
+    let livePlayKey = "";
+    let propSourceTag = "";
+    let preloadGen = 0;
+    let preloadCueTimer = 0;
+    const preloadCue = document.getElementById("preload-cue");
+    let formatId = formatById(store.view.format).id;
+    let playing = false;
+    let playStartedAt = 0;
+    let playSpanMs = 1;
+    let playRaf = 0;
+    let playCard = null;
+    let playPaintAt = 0;
+
+    function applyGalleryCost() {
+      if (GWD_VISOR) return;
+      applyAnimCost({
+        blitDpr: normalizeViewBlit(store.view.blit),
+        fpsVisible: normalizeViewFps(store.view.afps),
+        propShadow: 0,
+        propSsao: false,
+        propLights: "simple",
+        propFog: 0,
+        propContact: 0,
+        propBounds: 8,
+        waterSubdivisions: 80,
+        mirrorSize: 256,
+        mirrorBlur: 0,
+        dropSegments: 10,
+        skySegments: 14,
+      });
+    }
+    applyGalleryCost();
+
+    const formatsByLevel = [...FORMATS].sort((a, b) => (b.h / b.w) - (a.h / a.w) || b.h - a.h);
+    fmtRail.innerHTML = formatsByLevel.map((format) => {
+      const max = 14;
+      const tall = format.h >= format.w;
+      const gw = (tall ? Math.max(3, max * format.w / format.h) : max).toFixed(1);
+      const gh = (tall ? max : Math.max(2.4, max * format.h / format.w)).toFixed(1);
+      return `<button type="button" class="fmt-btn" role="radio" data-id="${format.id}" title="${format.label}" aria-label="${format.label}" aria-checked="false">
+        <span class="fmt-glyph" style="--gw:${gw}px;--gh:${gh}px"></span>
+      </button>`;
+    }).join("");
+
+    function selectedFormat() {
+      return formatById(formatId);
+    }
+
+    function syncFormatFromCombo(item) {
+      formatId = formatById(item?.ad || store.view.format).id;
+      markFormat();
+    }
+
+    function markFormat() {
+      const id = selectedFormat().id;
+      fmtRail.querySelectorAll(".fmt-btn").forEach((btn) => {
+        const on = btn.dataset.id === id;
+        btn.classList.toggle("is-on", on);
+        btn.setAttribute("aria-checked", on ? "true" : "false");
+      });
+    }
+
+    function setFormat(id) {
+      formatId = formatById(id).id;
+      store.view.format = formatId;
+      const item = selectedCombo();
+      if (item) item.ad = formatId;
+      saveGalleryStore(store);
+      markFormat();
+      if (item) playSelected();
+      else applyFormatChrome();
+      applyPlaceLive();
+    }
+
+    function selectedCombo() {
+      return activeProfile(store).items.find((item) => item.id === selectedId) || null;
+    }
+
+    function fillProfiles() {
+      selProfile.replaceChildren();
+      for (const profile of store.profiles) {
+        const opt = document.createElement("option");
+        opt.value = profile.id;
+        opt.textContent = profile.name;
+        selProfile.append(opt);
+      }
+      selProfile.value = store.activeId;
+    }
+
+    function applyPreviewWidth() {
+      const width = Number(store.view.previewW);
+      if (Number.isFinite(width) && width > 0) {
+        shell.style.setProperty("--preview-w", `${Math.round(width)}px`);
+        btnResetWidth.hidden = false;
+      } else {
+        shell.style.removeProperty("--preview-w");
+        btnResetWidth.hidden = true;
+      }
+      requestAnimationFrame(syncOpsDock);
+    }
+
+    function applyVoidLight() {
+      const value = Math.round(Number(store.view.voidL));
+      const light = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 14;
+      store.view.voidL = light;
+      selVoidL.value = String(light);
+      side.style.setProperty("--void-l", String(light));
+      stage.style.setProperty("--void-l", String(light));
+      const ink = light >= 46 ? "light" : "dark";
+      side.dataset.ink = ink;
+      stage.dataset.ink = ink;
+    }
+
+    function applyPreviewZoom() {
+      const zoom = normalizeViewZoom(store.view.zoom);
+      store.view.zoom = zoom;
+      const pct = Math.round(zoom * 100);
+      selPreviewZoom.value = String(pct);
+      selPreviewZoom.setAttribute("aria-valuetext", `${pct}%`);
+      previewZoomVal.value = `${pct}%`;
+      previewZoomVal.textContent = `${pct}%`;
+      stage.style.setProperty("--preview-zoom", String(zoom));
+    }
+
+    function setZoomCue(on) {
+      previewZoomVal.classList.toggle("is-on", on);
+      previewZoomVal.setAttribute("aria-hidden", on ? "false" : "true");
+    }
+
+    let placeComboId = "";
+
+    function currentPlace() {
+      const ph = resolveAdPlace(store.view.ph);
+      store.view.ph = ph;
+      return ph;
+    }
+
+    function livePlace() {
+      const ph = currentPlace();
+      if (ph.style !== "play") return ph;
+      const item = selectedCombo();
+      return {
+        ...adPlaceFromPlay(item?.play || "climax", item?.pal),
+        img: ph.img,
+        fit: ph.fit,
+        fx: ph.fx,
+        fy: ph.fy,
+        fz: ph.fz,
+        fm: ph.fm,
+      };
+    }
+
+    function syncPlaceSaveBtn(item) {
+      const on = Boolean(item);
+      btnPhSave.disabled = !on;
+      btnPhSave.title = on ? `Guardar este placeholder en ${comboShortTitle(item)}` : "Elegí un play para guardar el placeholder";
+    }
+
+    function hydratePlaceFromCombo(item) {
+      const id = item?.id || "";
+      if (id === placeComboId) return;
+      placeComboId = id;
+      if (item) store.view.ph = resolveAdPlace(item.ph);
+    }
+
+    function commitLivePlace(item) {
+      if (!item) return livePlace();
+      item.ph = resolveAdPlace(livePlace());
+      store.view.ph = item.ph;
+      return item.ph;
+    }
+
+    function savePlaceToPlay() {
+      const item = selectedCombo();
+      if (!item) return;
+      item.ph = resolveAdPlace(livePlace());
+      store.view.ph = item.ph;
+      saveGalleryStore(store);
+      applyPlaceLive();
+      const label = btnPhSave.textContent;
+      btnPhSave.textContent = "Guardado";
+      window.setTimeout(() => {
+        btnPhSave.textContent = label;
+      }, 1200);
+    }
+
+    function paintPlace(root, ph) {
+      if (!root) return;
+      const place = resolveAdPlace(ph);
+      root.style.setProperty("--ph-bg", place.bg);
+      root.style.setProperty("--ph-paper", place.paper);
+      root.style.setProperty("--ph-ink", place.ink);
+      root.style.setProperty("--ph-accent", place.accent);
+      root.style.setProperty("--ph-fit", place.fit);
+      root.style.setProperty("--ph-fit-x", `${place.fx}%`);
+      root.style.setProperty("--ph-fit-y", `${place.fy}%`);
+      root.style.setProperty("--ph-fit-z", String(Number(place.fz) / 100));
+      root.style.setProperty("--ph-fit-mat", place.fm);
+      root.dataset.ph = matchAdPlaceId(place) || "custom";
+      root.dataset.phStyle = place.style;
+      const box = root.querySelector(".ad-ph") || (root.classList.contains("ad-ph") ? root : null);
+      if (!box) return;
+      box.dataset.fit = place.fit;
+      let shot = box.querySelector(".ad-ph-shot");
+      const nextSrc = place.img ? adImageSrc(place.img) : "";
+      const curSrc = shot?.getAttribute("src") || "";
+      if (box.dataset.style !== place.style || curSrc !== nextSrc) {
+        box.dataset.style = place.style;
+        box.innerHTML = adPlaceInnerMarkup(place.style, selectedFormat(), place.img, place);
+        shot = box.querySelector(".ad-ph-shot");
+      }
+      if (shot) shot.style.cssText = adPlaceFitStyle(place);
+    }
+
+    function applyPlaceLive() {
+      const ph = livePlace();
+      const format = selectedFormat();
+      phPanel.style.cssText = adPlaceVars(ph);
+      slot.querySelectorAll(".ad-container, .slot-idle").forEach((el) => paintPlace(el, ph));
+      phStyles.querySelectorAll(".ph-style").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.style === ph.style);
+      });
+      phStyles.querySelectorAll(".ph-thumb").forEach((thumb) => {
+        thumb.innerHTML = adPlaceInnerMarkup(thumb.dataset.style, format);
+      });
+      const palId = matchAdPlaceId(ph);
+      phChips.querySelectorAll(".ph-chip").forEach((btn) => {
+        btn.classList.toggle("is-on", Boolean(palId) && btn.dataset.id === palId);
+      });
+      phColors.querySelectorAll("input[type=color]").forEach((input) => {
+        if (ph[input.dataset.phKey]) input.value = ph[input.dataset.phKey];
+      });
+      phShots.querySelectorAll(".ph-shot").forEach((btn) => {
+        btn.classList.toggle("is-on", (btn.dataset.img || "") === (ph.img || ""));
+      });
+      syncPlaceFitUi(ph);
+    }
+
+    function syncPlaceFitUi(ph) {
+      const place = resolveAdPlace(ph);
+      const hasImg = Boolean(place.img);
+      phFitTune.hidden = !hasImg;
+      phFits.querySelectorAll(".ph-style").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.fit === place.fit);
+      });
+      const pin = place.fit !== "fill";
+      phFitXRow.hidden = !hasImg || !pin;
+      phFitYRow.hidden = !hasImg || !pin;
+      phFitZRow.hidden = !hasImg;
+      selPhFitX.value = place.fx;
+      phFitXVal.textContent = `${place.fx}%`;
+      selPhFitY.value = place.fy;
+      phFitYVal.textContent = `${place.fy}%`;
+      selPhFitZ.value = place.fz;
+      phFitZVal.textContent = `${place.fz}%`;
+      selPhFitM.value = place.fm;
+    }
+
+    function persistPlace(next) {
+      const cur = currentPlace();
+      const restyle = next.style != null || next.img != null || AD_PLACE_FIELDS.some((field) => next[field.id] != null);
+      const leavePlay = cur.style === "play" && next.style == null && restyle;
+      store.view.ph = resolveAdPlace({ ...cur, ...next, style: leavePlay ? "photo" : (next.style || cur.style) });
+      const item = selectedCombo();
+      commitLivePlace(item);
+      saveGalleryStore(store);
+      applyPlaceLive();
+    }
+
+    function paintPlaceShots(files) {
+      const cur = currentPlace().img || "";
+      phShots.innerHTML = [
+        `<button type="button" class="ph-shot${!cur ? " is-on" : ""}" data-img="">
+          <span class="ph-shot-none">Ninguna</span>
+        </button>`,
+        ...files.map((name) => `
+          <button type="button" class="ph-shot${cur === name ? " is-on" : ""}" data-img="${escapeHtml(name)}">
+            <img src="${adImageSrc(name)}" alt="">
+          </button>`),
+      ].join("");
+    }
+
+    async function fillPlacePanel() {
+      const ph = currentPlace();
+      phStyles.innerHTML = AD_PLACE_STYLES.map((item) => `
+        <button type="button" class="ph-style${item.id === ph.style ? " is-on" : ""}" data-style="${item.id}">
+          <span class="ph-thumb" data-style="${item.id}">${adPlaceInnerMarkup(item.id, selectedFormat())}</span>
+          <span>${item.label}</span>
+        </button>`).join("");
+      phChips.innerHTML = AD_PLACE_PALETTES.map((item) => `
+        <button type="button" class="ph-chip${matchAdPlaceId(ph) === item.id ? " is-on" : ""}" data-id="${item.id}" title="${item.label}" style="background:linear-gradient(135deg,${item.bg} 0 42%,${item.accent} 42% 72%,${item.paper} 72%)"></button>
+      `).join("");
+      phColors.innerHTML = AD_PLACE_FIELDS.map((field) => `
+        <label>${field.label}<input type="color" data-ph-key="${field.id}" value="${ph[field.id]}"></label>
+      `).join("");
+      phFits.innerHTML = AD_PLACE_FITS.map((item) => `
+        <button type="button" class="ph-style${item.id === ph.fit ? " is-on" : ""}" data-fit="${item.id}">
+          <span>${item.label}</span>
+        </button>`).join("");
+      paintPlaceShots(await listAdImages());
+      applyPlaceLive();
+    }
+
+    function fillStudioPresets() {
+      studioPresets.innerHTML = STUDIO_PRESET_LIST.map((item) => `
+        <button type="button" class="ph-style" data-studio="${item.id}">
+          <span>${item.label}</span>
+        </button>`).join("");
+    }
+
+    function fillHandStyles() {
+      handStyles.innerHTML = HANDOFF_TRANSITIONS.map((item) => `
+        <button type="button" class="ph-style" data-hand="${item.id}">
+          <span>${item.label}</span>
+        </button>`).join("");
+    }
+
+    function fmtHandMs(ms) {
+      const n = Number(ms);
+      return n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${Math.round(n)}ms`;
+    }
+
+    function syncHandUi(item) {
+      const id = handoffById(item?.hand).id;
+      handStyles.querySelectorAll(".ph-style").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.hand === id);
+      });
+      handBlurb.textContent = handoffById(id).blurb;
+      const on = id !== "none";
+      const bands = id === "wipe" || id === "veil" || id === "pulse";
+      const timed = id === "wipe" || id === "veil" || id === "iris" || id === "doors" || id === "mist";
+      const rise = id === "wipe" || id === "pulse" || id === "doors";
+      handTune.hidden = !on;
+      handMsRow.hidden = !timed;
+      handNbRow.hidden = !bands;
+      handStRow.hidden = id !== "wipe";
+      handInRow.hidden = !rise;
+      handHdRow.hidden = id !== "veil";
+      handBtRow.hidden = id !== "pulse";
+      handTmRow.hidden = id !== "pulse";
+      handTxtRow.hidden = !handoffUsesClaim(id);
+      handEmptyRow.hidden = !handoffUsesClaim(id);
+      if (!item) return;
+      const format = selectedFormat();
+      const empty = normalizeHandoffEmpty(item.hempty) === "1";
+      selHandEmpty.checked = empty;
+      selHandTxt.disabled = empty;
+      selHandTxt.placeholder = format.offer || format.kicker || format.brand || "Texto de la transición";
+      if (document.activeElement !== selHandTxt) selHandTxt.value = normalizeHandoffText(item.htxt);
+      selHandMs.value = normalizeHandoffMs(item.hms);
+      handMsVal.textContent = fmtHandMs(selHandMs.value);
+      selHandNb.value = normalizeHandoffBands(item.hnb);
+      handNbVal.textContent = selHandNb.value;
+      selHandSt.value = normalizeHandoffStagger(item.hst);
+      handStVal.textContent = `${selHandSt.value}ms`;
+      selHandIn.value = normalizeHandoffIn(item.hin);
+      handInVal.textContent = fmtHandMs(selHandIn.value);
+      selHandHd.value = normalizeHandoffHold(item.hhd);
+      handHdVal.textContent = fmtHandMs(selHandHd.value);
+      selHandBt.value = normalizeHandoffBeats(item.hbt);
+      handBtVal.textContent = selHandBt.value;
+      const tempo = normalizeHandoffTempo(item.htm);
+      if (tempo === "0") {
+        const auto = resolveHandoffTempo(item.play, 0);
+        selHandTm.value = "0";
+        handTmVal.textContent = `Auto · ${auto}ms`;
+      } else {
+        selHandTm.value = tempo;
+        handTmVal.textContent = `${tempo}ms`;
+      }
+    }
+
+    function applyHandLive(item) {
+      const id = handoffById(item?.hand).id;
+      slot.querySelectorAll(".ad-container").forEach((el) => {
+        el.dataset.handoff = id;
+        applyHandoffSettings(el, {
+          ...item,
+          claim: resolveHandoffClaim(item, selectedFormat()),
+        });
+      });
+    }
+
+    function persistHandoff(id) {
+      const item = selectedCombo();
+      if (!item) return;
+      item.hand = handoffById(id).id;
+      saveGalleryStore(store);
+      syncHandUi(item);
+      applyHandLive(item);
+    }
+
+    function comboStudio(item) {
+      return normalizeStudioState(item?.studio);
+    }
+
+    function propMarkupExtras(item) {
+      if (!item) return {};
+      return comboPlayExtras(item, livePlace());
+    }
+
+    const previewModals = [phPanel, propPanel, palPanel, assetPanel, handPanel];
+
+    function closePreviewModal(dialog) {
+      if (dialog.open) dialog.close();
+    }
+
+    function closePlacePanel() {
+      closePreviewModal(phPanel);
+    }
+
+    function closePropPanel() {
+      closePreviewModal(propPanel);
+    }
+
+    function closePalPanel() {
+      closePreviewModal(palPanel);
+    }
+
+    function bindPreviewModal(dialog, btn, wrap) {
+      dialog.addEventListener("close", () => {
+        wrap.classList.remove("is-open");
+        btn.setAttribute("aria-expanded", "false");
+      });
+      dialog.addEventListener("click", (event) => {
+        const box = dialog.getBoundingClientRect();
+        const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+        if (outside) dialog.close();
+      });
+      dialog.querySelector("[data-close-modal]")?.addEventListener("click", () => dialog.close());
+    }
+
+    function setPreviewModal(dialog, btn, wrap, on) {
+      if (on) {
+        for (const other of previewModals) {
+          if (other !== dialog) closePreviewModal(other);
+        }
+        wrap.classList.add("is-open");
+        btn.setAttribute("aria-expanded", "true");
+        if (!dialog.open) dialog.showModal();
+        return;
+      }
+      closePreviewModal(dialog);
+    }
+
+    function setPlaceOpen(on) {
+      setPreviewModal(phPanel, btnPh, phWrap, on);
+    }
+
+    function setPropOpen(on) {
+      setPreviewModal(propPanel, btnProp, propWrap, on);
+    }
+
+    function setPalOpen(on) {
+      setPreviewModal(palPanel, btnPal, palWrap, on);
+    }
+
+    function setAssetOpen(on) {
+      setPreviewModal(assetPanel, btnAsset, assetWrap, on);
+      if (on) fillAssetPicker();
+    }
+
+    function setHandOpen(on) {
+      setPreviewModal(handPanel, btnHand, handWrap, on);
+    }
+
+    bindPreviewModal(phPanel, btnPh, phWrap);
+    bindPreviewModal(propPanel, btnProp, propWrap);
+    bindPreviewModal(palPanel, btnPal, palWrap);
+    bindPreviewModal(assetPanel, btnAsset, assetWrap);
+    bindPreviewModal(handPanel, btnHand, handWrap);
+
+    let palFieldsKey = "";
+
+    function fillPlayColorFields(item) {
+      const key = item ? `${item.id}:${playById(item.play).id}` : "";
+      if (key === palFieldsKey && playColors.childElementCount) return;
+      palFieldsKey = key;
+      playColors.replaceChildren();
+      if (!item) return;
+      const playId = playById(item.play).id;
+      const current = resolvePalette(playId, item.pal);
+      for (const field of playPaletteFields(playId)) {
+        const label = document.createElement("label");
+        label.append(field.label);
+        const input = document.createElement("input");
+        input.type = "color";
+        input.dataset.palKey = field.id;
+        input.value = current[field.id];
+        label.append(input);
+        playColors.append(label);
+      }
+    }
+
+    function applyPalLive(item) {
+      if (!item) return;
+      const packed = encodeURIComponent(JSON.stringify(resolvePalette(item.play, item.pal)));
+      slot.querySelectorAll(".ad-container").forEach((el) => {
+        el.dataset.pal = packed;
+      });
+    }
+
+    function paintComboPoster(item) {
+      const thumb = grid.querySelector(`.g-card[data-id="${item.id}"] .g-thumb`);
+      if (!thumb) return;
+      const play = thumb.querySelector(".g-play");
+      thumb.innerHTML = comboPosterMarkup(item);
+      if (play) thumb.append(play);
+    }
+
+    function persistPlayColor(fieldId, hex, save) {
+      const item = selectedCombo();
+      if (!item) return;
+      item.pal = { ...(item.pal && typeof item.pal === "object" ? item.pal : {}), [fieldId]: normHex(hex) };
+      if (save) saveGalleryStore(store);
+      applyPalLive(item);
+      paintComboPoster(item);
+      applyPlaceLive();
+    }
+
+    function resetPlayColors() {
+      const item = selectedCombo();
+      if (!item) return;
+      item.pal = {};
+      saveGalleryStore(store);
+      palFieldsKey = "";
+      fillPlayColorFields(item);
+      applyPalLive(item);
+      paintComboPoster(item);
+      applyPlaceLive();
+    }
+
+    function syncPalUi(item) {
+      palWrap.hidden = !item;
+      if (!item) {
+        closePalPanel();
+        palFieldsKey = "";
+        playColors.replaceChildren();
+        return;
+      }
+      fillPlayColorFields(item);
+    }
+
+    function syncPropUi(item) {
+      const isProp = Boolean(item) && playById(item.play).id === "prop";
+      propWrap.hidden = !isProp;
+      assetWrap.hidden = !isProp;
+      if (!isProp) {
+        closePropPanel();
+        closePreviewModal(assetPanel);
+        return;
+      }
+      const studio = comboStudio(item);
+      studioPresets.querySelectorAll(".ph-style").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.studio === studio.preset);
+      });
+      studioWorld.value = String(studio.world);
+      document.getElementById("studio-world-val").textContent = Number(studio.world).toFixed(2);
+      studioWorldCol.value = studio.worldCol;
+      studioKey.value = String(studio.key);
+      document.getElementById("studio-key-val").textContent = Number(studio.key).toFixed(2);
+      studioFill.value = String(studio.fill);
+      document.getElementById("studio-fill-val").textContent = Number(studio.fill).toFixed(2);
+      studioRim.value = String(studio.rim);
+      document.getElementById("studio-rim-val").textContent = Number(studio.rim).toFixed(2);
+      studioExposure.value = String(studio.exposure);
+      document.getElementById("studio-exposure-val").textContent = Number(studio.exposure).toFixed(2);
+      studioKeyCol.value = studio.keyCol;
+      studioFillCol.value = studio.fillCol;
+      studioRimCol.value = studio.rimCol;
+      paintStudioExtras(studio);
+      selPropFloor.checked = normalizePropFloor(item.pfloor) === "1";
+      selPropFlat.checked = normalizePropFlat(item.pflat) === "1";
+      selPropCog.checked = normalizePropCog(item.pcog) === "1";
+      const cam = normalizePropCam(item.pcam);
+      selPropCam.value = cam;
+      propCamVal.textContent = Number(cam).toFixed(1);
+      syncCamMoveUi(item);
+      const rhrot = normalizePropSpin(item.prh);
+      selPropRhrot.value = rhrot;
+      propRhrotVal.textContent = `${rhrot}°`;
+      const rvrot = normalizePropSpin(item.prv);
+      selPropRvrot.value = rvrot;
+      propRvrotVal.textContent = `${rvrot}°`;
+    }
+
+    function paintStudioExtras(studio) {
+      studioExtras.innerHTML = studio.extras.map((extra) => `
+        <div class="studio-extra" data-xid="${extra.id}">
+          <div class="studio-extra-bar">
+            <input type="color" data-xcol value="${extra.color}" aria-label="Color de la luz" />
+            <input type="range" data-xint min="0" max="${MAX_STUDIO_EXTRA_INTENSITY}" step="0.1" value="${extra.intensity}" aria-label="Intensidad" />
+            <output>${Number(extra.intensity).toFixed(1)}</output>
+            <button type="button" class="studio-extra-del" data-xdel aria-label="Quitar luz">×</button>
+          </div>
+          <div class="studio-xplaces">
+            ${STUDIO_EXTRA_PLACE_LIST.map((place) => `
+              <button type="button" class="ph-style${place.id === extra.place ? " is-on" : ""}" data-xplace="${place.id}">${place.label}</button>
+            `).join("")}
+          </div>
+        </div>`).join("");
+      studioExtraAdd.hidden = studio.extras.length >= MAX_STUDIO_EXTRAS;
+    }
+
+    function persistStudioPreset(id) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.studio = studioStateFromPreset(id, comboStudio(item));
+      saveGalleryStore(store);
+      syncPropUi(item);
+      applyPropLightLive(item);
+    }
+
+    function persistStudioChannel(name, raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.studio = normalizeStudioState({ ...comboStudio(item), [name]: Number(raw) });
+      const out = document.getElementById(`studio-${name}-val`);
+      if (out) out.textContent = Number(item.studio[name]).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistStudioColor(name, hex, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.studio = normalizeStudioState({ ...comboStudio(item), [name]: hex });
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistStudioExtraState(next, save = true, paint = true) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.studio = next;
+      if (save) saveGalleryStore(store);
+      if (paint) paintStudioExtras(next);
+      applyPropLightLive(item);
+    }
+
+    function applyPropLightLive(item) {
+      if (!item) return;
+      if (GWD_VISOR) {
+        applyGwdViewerLive(item);
+        return;
+      }
+      const packed = serializeStudioState(item.studio);
+      slot.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
+        el.dataset.studioLights = packed;
+        el.dataset.propFloor = normalizePropFloor(item.pfloor);
+        el.dataset.propFlat = normalizePropFlat(item.pflat);
+        el.dataset.propCog = normalizePropCog(item.pcog);
+        el.dataset.propCam = normalizePropCam(item.pcam);
+        el.dataset.propCamH = normalizePropCamH(item.pch);
+        el.dataset.propCamV = normalizePropCamV(item.pcv);
+        el.dataset.propCamMode = normalizePropCamMode(item.pcm);
+        el.dataset.propCamPx = normalizePropCamPan(item.ppx);
+        el.dataset.propCamPy = normalizePropCamPan(item.ppy);
+        el.dataset.propRhrot = normalizePropSpin(item.prh);
+        el.dataset.propRvrot = normalizePropSpin(item.prv);
+      });
+    }
+
+    function persistPropRhrot(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.prh = normalizePropSpin(raw);
+      selPropRhrot.value = item.prh;
+      propRhrotVal.textContent = `${item.prh}°`;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistPropRvrot(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.prv = normalizePropSpin(raw);
+      selPropRvrot.value = item.prv;
+      propRvrotVal.textContent = `${item.prv}°`;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistPropCam(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pcam = normalizePropCam(raw);
+      selPropCam.value = item.pcam;
+      propCamVal.textContent = Number(item.pcam).toFixed(1);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function camModeIsPan(item) {
+      return normalizePropCamMode(item?.pcm) === "pan";
+    }
+
+    function syncCamMoveUi(item) {
+      const pan = camModeIsPan(item);
+      selPropCamPan.checked = pan;
+      selPropCamH.min = pan ? "-2" : "-180";
+      selPropCamH.max = pan ? "2" : "180";
+      selPropCamH.step = pan ? "0.05" : "5";
+      selPropCamV.min = pan ? "-2" : "-55";
+      selPropCamV.max = pan ? "2" : "55";
+      selPropCamV.step = pan ? "0.05" : "1";
+      propCamHLab.textContent = pan ? "Izquierda–derecha" : "Horizontal";
+      propCamVLab.textContent = pan ? "Arriba–abajo" : "Vertical";
+      if (pan) {
+        const px = normalizePropCamPan(item.ppx);
+        const py = normalizePropCamPan(item.ppy);
+        selPropCamH.value = px;
+        selPropCamV.value = py;
+        propCamHVal.textContent = Number(px).toFixed(2);
+        propCamVVal.textContent = Number(py).toFixed(2);
+      } else {
+        const camH = normalizePropCamH(item.pch);
+        const camV = normalizePropCamV(item.pcv);
+        selPropCamH.value = camH;
+        selPropCamV.value = camV;
+        propCamHVal.textContent = `${camH}°`;
+        propCamVVal.textContent = `${camV}°`;
+      }
+    }
+
+    function persistPropCamH(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      if (camModeIsPan(item)) {
+        item.ppx = normalizePropCamPan(raw);
+        selPropCamH.value = item.ppx;
+        propCamHVal.textContent = Number(item.ppx).toFixed(2);
+      } else {
+        item.pch = normalizePropCamH(raw);
+        selPropCamH.value = item.pch;
+        propCamHVal.textContent = `${item.pch}°`;
+      }
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistPropCamV(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      if (camModeIsPan(item)) {
+        item.ppy = normalizePropCamPan(raw);
+        selPropCamV.value = item.ppy;
+        propCamVVal.textContent = Number(item.ppy).toFixed(2);
+      } else {
+        item.pcv = normalizePropCamV(raw);
+        selPropCamV.value = item.pcv;
+        propCamVVal.textContent = `${item.pcv}°`;
+      }
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistPropCamPan(on) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pcm = on ? "pan" : "orbit";
+      saveGalleryStore(store);
+      syncCamMoveUi(item);
+      applyPropLightLive(item);
+    }
+
+    function persistPropFloor(on) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pfloor = on ? "1" : "0";
+      saveGalleryStore(store);
+      applyPropLightLive(item);
+      paintComboPoster(item);
+    }
+
+    function persistPropFlat(on) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pflat = on ? "1" : "0";
+      saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function persistPropCog(on) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pcog = on ? "1" : "0";
+      saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function setPreloadCue(mode) {
+      clearTimeout(preloadCueTimer);
+      preloadCue.classList.remove("is-wait", "is-ready");
+      if (mode === "wait") {
+        preloadCue.textContent = "Cargando";
+        preloadCue.classList.add("is-wait");
+        return;
+      }
+      if (mode === "ready") {
+        preloadCue.textContent = "Listo";
+        preloadCue.classList.add("is-ready");
+        preloadCueTimer = window.setTimeout(() => {
+          if (preloadCue.classList.contains("is-ready")) setPreloadCue("");
+        }, 1100);
+        return;
+      }
+      preloadCue.textContent = "";
+    }
+
+    function preloadAdImage(item) {
+      const src = item?.ph?.img ? adImageSrc(item.ph.img) : "";
+      if (!src) return Promise.resolve();
+      return new Promise((resolve) => {
+        const image = new Image();
+        image.onload = image.onerror = () => resolve();
+        image.src = src;
+      });
+    }
+
+    async function preloadCombo(item) {
+      if (!item) return;
+      if (GWD_VISOR) {
+        await preloadAdImage(item);
+        return;
+      }
+      await Promise.all([
+        preloadEngine(),
+        applyComboPropModel(item),
+        preloadAdImage(item),
+      ]);
+      if (playById(item.play).id === "prop" && item.pmesh) await warmupPropGpu();
+    }
+
+    async function preloadThenPlay() {
+      const item = selectedCombo();
+      if (!item) return;
+      const gen = ++preloadGen;
+      setPreloadCue("wait");
+      await preloadCombo(item);
+      if (gen !== preloadGen || selectedId !== item.id) return;
+      setPreloadCue("ready");
+      await playSelected();
+    }
+
+    function selectAndPlay(id) {
+      selectedId = id;
+      playing = true;
+      markSelected();
+      renderSide();
+      preloadThenPlay();
+    }
+
+    function comboPropTag(item) {
+      if (!item || playById(item.play).id !== "prop" || !item.pmesh) return "";
+      return item.pmesh.assetId ? `asset:${item.pmesh.assetId}` : `idb:${item.id}:${item.pmesh.name}`;
+    }
+
+    function playKey(item) {
+      if (!item) return "";
+      return [item.id, formatId, item.play, item.hand || "", item.in || "", item.propAct || "", comboPropTag(item)].join("|");
+    }
+
+    async function applyComboPropModel(item) {
+      const tag = comboPropTag(item);
+      if (tag === propSourceTag && (tag === "" || Boolean(item?.pmesh))) return;
+      if (item?.pmesh?.assetId) {
+        await prepareComboMesh(item, { warmup: false });
+        propSourceTag = tag;
+        return;
+      }
+      if (!item?.pmesh) {
+        setPropModelFile(null);
+        propSourceTag = "";
+        return;
+      }
+      const files = await loadComboPropFiles(item.id);
+      if (!files.length) {
+        setPropModelFile(null);
+        propSourceTag = "";
+        return;
+      }
+      setPropModelFiles(files);
+      await preparePropSource();
+      propSourceTag = tag;
+    }
+
+    let assetCatalog = [];
+    let assetThumbs = new Map();
+
+    function assetThumbMarkup(item) {
+      const shot = assetThumbs.get(item.id);
+      if (shot) return `<img src="${shot}" alt="">`;
+      return `<svg viewBox="0 0 160 160" aria-hidden="true"><rect width="160" height="160" fill="transparent"/><g fill="none" stroke="#c4b8a4" stroke-width="2.2" stroke-linejoin="round"><path d="M80 38 L124 62 L124 108 L80 132 L36 108 L36 62 Z"/><path d="M80 38 L80 84 L124 108"/><path d="M80 84 L36 108"/></g></svg>`;
+    }
+
+    function paintAssetPicker() {
+      const q = assetPickSearch.value.trim().toLowerCase();
+      const selected = selectedCombo()?.pmesh?.assetId || "";
+      const shown = assetCatalog.filter((item) => isMeshFile(item.name) && (!q || item.name.toLowerCase().includes(q)));
+      if (!shown.length) {
+        assetPickGrid.innerHTML = `<p class="g-fps-hint">${assetCatalog.length ? "Nada coincide con la búsqueda." : "No hay assets 3D. Agregá modelos en Assets 3D."}</p>`;
+        return;
+      }
+      assetPickGrid.innerHTML = shown.map((item) => `
+        <button type="button" class="asset-pick${item.id === selected ? " is-on" : ""}" data-asset="${escapeHtml(item.id)}">
+          <span class="asset-pick-thumb">${assetThumbMarkup(item)}</span>
+          <p class="asset-pick-name">${escapeHtml(item.name)}${item.size ? ` · ${formatBytes(item.size)}` : ""}</p>
+        </button>`).join("");
+    }
+
+    async function fillAssetPicker() {
+      const [catalog, thumbs] = await Promise.all([listAllAssets(), loadAssetThumbs()]);
+      assetCatalog = catalog;
+      assetThumbs = thumbs;
+      paintAssetPicker();
+    }
+
+    async function pickAsset(assetId) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      if (!assetId) {
+        await deleteComboPropFiles(item.id);
+        setComboPmesh(store, item.id, null);
+        setPropModelFile(null);
+        propSourceTag = "";
+        livePlayKey = "";
+        paintAssetPicker();
+        preloadThenPlay();
+        return;
+      }
+      const asset = assetCatalog.find((entry) => entry.id === assetId);
+      if (!asset) return;
+      const extras = assetCatalog.filter((entry) => !isMeshFile(entry.name) && entry.name.replace(/\.[^.]+$/, "").toLowerCase() === asset.name.replace(/\.[^.]+$/, "").toLowerCase()).map((entry) => entry.name);
+      setComboPmesh(store, item.id, { name: asset.name, extras, assetId: asset.id });
+      paintAssetPicker();
+      preloadThenPlay();
+    }
+
+    function applyView() {
+      const view = store.view;
+      if (![...selCols.options].some((opt) => opt.value === view.cols)) view.cols = "4";
+      selCols.value = view.cols;
+      selSize.value = view.size;
+      selGap.value = view.gap;
+      selShowOff.checked = Boolean(view.showOff);
+      selClock.checked = normalizeViewClock(view.clock);
+      applyClock();
+      selAfps.value = String(normalizeViewFps(view.afps));
+      const blit = normalizeViewBlit(view.blit);
+      selBlit.value = String(blit);
+      viewBlitVal.value = `${blit}×`;
+      grid.dataset.cols = view.cols;
+      grid.dataset.size = view.size;
+      grid.dataset.gap = view.gap;
+      grid.style.setProperty("--cols", view.cols === "auto" ? "4" : view.cols);
+      applyLayout();
+      applyPreviewWidth();
+      applyVoidLight();
+      applyPreviewZoom();
+      formatId = formatById(view.format).id;
+      markFormat();
+    }
+
+    function currentShelf() {
+      return normalizeViewShelf(store.view.shelf);
+    }
+
+    function applyLayout() {
+      const shelf = currentShelf();
+      store.view.shelf = shelf;
+      document.body.classList.toggle("is-belt", shelf === "belt");
+      if (shelf !== "belt") closeShelf();
+      layoutOpts.querySelectorAll(".layout-pick").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.shelf === shelf);
+      });
+      btnShelf.setAttribute("aria-expanded", document.body.classList.contains("is-shelf") ? "true" : "false");
+    }
+
+    function setShelf(id) {
+      store.view.shelf = normalizeViewShelf(id);
+      saveGalleryStore(store);
+      applyLayout();
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    }
+
+    function openShelf() {
+      if (currentShelf() !== "belt") return;
+      document.body.classList.add("is-shelf");
+      btnShelf.setAttribute("aria-expanded", "true");
+      requestAnimationFrame(syncBarLift);
+    }
+
+    function closeShelf() {
+      document.body.classList.remove("is-shelf");
+      btnShelf.setAttribute("aria-expanded", "false");
+    }
+
+    function renderBelt() {
+      const profile = activeProfile(store);
+      const visible = new Set(visibleCards().map((card) => card.dataset.id));
+      gBeltTrack.innerHTML = profile.items.filter((item) => visible.has(item.id)).map((item) => `
+        <button type="button" class="g-belt-item${item.id === selectedId ? " is-on" : ""}" data-id="${item.id}" aria-label="${escapeHtml(comboTitle(item))}">
+          <span class="g-belt-thumb">${comboPosterMarkup(item)}</span>
+          <span class="g-belt-name">${escapeHtml(comboShortTitle(item))}</span>
+        </button>
+      `).join("");
+      syncBeltSelection();
+    }
+
+    function syncBeltSelection() {
+      gBeltTrack.querySelectorAll(".g-belt-item").forEach((chip) => {
+        const on = chip.dataset.id === selectedId;
+        chip.classList.toggle("is-on", on);
+        if (on) chip.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      });
+    }
+
+    function persistView() {
+      store.view = {
+        ...store.view,
+        cols: selCols.value,
+        size: selSize.value,
+        gap: selGap.value,
+        showOff: selShowOff.checked,
+        clock: selClock.checked,
+        clockStyle: normalizeViewClockStyle(store.view.clockStyle),
+        clockTone: normalizeViewClockTone(store.view.clockTone),
+        clockSize: normalizeViewClockSize(selClockSize.value),
+        afps: normalizeViewFps(selAfps.value),
+        blit: normalizeViewBlit(selBlit.value),
+      };
+      saveGalleryStore(store);
+      applyView();
+      applyGalleryCost();
+      applySearch();
+      requestAnimationFrame(() => {
+        syncBarLift();
+        syncOpsDock();
+      });
+    }
+
+    function clampPreviewWidth(width) {
+      const max = Math.max(280, shell.clientWidth - 208);
+      return Math.round(Math.min(max, Math.max(280, width)));
+    }
+
+    function setPreviewWidth(width, persist) {
+      store.view.previewW = clampPreviewWidth(width);
+      applyPreviewWidth();
+      if (persist) saveGalleryStore(store);
+      window.dispatchEvent(new Event("resize"));
+    }
+
+    function restorePreviewWidth() {
+      store.view.previewW = null;
+      saveGalleryStore(store);
+      applyPreviewWidth();
+      window.dispatchEvent(new Event("resize"));
+    }
+
+    function formatShape(format) {
+      const ratio = format.w / format.h;
+      if (ratio >= 2.4) return "wide";
+      if (ratio <= 0.55) return "tall";
+      return "rect";
+    }
+
+    function applyAdBox(format) {
+      const w = `${format.w}px`;
+      const h = `${format.h}px`;
+      const ratio = `${format.w} / ${format.h}`;
+      slot.style.setProperty("--ad-w", w);
+      slot.style.setProperty("--ad-h", h);
+      slot.style.setProperty("--ad-ratio", ratio);
+      stage.style.setProperty("--ad-w", w);
+      stage.style.setProperty("--ad-h", h);
+      stage.style.setProperty("--ad-ratio", ratio);
+    }
+
+    function idleSlot(format, item) {
+      const ph = livePlace();
+      applyAdBox(format);
+      if (GWD_VISOR && item) {
+        commitLivePlace(item);
+        slot.innerHTML = gwdPlayMarkup(item, gwdLightFromCombo(item), {
+          extras: propMarkupExtras(item),
+          imgHref: ph.img ? adImageSrc(ph.img) : "",
+        });
+      } else {
+        slot.innerHTML = adMarkup(format, "gal-idle", item?.in || "none", item?.play || "climax", {
+          ...propMarkupExtras(item),
+          pal: item?.pal,
+          ph,
+        });
+      }
+      slot.querySelector(".ad-container")?.classList.add("is-idle");
+    }
+
+    function applyFormatChrome() {
+      const format = selectedFormat();
+      const item = selectedCombo();
+      stage.dataset.ratio = formatShape(format);
+      applyAdBox(format);
+      if (!playing) idleSlot(format, item);
+    }
+
+    let titleKey = "";
+    let titleGen = 0;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function previewTitleMarkup(item) {
+      if (!item) return { key: "", html: `<p class="side-empty">Elegí un play</p>` };
+      return { key: `${item.id}:${comboShortTitle(item)}`, html: `<h2>${escapeHtml(comboShortTitle(item))}</h2>` };
+    }
+
+    function setPreviewTitle(item, instant) {
+      const next = previewTitleMarkup(item);
+      if (next.key === titleKey && sideCopy.firstElementChild) return;
+      const reduced = instant || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const gen = ++titleGen;
+      const show = () => {
+        if (gen !== titleGen) return;
+        titleKey = next.key;
+        sideCopy.innerHTML = next.html;
+        const incoming = sideCopy.firstElementChild;
+        if (!incoming || reduced) return;
+        incoming.classList.add("is-in");
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (gen !== titleGen) return;
+            incoming.classList.remove("is-in");
+          });
+        });
+      };
+      const current = sideCopy.firstElementChild;
+      if (reduced || !current) {
+        show();
+        return;
+      }
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        show();
+      };
+      current.classList.add("is-out");
+      current.addEventListener("transitionend", finish, { once: true });
+      window.setTimeout(finish, 340);
+    }
+
+    function renderSide(instantTitle) {
+      const item = selectedCombo();
+      syncFormatFromCombo(item);
+      btnPlay.disabled = !item;
+      hydratePlaceFromCombo(item);
+      syncPlaceSaveBtn(item);
+      syncPalUi(item);
+      syncPropUi(item);
+      syncHandUi(item);
+      if (!item) {
+        setPreviewTitle(null, instantTitle);
+        markFormat();
+        applyFormatChrome();
+        applyPlaceLive();
+        return;
+      }
+      setPreviewTitle(item, instantTitle);
+      markFormat();
+      applyFormatChrome();
+      applyPlaceLive();
+    }
+
+    function markSelected() {
+      grid.querySelectorAll(".g-card").forEach((card) => {
+        card.classList.toggle("is-on", card.dataset.id === selectedId);
+      });
+      syncBeltSelection();
+      syncBarLift();
+      syncOpsDockUi();
+    }
+
+    const CATS = [
+      { id: "all", label: "Todos" },
+      { id: "agua", label: "Agua", plays: ["climax", "pre-enter", "breaker"] },
+      { id: "cielo", label: "Cielo", plays: ["horizon", "sundown", "storm", "aurora"] },
+      { id: "tierra", label: "Tierra", plays: ["erupt", "migrate"] },
+      { id: "hielo", label: "Hielo", plays: ["calve"] },
+      { id: "objeto", label: "Objeto", plays: ["prop"] },
+    ];
+
+    function catalogById(id) {
+      return CATS.find((cat) => cat.id === id) || CATS[0];
+    }
+
+    function foldText(text) {
+      return String(text || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    }
+
+    function visibleCards() {
+      return [...grid.querySelectorAll(".g-card")].filter((card) => !card.hidden);
+    }
+
+    function selectedIsFirstRow() {
+      if (!selectedId) return false;
+      const cards = visibleCards();
+      if (!cards.length) return false;
+      const selected = cards.find((card) => card.dataset.id === selectedId);
+      if (!selected) return false;
+      const rowTop = Math.min(...cards.map((card) => card.offsetTop));
+      return Math.abs(selected.offsetTop - rowTop) < 2;
+    }
+
+    function applySearch() {
+      const query = foldText(gSearch.value.trim());
+      const cat = catalogById(store.view.cat);
+      const profile = activeProfile(store);
+      let shown = 0;
+      grid.querySelectorAll(".g-card").forEach((card) => {
+        const item = profile.items.find((entry) => entry.id === card.dataset.id);
+        const playId = item ? playById(item.play).id : "";
+        const hay = item ? foldText(`${comboTitle(item)} ${comboShortTitle(item)}`) : "";
+        const inCat = !cat.plays || cat.plays.includes(playId);
+        const hiddenOff = Boolean(item?.off) && !store.view.showOff;
+        const ok = !hiddenOff && inCat && (!query || hay.includes(query));
+        card.hidden = !ok;
+        if (ok) shown += 1;
+      });
+      gCount.textContent = String(shown);
+      const empty = grid.querySelector(".empty");
+      if (empty && profile.items.length) empty.remove();
+      if (profile.items.length && shown === 0) {
+        const note = document.createElement("p");
+        note.className = "empty";
+        const hid = profile.items.some((entry) => entry.off);
+        note.textContent = query
+          ? "No hay plays con esa búsqueda."
+          : hid && !store.view.showOff
+            ? "Hay plays escondidos. Mostralos en Vista."
+            : "No hay plays en este catálogo.";
+        grid.append(note);
+      }
+      syncBarLift();
+      syncOpsDock();
+      renderBelt();
+    }
+
+    function renderCats() {
+      const current = catalogById(store.view.cat).id;
+      store.view.cat = current;
+      gCats.innerHTML = CATS.map((cat) => `
+        <button type="button" class="g-pill${cat.id === current ? " is-on" : ""}" data-cat="${cat.id}">${cat.label}</button>
+      `).join("");
+      if (GWD_VISOR) markGwdCats(gCats);
+    }
+
+    function setCat(id) {
+      store.view.cat = catalogById(id).id;
+      saveGalleryStore(store);
+      renderCats();
+      applySearch();
+    }
+
+    function hideOpSvg(off) {
+      return off
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 12C4.3 7.4 8 4.5 12 4.5S19.7 7.4 21.5 12C19.7 16.6 16 19.5 12 19.5S4.3 16.6 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M6.7 6.8C4.6 8.2 3.2 10.1 2.5 12c1.8 4.6 6 7.5 9.5 7.5 1.6 0 3.2-.5 4.6-1.4"/><path d="M14.1 9.1A3.7 3.7 0 0 0 9.7 8"/><path d="M21.5 12c-.6 1.5-1.6 2.9-2.9 4"/></svg>`;
+    }
+
+    function syncOpsDockUi() {
+      const item = selectedCombo();
+      gOpsDock.classList.toggle("is-empty", !item);
+      const dockLabel = item ? comboShortTitle(item) : "Elegí un play";
+      gOpsDockName.textContent = dockLabel;
+      gOpsDock.setAttribute("aria-label", item ? `Acciones · ${dockLabel}` : dockLabel);
+      const pinBtn = gOpsDock.querySelector('[data-op="pin"]');
+      const hideBtn = gOpsDock.querySelector('[data-op="hide"]');
+      if (!pinBtn || !hideBtn) return;
+      const pinLabel = item?.pin ? "Quitar pin" : "Pinned";
+      const hideLabel = item?.off ? "Mostrar" : "Esconder";
+      pinBtn.classList.toggle("is-pin", Boolean(item?.pin));
+      pinBtn.title = pinLabel;
+      pinBtn.setAttribute("aria-label", pinLabel);
+      hideBtn.title = hideLabel;
+      hideBtn.setAttribute("aria-label", hideLabel);
+      hideBtn.innerHTML = hideOpSvg(Boolean(item?.off));
+    }
+
+    function syncOpsDock() {
+      const card = grid.querySelector(".g-card:not([hidden])");
+      const cramped = Boolean(card && card.getBoundingClientRect().width < OPS_DOCK_MIN);
+      gPane.classList.toggle("is-ops-dock", cramped);
+      gOpsDock.hidden = !cramped;
+      syncOpsDockUi();
+      syncBarLift();
+    }
+
+    function syncBarLift() {
+      const lift = grid.scrollTop > 4 || selectedIsFirstRow();
+      const docked = gPane.classList.contains("is-ops-dock");
+      gBar.classList.toggle("is-lift", lift && !docked);
+      gHead.classList.toggle("is-lift", lift && docked);
+      const more = grid.scrollHeight - grid.clientHeight - grid.scrollTop > 4;
+      gCats.classList.toggle("is-lift", more);
+    }
+
+    function renderGrid() {
+      const profile = activeProfile(store);
+      applyView();
+      fillProfiles();
+      if (!profile.items.length) {
+        selectedId = "";
+        grid.innerHTML = `<p class="empty">Este perfil está vacío. Guardá combinaciones desde el lab o creá un perfil nuevo.</p>`;
+        gCount.textContent = "0";
+        renderSide(true);
+        syncBarLift();
+        syncOpsDock();
+        renderBelt();
+        return;
+      }
+      if (!profile.items.some((item) => item.id === selectedId)) selectedId = "";
+      const hideSvg = hideOpSvg;
+      const cloneSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+      const renameSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.2L19 9.2a1.8 1.8 0 0 0 0-2.5L17.3 5a1.8 1.8 0 0 0-2.5 0L4 15.8V20z"/><path d="M13.6 6.2l4.2 4.2"/></svg>`;
+      const pinSvg = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.7 3.3a1 1 0 0 0-1.4 0l-2.1 2.1-.8-.3a1 1 0 0 0-1.1.3L7.6 7.1a1 1 0 0 0 .1 1.4l3.1 2.6-3.9 3.9 1.4 1.4 3.9-3.9 2.6 3.1a1 1 0 0 0 1.4.1l1.7-1.7a1 1 0 0 0 .3-1.1l-.3-.8 2.1-2.1a1 1 0 0 0 0-1.4z"/></svg>`;
+      const pinXSvg = `<svg class="g-pin-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>`;
+      grid.innerHTML = profile.items.map((item) => {
+        const hideLabel = item.off ? "Mostrar" : "Esconder";
+        const pinLabel = item.pin ? "Quitar pin" : "Pinned";
+        const name = comboShortTitle(item);
+        return `
+        <article class="g-card${item.id === selectedId ? " is-on" : ""}${item.off ? " is-off" : ""}${item.pin ? " is-pin" : ""}" data-id="${item.id}">
+          <button type="button" class="g-pick" aria-label="${escapeHtml(comboTitle(item))}">
+            <div class="g-thumb">${comboPosterMarkup(item)}<span class="g-play" aria-hidden="true"><svg class="g-play-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13l12-6.5z"/></svg><span class="g-play-fill"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13l12-6.5z"/></svg></span></span></div>
+            <span class="g-name">${escapeHtml(name)}</span>
+          </button>
+          ${item.pin ? `<button type="button" class="g-pin-mark" data-op="pin" title="Quitar pin" aria-label="Quitar pin"><svg class="g-pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14.7 3.3a1 1 0 0 0-1.4 0l-2.1 2.1-.8-.3a1 1 0 0 0-1.1.3L7.6 7.1a1 1 0 0 0 .1 1.4l3.1 2.6-3.9 3.9 1.4 1.4 3.9-3.9 2.6 3.1a1 1 0 0 0 1.4.1l1.7-1.7a1 1 0 0 0 .3-1.1l-.3-.8 2.1-2.1a1 1 0 0 0 0-1.4z"/></svg>${pinXSvg}</button>` : ""}
+          <div class="g-card-ops">
+            <button type="button" class="g-op${item.pin ? " is-pin" : ""}" data-op="pin" title="${pinLabel}" aria-label="${pinLabel}">${pinSvg}</button>
+            <button type="button" class="g-op" data-op="rename" title="Cambiar nombre" aria-label="Cambiar nombre">${renameSvg}</button>
+            <button type="button" class="g-op" data-op="hide" title="${hideLabel}" aria-label="${hideLabel}">${hideSvg(item.off)}</button>
+            <button type="button" class="g-op" data-op="clone" title="Clonar" aria-label="Clonar">${cloneSvg}</button>
+          </div>
+        </article>`;
+      }).join("");
+      renderSide();
+      playCard = null;
+      syncPlayProgress(true);
+      applySearch();
+    }
+
+    function playProgressT() {
+      if (!playing || !playStartedAt) return 0;
+      return Math.min(1, (performance.now() - playStartedAt) / playSpanMs);
+    }
+
+    function applyClock() {
+      const look = applyClockLook(document.body, {
+        on: store.view.clock,
+        style: store.view.clockStyle,
+        tone: store.view.clockTone,
+        size: store.view.clockSize,
+      });
+      store.view.clock = look.on;
+      store.view.clockStyle = look.style;
+      store.view.clockTone = look.tone;
+      store.view.clockSize = look.size;
+      selClock.checked = look.on;
+      selClockSize.value = String(look.size);
+      clockSizeVal.value = `${look.size}%`;
+      clockLook.hidden = !look.on;
+      clockStyles.querySelectorAll("[data-clock-style]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.clockStyle === look.style);
+      });
+      clockTones.querySelectorAll("[data-clock-tone]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.clockTone === look.tone);
+      });
+      setAdClockLook(look);
+      setAdClockT(playing ? liveClockT() : 0);
+    }
+
+    function setClockOn(on) {
+      store.view.clock = normalizeViewClock(on);
+      saveGalleryStore(store);
+      applyClock();
+    }
+
+    function syncAdClock(t) {
+      setAdClockT(playing ? t : 0);
+    }
+
+    function syncPlayProgress(force) {
+      const t = playProgressT();
+      if (playing) syncAdClock(liveClockT());
+      if (!force && playCard && playCard.dataset.id === selectedId) {
+        playCard.style.setProperty("--play-t", String(t));
+        return t;
+      }
+      grid.querySelectorAll(".g-card.is-playing").forEach((card) => {
+        card.classList.remove("is-playing");
+        card.style.removeProperty("--play-t");
+      });
+      playCard = playing && selectedId ? grid.querySelector(`.g-card[data-id="${CSS.escape(selectedId)}"]`) : null;
+      if (playCard) {
+        playCard.classList.add("is-playing");
+        playCard.style.setProperty("--play-t", String(t));
+      }
+      gBeltTrack.querySelectorAll(".g-belt-item").forEach((chip) => {
+        chip.classList.toggle("is-playing", Boolean(playing && chip.dataset.id === selectedId));
+      });
+      return t;
+    }
+
+    function liveClockT() {
+      const t = playProgressT();
+      const el = slot.querySelector(".ad-container");
+      const done = el?.classList.contains("is-handoff-done")
+        || (el?.classList.contains("is-climax") && (el.dataset.handoff || "none") === "none");
+      return done ? 1 : t;
+    }
+
+    function tickPlayProgress(now) {
+      playRaf = 0;
+      const t = playProgressT();
+      syncAdClock(liveClockT());
+      if (playing && t >= 1) {
+        syncAdClock(1);
+        syncPlayProgress(true);
+        if (!GWD_VISOR) window.setTimeout(() => restAds(), 220);
+        return;
+      }
+      if (!playPaintAt || now - playPaintAt >= 50) {
+        playPaintAt = now;
+        syncPlayProgress();
+      }
+      if (playing && t < 1) playRaf = requestAnimationFrame(tickPlayProgress);
+    }
+
+    function startPlayProgress(item) {
+      playStartedAt = performance.now();
+      playSpanMs = Math.max(1, GWD_VISOR
+        ? gwdPlayDurationMs(item)
+        : playDurationMs(item.play, item.propAct, item.hand, item));
+      playPaintAt = 0;
+      playCard = null;
+      if (playRaf) cancelAnimationFrame(playRaf);
+      syncPlayProgress(true);
+      playRaf = requestAnimationFrame(tickPlayProgress);
+    }
+
+    function clearPlayProgress() {
+      playStartedAt = 0;
+      playPaintAt = 0;
+      if (playRaf) cancelAnimationFrame(playRaf);
+      playRaf = 0;
+      playing = false;
+      setAdClockT(0);
+      syncPlayProgress(true);
+      playCard = null;
+    }
+
+    async function playSelected() {
+      const item = selectedCombo();
+      if (!item) return;
+      syncFormatFromCombo(item);
+      btnPlay.classList.remove("is-press");
+      void btnPlay.offsetWidth;
+      btnPlay.classList.add("is-press");
+      const gen = ++playGen;
+      const format = selectedFormat();
+      const key = playKey(item);
+      playing = true;
+      playCard = null;
+      syncPlayProgress(true);
+      applyFormatChrome();
+      if (key === livePlayKey && (GWD_VISOR ? await rewindGwdPlay() : rewindAds())) {
+        applyPropLightLive(item);
+        startPlayProgress(item);
+        return;
+      }
+      if (GWD_VISOR) disposeGwdPlay(slot);
+      else disposeAds();
+      livePlayKey = "";
+      applyAdBox(format);
+      if (GWD_VISOR) {
+        commitLivePlace(item);
+        saveGalleryStore(store);
+        await mountGwdPlay(slot, item, { ...propMarkupExtras(item), profileId: store.activeId }, format);
+        if (gen !== playGen) return;
+        applyPropLightLive(item);
+        applyPlaceLive();
+        applyHandLive(item);
+        livePlayKey = key;
+        startPlayProgress(item);
+        return;
+      }
+      slot.innerHTML = adMarkup(format, "gal-play", item.in || "none", item.play, propMarkupExtras(item));
+      applyPropLightLive(item);
+      const ad = slot.querySelector(".ad-slot");
+      if (ad) ad.classList.add("is-in");
+      if (gen !== playGen) return;
+      await applyComboPropModel(item);
+      if (gen !== playGen) return;
+      await bootContainers(slot);
+      if (gen !== playGen) return;
+      await startAd(slot.querySelector(".ad-container"));
+      if (gen !== playGen) return;
+      applyPropLightLive(item);
+      livePlayKey = key;
+      startPlayProgress(item);
+      slot.querySelectorAll(".ad-container").forEach(syncAdSize);
+    }
+
+    function stopPlayer() {
+      playGen += 1;
+      preloadGen += 1;
+      livePlayKey = "";
+      setPreloadCue("");
+      playing = false;
+      clearPlayProgress();
+      if (GWD_VISOR) disposeGwdPlay(slot);
+      else disposeAds();
+      applyFormatChrome();
+    }
+
+    function toggleComboHidden(id) {
+      const item = activeProfile(store).items.find((entry) => entry.id === id);
+      if (!item) return;
+      setComboOff(store, id, !item.off);
+      if (item.off && selectedId === id && !store.view.showOff) {
+        selectedId = "";
+        stopPlayer();
+      }
+      renderGrid();
+    }
+
+    async function cloneCard(id) {
+      const copy = await cloneCombo(store, id);
+      if (!copy) return;
+      selectedId = copy.id;
+      playing = true;
+      renderGrid();
+      preloadThenPlay();
+    }
+
+    function renameCard(id) {
+      const item = activeProfile(store).items.find((entry) => entry.id === id);
+      if (!item) return;
+      const next = prompt("Nombre del objeto", comboShortTitle(item));
+      if (next == null) return;
+      setComboAlias(store, id, next);
+      renderGrid();
+    }
+
+    function toggleComboPin(id) {
+      const item = activeProfile(store).items.find((entry) => entry.id === id);
+      if (!item) return;
+      setComboPin(store, id, !item.pin);
+      renderGrid();
+    }
+
+    selProfile.addEventListener("change", () => {
+      store.activeId = selProfile.value;
+      saveGalleryStore(store);
+      selectedId = "";
+      stopPlayer();
+      renderGrid();
+    });
+    btnLayout.addEventListener("click", () => layoutOpts.showModal());
+    btnLayoutClose.addEventListener("click", () => layoutOpts.close());
+    layoutOpts.addEventListener("click", (event) => {
+      const pick = event.target.closest(".layout-pick");
+      if (pick) setShelf(pick.dataset.shelf);
+      const box = layoutOpts.getBoundingClientRect();
+      const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+      if (outside && !pick) layoutOpts.close();
+    });
+    btnShelf.addEventListener("click", () => {
+      if (document.body.classList.contains("is-shelf")) closeShelf();
+      else openShelf();
+    });
+    gShelfScrim.addEventListener("click", closeShelf);
+    gBeltTrack.addEventListener("click", (event) => {
+      const chip = event.target.closest(".g-belt-item");
+      if (!chip) return;
+      selectAndPlay(chip.dataset.id);
+    });
+    btnGalleryOpts.addEventListener("click", () => galleryOpts.showModal());
+    document.getElementById("btn-gallery-opts-close").addEventListener("click", () => galleryOpts.close());
+    galleryOpts.addEventListener("click", (event) => {
+      const box = galleryOpts.getBoundingClientRect();
+      const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+      if (outside) galleryOpts.close();
+    });
+    document.getElementById("btn-export-profile").addEventListener("click", () => {
+      const profile = activeProfile(store);
+      const blob = new Blob([JSON.stringify(serializeProfileExport(profile), null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = profileExportFilename(profile);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+    const fileImportProfile = document.getElementById("file-import-profile");
+    document.getElementById("btn-import-profile").addEventListener("click", () => fileImportProfile.click());
+    fileImportProfile.addEventListener("change", async () => {
+      const file = fileImportProfile.files?.[0];
+      fileImportProfile.value = "";
+      if (!file) return;
+      try {
+        const packet = JSON.parse(await file.text());
+        const name = prompt("Nombre del perfil", packet.profile?.name || `Galería ${store.profiles.length + 1}`);
+        if (name == null) return;
+        store = addProfileFromExport(store, packet, name);
+        selectedId = "";
+        stopPlayer();
+        renderGrid();
+      } catch {
+        window.alert("Ese archivo no es un perfil exportado.");
+      }
+    });
+    document.getElementById("btn-new-profile").addEventListener("click", () => {
+      const name = prompt("Nombre del perfil", `Galería ${store.profiles.length + 1}`);
+      if (name == null) return;
+      store = createProfile(store, name);
+      selectedId = "";
+      stopPlayer();
+      renderGrid();
+    });
+    selCols.addEventListener("change", persistView);
+    selGap.addEventListener("change", persistView);
+    selSize.addEventListener("change", persistView);
+    selShowOff.addEventListener("change", persistView);
+    selClock.addEventListener("change", persistView);
+    clockStyles.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-clock-style]");
+      if (!btn) return;
+      store.view.clockStyle = normalizeViewClockStyle(btn.dataset.clockStyle);
+      saveGalleryStore(store);
+      applyClock();
+    });
+    clockTones.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-clock-tone]");
+      if (!btn) return;
+      store.view.clockTone = normalizeViewClockTone(btn.dataset.clockTone);
+      saveGalleryStore(store);
+      applyClock();
+    });
+    selClockSize.addEventListener("input", () => {
+      store.view.clockSize = normalizeViewClockSize(selClockSize.value);
+      clockSizeVal.value = `${store.view.clockSize}%`;
+      applyClock();
+    });
+    selClockSize.addEventListener("change", persistView);
+    slot.addEventListener("click", (event) => {
+      if (!event.target.closest(".ad-clock")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setClockOn(false);
+    });
+    selAfps.addEventListener("change", persistView);
+    selBlit.addEventListener("input", persistView);
+    selPropCam.addEventListener("input", () => persistPropCam(selPropCam.value, false));
+    selPropCam.addEventListener("change", () => persistPropCam(selPropCam.value, true));
+    selPropCamPan.addEventListener("change", () => persistPropCamPan(selPropCamPan.checked));
+    selPropCamH.addEventListener("input", () => persistPropCamH(selPropCamH.value, false));
+    selPropCamH.addEventListener("change", () => persistPropCamH(selPropCamH.value, true));
+    selPropCamV.addEventListener("input", () => persistPropCamV(selPropCamV.value, false));
+    selPropCamV.addEventListener("change", () => persistPropCamV(selPropCamV.value, true));
+    selPropRhrot.addEventListener("input", () => persistPropRhrot(selPropRhrot.value, false));
+    selPropRhrot.addEventListener("change", () => persistPropRhrot(selPropRhrot.value, true));
+    selPropRvrot.addEventListener("input", () => persistPropRvrot(selPropRvrot.value, false));
+    selPropRvrot.addEventListener("change", () => persistPropRvrot(selPropRvrot.value, true));
+    btnResetWidth.addEventListener("click", restorePreviewWidth);
+    split.addEventListener("pointerdown", (event) => {
+      if (currentShelf() === "belt") return;
+      if (event.button !== 0) return;
+      event.preventDefault();
+      split.setPointerCapture(event.pointerId);
+      document.body.classList.add("is-resize");
+      shell.classList.add("is-resize");
+    });
+    split.addEventListener("pointermove", (event) => {
+      if (!split.hasPointerCapture(event.pointerId)) return;
+      const box = shell.getBoundingClientRect();
+      setPreviewWidth(box.right - event.clientX, false);
+    });
+    function endResize(event) {
+      if (!split.hasPointerCapture(event.pointerId)) return;
+      split.releasePointerCapture(event.pointerId);
+      document.body.classList.remove("is-resize");
+      shell.classList.remove("is-resize");
+      if (store.view.previewW) saveGalleryStore(store);
+      window.dispatchEvent(new Event("resize"));
+    }
+    split.addEventListener("pointerup", endResize);
+    split.addEventListener("pointercancel", endResize);
+    split.addEventListener("dblclick", restorePreviewWidth);
+    split.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const current = store.view.previewW || document.getElementById("side").clientWidth;
+      const step = event.shiftKey ? 48 : 16;
+      setPreviewWidth(current + (event.key === "ArrowLeft" ? step : -step), true);
+    });
+    selVoidL.addEventListener("input", () => {
+      store.view.voidL = Number(selVoidL.value);
+      applyVoidLight();
+    });
+    selVoidL.addEventListener("change", () => {
+      store.view.voidL = Number(selVoidL.value);
+      saveGalleryStore(store);
+      applyVoidLight();
+    });
+    selPreviewZoom.addEventListener("pointerdown", () => setZoomCue(true));
+    selPreviewZoom.addEventListener("input", () => {
+      store.view.zoom = Number(selPreviewZoom.value) / 100;
+      applyPreviewZoom();
+      setZoomCue(true);
+    });
+    selPreviewZoom.addEventListener("change", () => {
+      store.view.zoom = Number(selPreviewZoom.value) / 100;
+      saveGalleryStore(store);
+      applyPreviewZoom();
+      setZoomCue(false);
+    });
+    selPreviewZoom.addEventListener("pointerup", () => setZoomCue(false));
+    selPreviewZoom.addEventListener("pointercancel", () => setZoomCue(false));
+    fmtRail.addEventListener("click", (event) => {
+      const btn = event.target.closest(".fmt-btn");
+      if (!btn) return;
+      setFormat(btn.dataset.id);
+    });
+    btnPlay.addEventListener("animationend", () => {
+      btnPlay.classList.remove("is-press");
+    });
+    btnPlay.addEventListener("click", preloadThenPlay);
+    btnPal.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setPalOpen(!palPanel.open);
+    });
+    playColors.addEventListener("input", (event) => {
+      const input = event.target.closest("input[type=color]");
+      if (!input) return;
+      persistPlayColor(input.dataset.palKey, input.value, false);
+    });
+    playColors.addEventListener("change", (event) => {
+      const input = event.target.closest("input[type=color]");
+      if (!input) return;
+      persistPlayColor(input.dataset.palKey, input.value, true);
+    });
+    playColorsReset.addEventListener("click", resetPlayColors);
+    btnHand.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setHandOpen(!handPanel.open);
+    });
+    handStyles.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-hand]");
+      if (!btn) return;
+      persistHandoff(btn.dataset.hand);
+    });
+
+    function persistHandField(key, raw, normalize, save) {
+      const item = selectedCombo();
+      if (!item) return;
+      item[key] = normalize(raw);
+      if (save) saveGalleryStore(store);
+      syncHandUi(item);
+      applyHandLive(item);
+    }
+
+    selHandMs.addEventListener("input", () => persistHandField("hms", selHandMs.value, normalizeHandoffMs, false));
+    selHandMs.addEventListener("change", () => persistHandField("hms", selHandMs.value, normalizeHandoffMs, true));
+    selHandNb.addEventListener("input", () => persistHandField("hnb", selHandNb.value, normalizeHandoffBands, false));
+    selHandNb.addEventListener("change", () => persistHandField("hnb", selHandNb.value, normalizeHandoffBands, true));
+    selHandSt.addEventListener("input", () => persistHandField("hst", selHandSt.value, normalizeHandoffStagger, false));
+    selHandSt.addEventListener("change", () => persistHandField("hst", selHandSt.value, normalizeHandoffStagger, true));
+    selHandIn.addEventListener("input", () => persistHandField("hin", selHandIn.value, normalizeHandoffIn, false));
+    selHandIn.addEventListener("change", () => persistHandField("hin", selHandIn.value, normalizeHandoffIn, true));
+    selHandHd.addEventListener("input", () => persistHandField("hhd", selHandHd.value, normalizeHandoffHold, false));
+    selHandHd.addEventListener("change", () => persistHandField("hhd", selHandHd.value, normalizeHandoffHold, true));
+    selHandBt.addEventListener("input", () => persistHandField("hbt", selHandBt.value, normalizeHandoffBeats, false));
+    selHandBt.addEventListener("change", () => persistHandField("hbt", selHandBt.value, normalizeHandoffBeats, true));
+    selHandTm.addEventListener("input", () => persistHandField("htm", selHandTm.value, normalizeHandoffTempo, false));
+    selHandTm.addEventListener("change", () => persistHandField("htm", selHandTm.value, normalizeHandoffTempo, true));
+    selHandTxt.addEventListener("input", () => persistHandField("htxt", selHandTxt.value, (value) => String(value).slice(0, 80), false));
+    selHandTxt.addEventListener("change", () => persistHandField("htxt", selHandTxt.value, normalizeHandoffText, true));
+    selHandEmpty.addEventListener("change", () => persistHandField("hempty", selHandEmpty.checked ? "1" : "0", normalizeHandoffEmpty, true));
+    btnPh.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setPlaceOpen(!phPanel.open);
+    });
+    btnPhSave.addEventListener("click", savePlaceToPlay);
+    btnProp.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setPropOpen(!propPanel.open);
+    });
+    btnAsset.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setAssetOpen(!assetPanel.open);
+    });
+    assetPickSearch.addEventListener("input", paintAssetPicker);
+    assetPickGrid.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-asset]");
+      if (!btn) return;
+      pickAsset(btn.dataset.asset);
+    });
+    assetPickClear.addEventListener("click", () => pickAsset(""));
+    studioPresets.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-studio]");
+      if (!btn) return;
+      persistStudioPreset(btn.dataset.studio);
+    });
+    for (const input of [studioWorld, studioKey, studioFill, studioRim, studioExposure]) {
+      input.addEventListener("input", () => persistStudioChannel(input.dataset.ch, input.value, false));
+      input.addEventListener("change", () => persistStudioChannel(input.dataset.ch, input.value, true));
+    }
+    for (const input of [studioWorldCol, studioKeyCol, studioFillCol, studioRimCol]) {
+      input.addEventListener("input", () => persistStudioColor(input.dataset.scol, input.value, false));
+      input.addEventListener("change", () => persistStudioColor(input.dataset.scol, input.value, true));
+    }
+    studioExtraAdd.addEventListener("click", () => {
+      persistStudioExtraState(addStudioExtra(comboStudio(selectedCombo())));
+    });
+    studioExtras.addEventListener("input", (event) => {
+      const row = event.target.closest("[data-xid]");
+      if (!row) return;
+      const item = selectedCombo();
+      if (!item) return;
+      if (event.target.matches("[data-xcol]")) {
+        persistStudioExtraState(updateStudioExtra(comboStudio(item), row.dataset.xid, { color: event.target.value }), false, false);
+      }
+      if (event.target.matches("[data-xint]")) {
+        const next = updateStudioExtra(comboStudio(item), row.dataset.xid, { intensity: event.target.value });
+        const out = row.querySelector("output");
+        const extra = next.extras.find((entry) => entry.id === row.dataset.xid);
+        if (out && extra) out.textContent = Number(extra.intensity).toFixed(1);
+        persistStudioExtraState(next, false, false);
+      }
+    });
+    studioExtras.addEventListener("change", (event) => {
+      const row = event.target.closest("[data-xid]");
+      if (!row || !selectedCombo()) return;
+      if (event.target.matches("[data-xcol]")) {
+        persistStudioExtraState(updateStudioExtra(comboStudio(selectedCombo()), row.dataset.xid, { color: event.target.value }));
+      }
+      if (event.target.matches("[data-xint]")) {
+        persistStudioExtraState(updateStudioExtra(comboStudio(selectedCombo()), row.dataset.xid, { intensity: event.target.value }));
+      }
+    });
+    studioExtras.addEventListener("click", (event) => {
+      const row = event.target.closest("[data-xid]");
+      if (!row || !selectedCombo()) return;
+      if (event.target.closest("[data-xdel]")) {
+        persistStudioExtraState(removeStudioExtra(comboStudio(selectedCombo()), row.dataset.xid));
+        return;
+      }
+      const place = event.target.closest("[data-xplace]");
+      if (place) {
+        persistStudioExtraState(updateStudioExtra(comboStudio(selectedCombo()), row.dataset.xid, { place: place.dataset.xplace }));
+      }
+    });
+    selPropFloor.addEventListener("change", () => persistPropFloor(selPropFloor.checked));
+    selPropFlat.addEventListener("change", () => persistPropFlat(selPropFlat.checked));
+    selPropCog.addEventListener("change", () => persistPropCog(selPropCog.checked));
+    phShots.addEventListener("click", (event) => {
+      const btn = event.target.closest(".ph-shot");
+      if (!btn) return;
+      persistPlace({ img: normalizeAdImg(btn.dataset.img) });
+    });
+    phFits.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-fit]");
+      if (!btn) return;
+      persistPlace({ fit: normalizeAdFit(btn.dataset.fit) });
+    });
+    selPhFitX.addEventListener("input", () => persistPlace({ fx: normalizeAdFitAxis(selPhFitX.value) }));
+    selPhFitY.addEventListener("input", () => persistPlace({ fy: normalizeAdFitAxis(selPhFitY.value) }));
+    selPhFitZ.addEventListener("input", () => persistPlace({ fz: normalizeAdFitZoom(selPhFitZ.value) }));
+    selPhFitM.addEventListener("input", () => persistPlace({ fm: normalizeAdFitMat(selPhFitM.value) }));
+    phStyles.addEventListener("click", (event) => {
+      const btn = event.target.closest(".ph-style");
+      if (!btn) return;
+      persistPlace({ style: btn.dataset.style });
+    });
+    phChips.addEventListener("click", (event) => {
+      const btn = event.target.closest(".ph-chip");
+      if (!btn) return;
+      persistPlace({
+        ...adPlaceById(btn.dataset.id),
+        style: currentPlace().style === "play" ? "photo" : currentPlace().style,
+      });
+    });
+    phColors.addEventListener("input", (event) => {
+      const input = event.target.closest("input[type=color]");
+      if (!input) return;
+      persistPlace({ [input.dataset.phKey]: normHex(input.value) });
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (previewModals.some((dialog) => dialog.open) || layoutOpts.open || galleryOpts.open) return;
+      if (document.body.classList.contains("is-shelf")) closeShelf();
+    });
+    gSearch.addEventListener("input", applySearch);
+    gCats.addEventListener("click", (event) => {
+      const pill = event.target.closest(".g-pill");
+      if (!pill) return;
+      setCat(pill.dataset.cat);
+    });
+    grid.addEventListener("scroll", syncBarLift, { passive: true });
+    window.addEventListener("resize", () => {
+      syncBarLift();
+      syncOpsDock();
+    });
+    new ResizeObserver(() => syncOpsDock()).observe(gPane);
+    gOpsDock.addEventListener("click", (event) => {
+      const op = event.target.closest(".g-op");
+      if (!op || !selectedId) return;
+      if (op.dataset.op === "pin") toggleComboPin(selectedId);
+      if (op.dataset.op === "rename") renameCard(selectedId);
+      if (op.dataset.op === "hide") toggleComboHidden(selectedId);
+      if (op.dataset.op === "clone") cloneCard(selectedId);
+    });
+    grid.addEventListener("click", (event) => {
+      const op = event.target.closest(".g-op, .g-pin-mark");
+      if (op) {
+        const card = op.closest(".g-card");
+        if (!card) return;
+        if (op.dataset.op === "pin") toggleComboPin(card.dataset.id);
+        if (op.dataset.op === "rename") renameCard(card.dataset.id);
+        if (op.dataset.op === "hide") toggleComboHidden(card.dataset.id);
+        if (op.dataset.op === "clone") cloneCard(card.dataset.id);
+        return;
+      }
+      const card = event.target.closest(".g-card");
+      if (!card) return;
+      selectAndPlay(card.dataset.id);
+      closeShelf();
+    });
+
+    function syncDrawFps() {
+      if (!galleryOpts.open) return;
+      if (GWD_VISOR) {
+        viewFpsVal.textContent = "—";
+        return;
+      }
+      const fps = getDrawFps();
+      viewFpsVal.textContent = fps > 0 ? `${fps} fps` : "—";
+    }
+    window.setInterval(syncDrawFps, 400);
+    syncDrawFps();
+
+    renderCats();
+    fillPlacePanel();
+    fillStudioPresets();
+    fillHandStyles();
+    if (GWD_VISOR) markGwdUnsupported();
+    renderGrid();
+  </script>
+  <script src="app-nav.js?v=nav3"></script>
+</body>
+</html>

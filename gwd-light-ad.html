@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="ad.size" content="width=300,height=250" />
+  <title>GWD ligero · Ad</title>
+  <link rel="stylesheet" href="ad-play.css?v=gwd8" />
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body.player-embed .ad-container canvas { display: none; }
+    .miss {
+      margin: 0; padding: 1rem; color: #d8d0c4;
+      font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center;
+    }
+  </style>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
+</head>
+<body class="player-embed gwd-unit">
+  <div id="mount"></div>
+  <p class="miss" id="miss" hidden>Ese clímax no está en el perfil de la galería.</p>
+  <script type="module">
+    import { adImageSrc, formatById } from "./ad-catalog.js?v=cam23";
+    import { askParentCombo, comboPlayExtras, playRouteParams, resolvePlayCombo } from "./play-route.js?v=8";
+    import { applyGwdModelView, gwdLightFromCombo, gwdPlayMarkup, gwdPublishedGlbUrl, gwdViewerTagAttrs } from "./gwd-light.js";
+    import { bakeClimaxFromUrl } from "./gwd-bake.js";
+
+    const route = playRouteParams();
+    const mount = document.getElementById("mount");
+    const miss = document.getElementById("miss");
+    const playId = route.id || "pack-galeria-1-0";
+    const profileId = route.profile || "pack-galeria-1";
+    const item = await askParentCombo(playId, profileId, 400) || await resolvePlayCombo(playId, profileId);
+    if (!item) {
+      miss.hidden = false;
+    } else {
+      const format = formatById(item.ad);
+      document.querySelector('meta[name="ad.size"]')?.setAttribute("content", `width=${format.w},height=${format.h}`);
+      const spec = gwdLightFromCombo(item);
+      const glb = spec.ok ? gwdPublishedGlbUrl(spec) : "";
+      const attrs = spec.ok ? gwdViewerTagAttrs(spec) : "";
+      mount.innerHTML = gwdPlayMarkup(item, spec, {
+        extras: comboPlayExtras(item),
+        imgHref: spec.img ? adImageSrc(spec.img) : "",
+        viewerHtml: spec.ok
+          ? `<div class="ad-stage"><model-viewer id="view" src="${glb}" camera-controls autoplay animation-name="climax" interaction-prompt="none" loading="eager" reveal="auto" ${attrs}></model-viewer></div>`
+          : "",
+      });
+      const view = mount.querySelector("model-viewer");
+      if (view && spec.ok) {
+        applyGwdModelView(view, spec);
+        view.addEventListener("error", async () => {
+          if (view.dataset.gwdBaked === "1") return;
+          view.dataset.gwdBaked = "1";
+          try {
+            const baked = await bakeClimaxFromUrl(spec.src, item.propAct || "drop");
+            view.src = URL.createObjectURL(new Blob([baked], { type: "model/gltf-binary" }));
+          } catch (err) {
+            console.warn("No se pudo hornear el clímax; se muestra el GLB crudo", err);
+            view.src = spec.src;
+          }
+        }, { once: true });
+      }
+      const shell = document.createElement("script");
+      shell.src = "./gwd-shell.js";
+      document.body.append(shell);
+    }
+  </script>
+</body>
+</html>

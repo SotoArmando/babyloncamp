@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GWD ligero</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <style>
+    :root { --ink: #111; --muted: #767676; --line: #e9e9e9; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #fff; color: var(--ink); }
+    .gwd {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0.9rem 1rem 3rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: minmax(16rem, 24rem) minmax(0, 1fr);
+    }
+    @media (max-width: 800px) { .gwd { grid-template-columns: 1fr; } }
+    .gwd h2 { margin: 0 0 0.45rem; font-size: 1rem; }
+    .gwd-note { margin: 0 0 0.85rem; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
+    .gwd-fields { display: grid; gap: 0.75rem; }
+    .gwd label { display: grid; gap: 0.28rem; font-size: 0.78rem; color: var(--muted); }
+    .gwd button {
+      font: 650 0.78rem/1.2 inherit;
+      padding: 0.5rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+    }
+    .gwd button:disabled { opacity: 0.45; cursor: default; }
+    .gwd-dl {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+    }
+    .gwd-steps {
+      margin: 0;
+      padding-left: 1.15rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .gwd-steps li { margin: 0.28rem 0; }
+    .gwd select, .gwd pre, .gwd input {
+      font: inherit;
+      color: var(--ink);
+      padding: 0.45rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .gwd-iframe-tag {
+      font: 650 0.68rem/1.4 ui-monospace, monospace;
+      white-space: nowrap;
+    }
+    .gwd pre {
+      margin: 0;
+      overflow: auto;
+      font: 650 0.68rem/1.4 ui-monospace, monospace;
+      white-space: pre-wrap;
+    }
+    .gwd-stage {
+      display: grid;
+      place-items: center;
+      min-height: 360px;
+      padding: 1.2rem;
+      border-radius: 16px;
+      background: #c8c8c8;
+      background-image: linear-gradient(#d8d8d8 1px, transparent 1px), linear-gradient(90deg, #d8d8d8 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .gwd-stage iframe {
+      display: block;
+      border: 0;
+      background: transparent;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar is-sticky">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">GWD ligero</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gwd.html">GWD Babylon</a>
+    </div>
+  </header>
+  <main class="gwd">
+    <section>
+      <h2>Visor GLB</h2>
+      <p class="gwd-note">
+        El lienzo es el mismo HTML que el iframe publicado (model-viewer 1.6 y gwd-shell).
+        En GWD creá un proyecto <strong>nuevo</strong>
+        o publicá el HTML en <code>/public/iframe</code>. El botón comprueba
+        <code>public/gwd</code> y <code>public/gtm</code> y escribe lo que falte.
+      </p>
+      <div class="gwd-fields">
+        <label>Origen de los archivos
+          <input id="gwd-origin" type="text" spellcheck="false" autocomplete="url" placeholder="https://developer-literary-informed-dsc.trycloudflare.com" />
+        </label>
+        <label>ID de GTM
+          <input id="gwd-gtm-id" type="text" spellcheck="false" placeholder="GTM-XXXXXXX" autocomplete="off" />
+        </label>
+        <label>Iframe para GWD
+          <input id="gwd-iframe-tag" class="gwd-iframe-tag" type="text" readonly spellcheck="false" />
+        </label>
+        <label>Preview GTM
+          <input id="gwd-gtm-url" class="gwd-iframe-tag" type="text" readonly spellcheck="false" />
+        </label>
+        <label>Perfil
+          <select id="sel-profile"></select>
+        </label>
+        <label>Clímax
+          <select id="sel-combo"></select>
+        </label>
+        <ol class="gwd-steps" id="gwd-steps">
+          <li>File → New. Banner, Generic. Tamaño del clímax.</li>
+          <li>3D Model Viewer a todo el lienzo. Clip <code>climax</code>.</li>
+          <li>Code view: snippet, o iframe a <code>/public/iframe</code>.</li>
+          <li>Publicar en public/ copia kit, GLB, foto y el HTML si faltan.</li>
+        </ol>
+        <div class="gwd-dl" id="gwd-dl" hidden>
+          <button type="button" data-part="public">Publicar en public/</button>
+          <button type="button" data-part="snippet">Descargar snippet</button>
+          <button type="button" data-part="glb">Publicar GLB (si falta en public/gtm)</button>
+        </div>
+        <label>Archivos en public/
+          <pre id="gwd-pub"></pre>
+        </label>
+        <label>Pasos de este clímax
+          <pre id="gwd-snip"></pre>
+        </label>
+        <label>Brechas de settings (fuente de verdad)
+          <pre id="gwd-gaps"></pre>
+        </label>
+      </div>
+    </section>
+    <section>
+      <h2>Lienzo</h2>
+      <div class="gwd-stage">
+        <iframe id="gwd-frame" title="Anuncio GWD ligero"></iframe>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    import { loadServeStore } from "./ad-profile.js?v=cam27";
+    import { comboById, listGalleryPlays, listProfiles, comboPlayLabel, replyPlayCombo } from "./play-route.js?v=8";
+    import { gwdCheckPublic, gwdDownloadPart, gwdGtmPreviewUrl, gwdIframeTag, gwdInsertGuide, gwdLightFromCombo, gwdPasteSnippet, gwdPreviewSrc, gwdPublicStatusText, gwdPublishPublic, loadGwdGtmId, loadGwdServeOrigin, setGwdGtmId, setGwdServeOrigin } from "./gwd-light.js";
+    import { gwdSettingGapReport } from "./gwd-setting-gaps.js";
+
+    const store = await loadServeStore("gwd");
+    const selProfile = document.getElementById("sel-profile");
+    const sel = document.getElementById("sel-combo");
+    const frame = document.getElementById("gwd-frame");
+    const snip = document.getElementById("gwd-snip");
+    const gaps = document.getElementById("gwd-gaps");
+    const dl = document.getElementById("gwd-dl");
+    const pub = document.getElementById("gwd-pub");
+    const originInput = document.getElementById("gwd-origin");
+    const gtmIdInput = document.getElementById("gwd-gtm-id");
+    const iframeTag = document.getElementById("gwd-iframe-tag");
+    const gtmUrl = document.getElementById("gwd-gtm-url");
+    originInput.value = loadGwdServeOrigin();
+    gtmIdInput.value = loadGwdGtmId();
+    if (gaps) gaps.textContent = gwdSettingGapReport();
+    originInput.addEventListener("change", () => {
+      originInput.value = setGwdServeOrigin(originInput.value);
+      sync();
+    });
+    originInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        originInput.blur();
+      }
+    });
+    gtmIdInput.addEventListener("change", () => {
+      gtmIdInput.value = setGwdGtmId(gtmIdInput.value);
+      sync();
+    });
+    gtmIdInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        gtmIdInput.blur();
+      }
+    });
+    iframeTag.addEventListener("focus", () => iframeTag.select());
+    iframeTag.addEventListener("click", () => iframeTag.select());
+    gtmUrl.addEventListener("focus", () => gtmUrl.select());
+    gtmUrl.addEventListener("click", () => gtmUrl.select());
+    let items = [];
+    let busy = false;
+    let previewBlob = "";
+    let syncGen = 0;
+
+    for (const profile of listProfiles(store)) {
+      selProfile.append(new Option(profile.name, profile.id));
+    }
+    selProfile.value = store.activeId || listProfiles(store)[0]?.id || "";
+
+    function loadFrame(href) {
+      frame.onload = null;
+      frame.src = href;
+    }
+
+    function revokePreview() {
+      if (previewBlob) URL.revokeObjectURL(previewBlob);
+      previewBlob = "";
+    }
+
+    async function sync() {
+      const gen = ++syncGen;
+      const item = items.find((entry) => entry.id === sel.value);
+      if (!item) {
+        snip.textContent = "";
+        if (pub) pub.textContent = "";
+        iframeTag.value = "";
+        gtmUrl.value = "";
+        dl.hidden = true;
+        revokePreview();
+        frame.removeAttribute("src");
+        frame.dataset.href = "";
+        return;
+      }
+      const spec = gwdLightFromCombo(item);
+      iframeTag.value = spec.ok ? gwdIframeTag(item, spec) : "";
+      gtmUrl.value = spec.ok ? gwdGtmPreviewUrl(item, spec) : "";
+      snip.textContent = spec.ok
+        ? `${gwdInsertGuide(item, spec)}\n\n--- snippet ---\n${gwdPasteSnippet(item, spec)}`
+        : "Elegí un play prop con mesh en /assets/3d.";
+      dl.hidden = !spec.ok;
+      if (pub) {
+        pub.textContent = spec.ok ? "…" : "";
+        if (spec.ok) {
+          gwdCheckPublic(item).then((status) => {
+            if (sel.value === item.id) pub.textContent = gwdPublicStatusText(status);
+          }).catch(() => {
+            if (sel.value === item.id) pub.textContent = "No se pudo leer public/ (¿npm start nuevo?)";
+          });
+        }
+      }
+      const href = await gwdPreviewSrc(item, spec, selProfile.value);
+      if (gen !== syncGen) {
+        if (href.startsWith("blob:")) URL.revokeObjectURL(href);
+        return;
+      }
+      frame.width = spec.w;
+      frame.height = spec.h;
+      const key = `${item.id}|${selProfile.value}|${loadGwdServeOrigin() || location.origin}|${loadGwdGtmId()}|${href.startsWith("blob:") ? "doc" : href}`;
+      if (frame.dataset.href !== key) {
+        frame.dataset.href = key;
+        revokePreview();
+        if (href.startsWith("blob:")) previewBlob = href;
+        loadFrame(href);
+      } else if (href.startsWith("blob:")) {
+        URL.revokeObjectURL(href);
+      }
+    }
+
+    function fillCombos() {
+      items = listGalleryPlays(store, selProfile.value);
+      sel.replaceChildren();
+      if (!items.length) {
+        sel.append(new Option("No hay clímaxes en este perfil", ""));
+        return;
+      }
+      for (const item of items) {
+        const spec = gwdLightFromCombo(item);
+        sel.append(new Option(`${comboPlayLabel(item)}${spec.ok ? "" : " · sin GLB"}`, item.id));
+      }
+    }
+
+    selProfile.addEventListener("change", () => {
+      fillCombos();
+      sync();
+    });
+    sel.addEventListener("change", sync);
+    dl.addEventListener("click", async (event) => {
+      const btn = event.target.closest("[data-part]");
+      const item = items.find((entry) => entry.id === sel.value);
+      if (!btn || !item || busy) return;
+      busy = true;
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "…";
+      try {
+        if (btn.dataset.part === "public") await gwdPublishPublic(item);
+        else await gwdDownloadPart(item, btn.dataset.part);
+        if (btn.dataset.part === "public") {
+          frame.dataset.href = "";
+          sync();
+        }
+      } catch (err) {
+        console.warn(err);
+        btn.textContent = "Error";
+        setTimeout(() => { btn.textContent = label; }, 1600);
+        busy = false;
+        btn.disabled = false;
+        return;
+      }
+      btn.textContent = label;
+      btn.disabled = false;
+      busy = false;
+    });
+    replyPlayCombo((id, profileId) => (
+      items.find((entry) => entry.id === id)
+      || comboById(id, store, profileId || selProfile.value)
+    ));
+    fillCombos();
+    sync();
+  </script>
+  <script src="app-nav.js?v=nav2"></script>
+</body>
+</html>
