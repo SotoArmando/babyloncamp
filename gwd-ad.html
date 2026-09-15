@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="ad.size" content="width=300,height=250" />
+  <title>GWD · Ad</title>
+  <link rel="stylesheet" href="ad-play.css?v=play2" />
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+    gwd-google-ad, gwd-page, .gwd-page-content {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #gwd-slot { width: 100%; height: 100%; }
+    body.gwd-ad .ad-label,
+    body.gwd-ad .ad-hint { display: none; }
+    .player-miss {
+      margin: 0;
+      padding: 1rem;
+      color: #d8d0c4;
+      font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif;
+      text-align: center;
+    }
+  </style>
+</head>
+<body class="gwd-ad">
+  <gwd-google-ad id="gwd-ad">
+    <gwd-page id="page1" class="gwd-page-wrapper">
+      <div class="gwd-page-content">
+        <div id="gwd-slot"></div>
+      </div>
+    </gwd-page>
+  </gwd-google-ad>
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module">
+    import { mountPlay, unmountPlay, setPlayerOrigin, getPlayerOrigin, playRouteParams } from "./play-route.js?v=8";
+    import { startAd } from "./ad-player.js?v=prop50";
+
+    window.BabylonAdsPlayer = { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay, startAd };
+
+    const host = document.getElementById("gwd-slot");
+    const route = playRouteParams();
+    const profileId = route.profile || "pack-galeria-1";
+    const playId = route.id || "pack-galeria-1-0";
+    const api = window.BabylonAdsPlayer;
+    const ok = await api.mountPlay(host, { profileId, playId, slotId: "gwd-ad" });
+    if (!ok) {
+      host.innerHTML = `<p class="player-miss">Ese clímax no está en el perfil.</p>`;
+    } else {
+      const box = host.querySelector(".ad-container");
+      const w = getComputedStyle(host).getPropertyValue("--ad-w").trim() || "300px";
+      const h = getComputedStyle(host).getPropertyValue("--ad-h").trim() || "250px";
+      document.querySelector('meta[name="ad.size"]')?.setAttribute(
+        "content",
+        `width=${parseInt(w, 10)},height=${parseInt(h, 10)}`
+      );
+      if (box) await api.startAd(box);
+    }
+  </script>
+</body>
+</html>

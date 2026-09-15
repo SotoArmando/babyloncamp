@@ -1,4 +1,4 @@
-import { adMarkup, formatById, handoffById } from "./ad-catalog.js?v=cam23";
+import { adMarkup, adPlaceFromPlay, formatById, handoffById, resolveAdPlace } from "./ad-catalog.js?v=cam23";
 import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=cam26";
 import { serializeStudioState } from "./studio-lights.js";
 import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop50";
@@ -97,11 +97,26 @@ export function replyPlayCombo(lookup) {
   });
 }
 
-export function comboPlayExtras(item) {
+/** Mismo recorte/colores que Galería GWD (`livePlace` + extras del play). */
+export function livePlaceFrom(item, phRaw = item?.ph) {
+  const ph = resolveAdPlace(phRaw);
+  if (ph.style !== "play") return ph;
+  return {
+    ...adPlaceFromPlay(item?.play || "climax", item?.pal),
+    img: ph.img,
+    fit: ph.fit,
+    fx: ph.fx,
+    fy: ph.fy,
+    fz: ph.fz,
+    fm: ph.fm,
+  };
+}
+
+export function comboPlayExtras(item, phRaw) {
   if (!item) return {};
   return {
     pal: item.pal,
-    ph: item.ph,
+    ph: livePlaceFrom(item, phRaw !== undefined ? phRaw : item.ph),
     propAct: item.propAct,
     propCam: item.pcam,
     propCamH: item.pch,

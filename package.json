@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build:player": "node scripts/build-player.mjs",
-    "start": "npx -y serve -p 8765 --cors"
+    "publish:gwd": "node scripts/publish-gwd-kit.mjs",
+    "start": "node scripts/dev-server.mjs"
   }
 }

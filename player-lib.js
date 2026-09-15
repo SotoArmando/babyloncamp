@@ -1,5 +1,6 @@
 import css from "./ad-play.css";
 import { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay } from "./play-route.js";
+import { startAd } from "./ad-player.js";
 
 function ensurePlayerStyles() {
   if (typeof document === "undefined") return;
@@ -10,11 +11,11 @@ function ensurePlayerStyles() {
   document.head.appendChild(style);
 }
 
-const api = { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay };
+const api = { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay, startAd };
 
 if (typeof window !== "undefined") {
   ensurePlayerStyles();
   window.BabylonAdsPlayer = api;
 }
 
-export { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay };
+export { setPlayerOrigin, getPlayerOrigin, mountPlay, unmountPlay, startAd };

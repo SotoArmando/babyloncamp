@@ -7,10 +7,14 @@
          <div class="app-drawer-top" aria-hidden="true"></div>
          <nav>
            <a href="gallery.html">Galería</a>
+           <a href="gallery-gwd.html">Galería GWD</a>
            <a href="ads.html">Anuncios</a>
            <a href="assets.html">Assets 3D</a>
            <a href="serve.html">Serve</a>
            <a href="many.html">Varios</a>
+           <a href="gwd.html">GWD</a>
+           <a href="gwd-light.html">GWD ligero</a>
+           <a href="gtm.html">GTM preview</a>
            <a href="lab.html">Lab</a>
            <a href="index.html">Artículo</a>
            <a href="editor.html">Editor</a>
@@ -42,10 +46,17 @@
   });
   scrim?.addEventListener("click", closeNav);
 
-  const file = (location.pathname.split("/").pop() || "index.html").toLowerCase().replace(/\.html$/, "") || "index";
+  const path = (location.pathname || "/").toLowerCase();
+  const file = (path.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
+  const visor = new URLSearchParams(location.search).get("visor");
   drawer?.querySelectorAll("a[href]").forEach((a) => {
-    const href = (a.getAttribute("href") || "").split("?")[0].toLowerCase().replace(/\.html$/, "");
-    if (href === file || (file === "" && href === "index")) a.classList.add("is-current");
+    const href = (a.getAttribute("href") || "").split("?")[0].toLowerCase().replace(/\.html$/, "").replace(/^\//, "");
+    const gwd = href === "gallery-gwd" && (file === "gallery-gwd" || (file === "gallery" && visor === "gwd"));
+    const babylon = href === "gallery" && file === "gallery" && visor !== "gwd" && file !== "gallery-gwd";
+    const gtm = href === "gtm" && (file === "gtm" || path === "/gtm" || path.startsWith("/gtm/"));
+    if (gtm || gwd || babylon || (href === file && href !== "gallery" && href !== "gallery-gwd" && href !== "gtm") || (file === "" && href === "index")) {
+      a.classList.add("is-current");
+    }
   });
 
   avatar?.addEventListener("click", (e) => {

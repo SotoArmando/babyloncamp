@@ -48,6 +48,25 @@ import { normalizeStudioState } from "./studio-lights.js";
 import { onPlayerOriginChange, playerUrl } from "./player-origin.js";
 
 export const PROFILE_KEY = "babylon-ads-gallery";
+export const PROFILE_KEY_GWD = "babylon-ads-gallery-gwd";
+
+export function isGwdGalleryPage() {
+  if (typeof document !== "undefined" && document.body?.dataset.visor === "gwd") return true;
+  if (typeof location === "undefined") return false;
+  const file = (location.pathname.split("/").pop() || "").replace(/\.html$/i, "");
+  if (file === "gallery-gwd" || file === "gwd-light" || file === "gwd-light-ad") return true;
+  try {
+    const q = new URLSearchParams(location.search);
+    const hash = String(location.hash || "");
+    return q.get("visor") === "gwd" || hash.includes("visor=gwd");
+  } catch {
+    return false;
+  }
+}
+
+export function galleryStorageKey() {
+  return isGwdGalleryPage() ? PROFILE_KEY_GWD : PROFILE_KEY;
+}
 
 function uid() {
   return `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -176,9 +195,10 @@ function fillMissingSeedCombos(profile) {
 }
 
 export function galleryStorage() {
+  const key = galleryStorageKey();
   try {
     if (window.parent && window.parent !== window) {
-      const raw = window.parent.localStorage.getItem(PROFILE_KEY);
+      const raw = window.parent.localStorage.getItem(key);
       if (raw) return window.parent.localStorage;
     }
   } catch {
@@ -188,9 +208,15 @@ export function galleryStorage() {
 }
 
 export function loadGalleryStore(storage = galleryStorage()) {
+  const key = galleryStorageKey();
+  const gwd = key === PROFILE_KEY_GWD;
   try {
-    const raw = JSON.parse(storage.getItem(PROFILE_KEY) || "null");
-    if (!raw || !Array.isArray(raw.profiles) || !raw.profiles.length) return emptyStore();
+    const raw = JSON.parse(storage.getItem(key) || "null");
+    if (!raw || !Array.isArray(raw.profiles) || !raw.profiles.length) {
+      return gwd
+        ? { version: 1, activeId: "", view: defaultView(), profiles: [] }
+        : emptyStore();
+    }
     if (!raw.view) raw.view = defaultView();
     else raw.view = { ...defaultView(), ...raw.view, ph: resolveAdPlace(raw.view.ph), afps: normalizeViewFps(raw.view.afps), blit: normalizeViewBlit(raw.view.blit), shelf: normalizeViewShelf(raw.view.shelf), zoom: normalizeViewZoom(raw.view.zoom), clock: normalizeViewClock(raw.view.clock), clockStyle: normalizeViewClockStyle(raw.view.clockStyle), clockTone: normalizeViewClockTone(raw.view.clockTone), clockSize: normalizeViewClockSize(raw.view.clockSize) };
     if (!raw.activeId || !raw.profiles.some((item) => item.id === raw.activeId)) {
@@ -201,19 +227,21 @@ export function loadGalleryStore(storage = galleryStorage()) {
       if (!Array.isArray(profile.items)) continue;
       const before = JSON.stringify(profile.items);
       profile.items = profile.items.map((item) => makeCombo(item));
-      if (fillMissingSeedCombos(profile)) dirty = true;
+      if (!gwd && fillMissingSeedCombos(profile)) dirty = true;
       if (orderPinnedFirst(profile.items)) dirty = true;
       if (JSON.stringify(profile.items) !== before) dirty = true;
     }
     if (dirty) saveGalleryStore(raw, storage);
     return raw;
   } catch {
-    return emptyStore();
+    return gwd
+      ? { version: 1, activeId: "", view: defaultView(), profiles: [] }
+      : emptyStore();
   }
 }
 
 export function saveGalleryStore(store, storage = galleryStorage()) {
-  storage.setItem(PROFILE_KEY, JSON.stringify(store));
+  storage.setItem(galleryStorageKey(), JSON.stringify(store));
   return store;
 }
 
@@ -309,28 +337,39 @@ export function profileFromPackedFile(raw, filename) {
 }
 
 const PACKED_FALLBACK = ["galeria-1.json"];
-let serveStoreOnce = null;
+const PACKED_GWD_FALLBACK = ["galeria-gwd.json"];
+const serveStoreOnce = { live: null, gwd: null };
 
 onPlayerOriginChange(() => {
-  serveStoreOnce = null;
+  serveStoreOnce.live = null;
+  serveStoreOnce.gwd = null;
 });
 
-function packedLocalUrl(file) {
+function useGwdPack(kind = "auto") {
+  if (kind === "gwd") return true;
+  if (kind === "live") return false;
+  return isGwdGalleryPage();
+}
+
+function packedLocalUrl(file, gwd = false) {
+  const folder = gwd ? "data-gwd" : "data";
   try {
-    if (import.meta.url) return new URL(`./data/${file}`, import.meta.url).href;
+    if (import.meta.url) return new URL(`./${folder}/${file}`, import.meta.url).href;
   } catch {
     /* IIFE: import.meta vacío */
   }
-  if (typeof location !== "undefined") return new URL(`data/${file}`, location.href).href;
-  return `data/${file}`;
+  if (typeof location !== "undefined") return new URL(`${folder}/${file}`, location.href).href;
+  return `${folder}/${file}`;
 }
 
-function packedIndexUrl() {
-  return playerUrl("data/profiles.json", packedLocalUrl("profiles.json"));
+function packedIndexUrl(gwd = false) {
+  const folder = gwd ? "data-gwd" : "data";
+  return playerUrl(`${folder}/profiles.json`, packedLocalUrl("profiles.json", gwd));
 }
 
-function packedFileUrl(name) {
-  return playerUrl(`data/${name}`, packedLocalUrl(name));
+function packedFileUrl(name, gwd = false) {
+  const folder = gwd ? "data-gwd" : "data";
+  return playerUrl(`${folder}/${name}`, packedLocalUrl(name, gwd));
 }
 
 async function fetchJson(url) {
@@ -339,24 +378,25 @@ async function fetchJson(url) {
   return res.json();
 }
 
-async function listPackedFilenames() {
+async function listPackedFilenames(gwd = false) {
   try {
-    const listed = await fetchJson(packedIndexUrl());
+    const listed = await fetchJson(packedIndexUrl(gwd));
     if (Array.isArray(listed) && listed.length) {
       return listed.map((name) => String(name).replace(/^.*\//, "")).filter((name) => name.endsWith(".json"));
     }
   } catch {
     /* índice opcional */
   }
-  return PACKED_FALLBACK;
+  return gwd ? PACKED_GWD_FALLBACK : PACKED_FALLBACK;
 }
 
-export async function loadPackedProfiles() {
-  const names = await listPackedFilenames();
+export async function loadPackedProfiles(kind = "auto") {
+  const gwd = useGwdPack(kind);
+  const names = await listPackedFilenames(gwd);
   const packed = [];
   for (const name of names) {
     try {
-      packed.push(profileFromPackedFile(await fetchJson(packedFileUrl(name)), name));
+      packed.push(profileFromPackedFile(await fetchJson(packedFileUrl(name, gwd)), name));
     } catch {
       /* archivo ausente o inválido */
     }
@@ -364,19 +404,25 @@ export async function loadPackedProfiles() {
   return packed;
 }
 
-export async function loadServeStore() {
-  if (serveStoreOnce) return serveStoreOnce;
+export async function loadServeStore(kind = "auto") {
+  const gwd = useGwdPack(kind);
+  const cacheKey = gwd ? "gwd" : "live";
+  if (serveStoreOnce[cacheKey]) return serveStoreOnce[cacheKey];
   const live = loadGalleryStore();
-  const packed = await loadPackedProfiles();
+  const packed = await loadPackedProfiles(gwd ? "gwd" : "live");
   const used = new Set((live.profiles || []).map((entry) => entry.id));
   const extra = packed.filter((entry) => !used.has(entry.id));
-  serveStoreOnce = {
-    version: live.version,
+  const merged = {
+    version: live.version || 1,
     activeId: live.activeId,
     view: live.view,
     profiles: [...(live.profiles || []), ...extra],
   };
-  return serveStoreOnce;
+  if (!merged.activeId || !merged.profiles.some((entry) => entry.id === merged.activeId)) {
+    merged.activeId = merged.profiles[0]?.id || "";
+  }
+  serveStoreOnce[cacheKey] = merged;
+  return merged;
 }
 
 export function addComboToActive(store, partial) {

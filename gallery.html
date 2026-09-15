@@ -1751,6 +1751,19 @@
     body.clock-off .ad-clock-layer {
       display: none;
     }
+    body.gwd-visor .ad-clock,
+    body.gwd-visor .ad-clock-layer { display: none; }
+    body.gwd-visor .ad-container canvas { display: none; }
+    body.gwd-visor .ad-container model-viewer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      --poster-color: transparent;
+    }
+    body.gwd-visor .ad-container.is-climax model-viewer { opacity: 0.42; }
+    body.gwd-visor .ad-container[data-play="prop"].is-climax model-viewer { opacity: 0.72; }
     .ad-container canvas {
       position: absolute;
       inset: 0;
@@ -2242,12 +2255,13 @@
       <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
     </button>
     <a class="app-brand" href="index.html">Nexus Daily</a>
-    <h1 class="app-page-title">Galería</h1>
+    <h1 class="app-page-title" id="app-page-title">Galería</h1>
     <div class="app-bar-end">
       <a class="app-quiet" href="index.html">Sitio</a>
       <a class="app-quiet" href="ads.html">Anuncios</a>
       <a class="app-quiet" href="assets.html">Assets</a>
       <a class="app-quiet" href="lab.html">Lab</a>
+      <a class="app-quiet" href="gallery-gwd.html" id="app-gwd-link">Galería GWD</a>
       <button type="button" class="app-tool" id="btn-layout" aria-haspopup="dialog" aria-controls="layout-opts">Estilo</button>
       <div class="app-user" id="app-user">
         <button type="button" class="app-avatar" id="app-avatar" aria-haspopup="menu" aria-expanded="false" aria-label="Cuenta">AS</button>
@@ -2699,6 +2713,7 @@
   <script type="module">
     import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam24";
     import { bootContainers, startAd, disposeAds, restAds, rewindAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop50";
+    import { isGwdGallery, ensureModelViewer, gwdPlayDurationMs, mountGwdPlay, disposeGwdPlay, rewindGwdPlay, applyGwdViewerLive, markGwdUnsupported, markGwdCats } from "./gwd-gallery-play.js";
     import {
       loadGalleryStore,
       saveGalleryStore,
@@ -2720,6 +2735,21 @@
     } from "./ad-profile.js?v=poster39";
     import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
+
+    const GWD_VISOR = isGwdGallery();
+    if (GWD_VISOR) {
+      ensureModelViewer();
+      document.body.classList.add("gwd-visor");
+      document.body.dataset.visor = "gwd";
+      document.title = "Galería GWD · Plays guardados";
+      const title = document.getElementById("app-page-title");
+      if (title) title.textContent = "Galería GWD";
+      const swap = document.getElementById("app-gwd-link");
+      if (swap) {
+        swap.href = "gallery.html";
+        swap.textContent = "Galería Babylon";
+      }
+    }
 
     const grid = document.getElementById("grid");
     const gPane = document.getElementById("g-pane");
@@ -2884,6 +2914,7 @@
     let playPaintAt = 0;
 
     function applyGalleryCost() {
+      if (GWD_VISOR) return;
       applyAnimCost({
         blitDpr: normalizeViewBlit(store.view.blit),
         fpsVisible: normalizeViewFps(store.view.afps),
@@ -3533,6 +3564,10 @@
 
     function applyPropLightLive(item) {
       if (!item) return;
+      if (GWD_VISOR) {
+        applyGwdViewerLive(item);
+        return;
+      }
       const packed = serializeStudioState(item.studio);
       slot.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
         el.dataset.studioLights = packed;
@@ -3709,6 +3744,10 @@
 
     async function preloadCombo(item) {
       if (!item) return;
+      if (GWD_VISOR) {
+        await preloadAdImage(item);
+        return;
+      }
       await Promise.all([
         preloadEngine(),
         applyComboPropModel(item),
@@ -4135,6 +4174,7 @@
       gCats.innerHTML = CATS.map((cat) => `
         <button type="button" class="g-pill${cat.id === current ? " is-on" : ""}" data-cat="${cat.id}">${cat.label}</button>
       `).join("");
+      if (GWD_VISOR) markGwdCats(gCats);
     }
 
     function setCat(id) {
@@ -4309,7 +4349,7 @@
       if (playing && t >= 1) {
         syncAdClock(1);
         syncPlayProgress(true);
-        window.setTimeout(() => restAds(), 220);
+        if (!GWD_VISOR) window.setTimeout(() => restAds(), 220);
         return;
       }
       if (!playPaintAt || now - playPaintAt >= 50) {
@@ -4321,7 +4361,9 @@
 
     function startPlayProgress(item) {
       playStartedAt = performance.now();
-      playSpanMs = Math.max(1, playDurationMs(item.play, item.propAct, item.hand, item));
+      playSpanMs = Math.max(1, GWD_VISOR
+        ? gwdPlayDurationMs(item)
+        : playDurationMs(item.play, item.propAct, item.hand, item));
       playPaintAt = 0;
       playCard = null;
       if (playRaf) cancelAnimationFrame(playRaf);
@@ -4354,14 +4396,23 @@
       playCard = null;
       syncPlayProgress(true);
       applyFormatChrome();
-      if (key === livePlayKey && rewindAds()) {
+      if (key === livePlayKey && (GWD_VISOR ? rewindGwdPlay() : rewindAds())) {
         applyPropLightLive(item);
         startPlayProgress(item);
         return;
       }
-      disposeAds();
+      if (GWD_VISOR) disposeGwdPlay(slot);
+      else disposeAds();
       livePlayKey = "";
       applyAdBox(format);
+      if (GWD_VISOR) {
+        await mountGwdPlay(slot, item, propMarkupExtras(item), format);
+        if (gen !== playGen) return;
+        applyPropLightLive(item);
+        livePlayKey = key;
+        startPlayProgress(item);
+        return;
+      }
       slot.innerHTML = adMarkup(format, "gal-play", item.in || "none", item.play, propMarkupExtras(item));
       applyPropLightLive(item);
       const ad = slot.querySelector(".ad-slot");
@@ -4386,7 +4437,8 @@
       setPreloadCue("");
       playing = false;
       clearPlayProgress();
-      disposeAds();
+      if (GWD_VISOR) disposeGwdPlay(slot);
+      else disposeAds();
       applyFormatChrome();
     }
 
@@ -4806,6 +4858,10 @@
 
     function syncDrawFps() {
       if (!galleryOpts.open) return;
+      if (GWD_VISOR) {
+        viewFpsVal.textContent = "—";
+        return;
+      }
       const fps = getDrawFps();
       viewFpsVal.textContent = fps > 0 ? `${fps} fps` : "—";
     }
@@ -4816,8 +4872,9 @@
     fillPlacePanel();
     fillStudioPresets();
     fillHandStyles();
+    if (GWD_VISOR) markGwdUnsupported();
     renderGrid();
   </script>
-  <script src="app-nav.js?v=nav2"></script>
+  <script src="app-nav.js?v=nav3"></script>
 </body>
 </html>
