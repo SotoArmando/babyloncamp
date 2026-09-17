@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const poseDir = path.join(root, "poleas-poses");
 const accionDir = path.join(root, "poleas-acciones");
+const cuerpoDir = path.join(root, "cuerpos");
 const port = Number(process.env.PORT) || 8765;
 
 const MIME = {
@@ -111,6 +112,27 @@ function accionPath(file) {
   return path.join(accionDir, safe);
 }
 
+function prettyCuerpoName(file) {
+  return String(file || "")
+    .replace(/\.(glb|gltf)$/i, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[_\+]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "cuerpo";
+}
+
+async function listCuerpos() {
+  await fs.mkdir(cuerpoDir, { recursive: true });
+  const names = (await fs.readdir(cuerpoDir)).filter((name) => /\.(glb|gltf)$/i.test(name));
+  names.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+  return names.map((file) => ({
+    id: file,
+    file,
+    name: prettyCuerpoName(file),
+    url: "/cuerpos/" + encodeURIComponent(file),
+  }));
+}
+
 async function handleApi(req, res, url) {
   if (req.method === "OPTIONS") {
     send(res, 204, "");
@@ -122,6 +144,10 @@ async function handleApi(req, res, url) {
   }
   if (url.pathname === "/api/poleas-acciones" && req.method === "GET") {
     sendJson(res, 200, { ok: true, items: await listAcciones() });
+    return true;
+  }
+  if (url.pathname === "/api/cuerpos" && req.method === "GET") {
+    sendJson(res, 200, { ok: true, items: await listCuerpos() });
     return true;
   }
   const poseMatch = url.pathname.match(/^\/api\/poleas-poses\/([^/]+)$/);

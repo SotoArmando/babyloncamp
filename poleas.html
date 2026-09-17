@@ -91,7 +91,7 @@
       top: 0.7rem;
       right: 0.8rem;
       z-index: 2;
-      width: 9.5rem;
+      width: 11.5rem;
       padding: 0.35rem 0.5rem 0.4rem;
       border-radius: 10px;
       background: rgba(255, 248, 246, 0.82);
@@ -422,10 +422,13 @@
             <option value="lines">solo rayas</option>
           </select>
         </label>
+        <label class="f">Modelo
+          <select id="s-sculpt"></select>
+        </label>
       </div>
       <canvas id="poleas" width="800" height="900" aria-label="Humano de líneas con poleas"></canvas>
       <p class="accion-now" id="accionNow"></p>
-      <p class="stage-note">El casco solo gira. El script y las poleas cuentan el gesto.</p>
+      <p class="stage-note">Copiá un .glb a <code>cuerpos/</code> y aparece en Modelo. Con huesos, las poleas lo mueven.</p>
     </section>
     <aside class="rail-tune">
       <div id="tuneHost"></div>
@@ -486,15 +489,75 @@
   </script>
   <script type="module">
     import * as BABYLON from "@babylonjs/core";
-    import { PULLEY_SLIDERS, CASCO_GROUPS, CASCO_AXES, BODY_ZONES, ANATOMY_PARTS, ANATOMY_PRESETS, defaultPulleyState, defaultAnatomy, applyAnatomy, applyAnatomyPreset, snapshotPulleyPose, applyPulleyPose, builtInPoseByFile, mergePoseList, createPulleyStudio, hangWomanSculpt, posePulleyFigure, drawPulleyFigure, applyPulleyBackdrop, setPulleyBodyMode } from "./soma-poleas.js";
+    import { PULLEY_SLIDERS, CASCO_GROUPS, CASCO_AXES, BODY_ZONES, ANATOMY_PARTS, ANATOMY_PRESETS, SCULPT_MODELS, defaultPulleyState, defaultAnatomy, applyAnatomy, applyAnatomyPreset, snapshotPulleyPose, applyPulleyPose, builtInPoseByFile, mergePoseList, createPulleyStudio, hangWomanSculpt, posePulleyFigure, drawPulleyFigure, applyPulleyBackdrop, setPulleyBodyMode } from "./soma-poleas.js";
     import { ACCION_EXAMPLE, createAccionPlayer } from "./soma-accion.js";
 
     const canvas = document.getElementById("poleas");
     const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
     const { scene, camera, figure, ground } = createPulleyStudio(BABYLON, engine, canvas);
-    hangWomanSculpt(BABYLON, scene, figure).catch((err) => {
-      console.warn("No pude colgar el GLB", err);
-    });
+    const SCULPT_KEY = "soma-poleas-sculpt";
+    const sculptSelect = document.getElementById("s-sculpt");
+    let sculptModels = SCULPT_MODELS.slice();
+    let sculptGen = 0;
+
+    function paintSculptOptions(selected) {
+      sculptSelect.replaceChildren();
+      if (!sculptModels.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "poné .glb en cuerpos/";
+        sculptSelect.appendChild(opt);
+        return;
+      }
+      for (const item of sculptModels) {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.name;
+        if (item.id === selected) opt.selected = true;
+        sculptSelect.appendChild(opt);
+      }
+    }
+
+    function pickSculpt(preferred) {
+      return sculptModels.find((item) => item.id === preferred)
+        || sculptModels.find((item) => /curvy/i.test(item.id))
+        || sculptModels[0]
+        || null;
+    }
+
+    async function refreshCuerpos() {
+      const preferred = sculptSelect.value || localStorage.getItem(SCULPT_KEY);
+      let items = [];
+      try {
+        const res = await fetch("/api/cuerpos", { cache: "no-store" });
+        const data = await res.json();
+        if (data?.ok && Array.isArray(data.items) && data.items.length) items = data.items;
+      } catch {
+        /* usa la lista del código */
+      }
+      sculptModels = items.length ? items : SCULPT_MODELS.slice();
+      const pick = pickSculpt(preferred);
+      paintSculptOptions(pick?.id);
+      return pick;
+    }
+
+    async function loadSculpt(id) {
+      const item = pickSculpt(id);
+      if (!item) return;
+      sculptSelect.value = item.id;
+      localStorage.setItem(SCULPT_KEY, item.id);
+      const gen = ++sculptGen;
+      try {
+        await hangWomanSculpt(BABYLON, scene, figure, item.url);
+        if (gen !== sculptGen) return;
+      } catch (err) {
+        if (gen !== sculptGen) return;
+        console.warn("No pude colgar el GLB", err);
+      }
+    }
+    sculptSelect.addEventListener("change", () => loadSculpt(sculptSelect.value));
+    sculptSelect.addEventListener("focus", () => { refreshCuerpos(); });
+    refreshCuerpos().then((pick) => { if (pick) loadSculpt(pick.id); });
     const state = defaultPulleyState();
     const anatomy = defaultAnatomy();
     const ANATOMY_KEY = "soma-poleas-anatomy-v3";

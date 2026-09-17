@@ -1375,7 +1375,57 @@ function updateWomanSkin(BABYLON, figure) {
   }
 }
 
-const SCULPT_URL = "./assets/3d/mongolian-woman.glb";
+export const CUERPOS_DIR = "./cuerpos/";
+
+export function prettyCuerpoName(file) {
+  return String(file || "")
+    .replace(/\.(glb|gltf)$/i, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[_\+]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "cuerpo";
+}
+
+export function cuerpoModelFromFile(file) {
+  const name = prettyCuerpoName(file);
+  return { id: file, file, name, url: CUERPOS_DIR + file };
+}
+
+export const SCULPT_MODELS = [
+  "Curvy_Woman_Standing_Pose_(Animated__Walking_Woman).glb",
+  "Mongolian_Woman_Body_Nude_(Animated__Walking_Woman).glb",
+  "Tall_Mongolian_Woman_Body.glb",
+].map(cuerpoModelFromFile);
+
+export const SCULPT_URL = SCULPT_MODELS[0].url;
+
+function fitStaticSculpt(figure, root) {
+  if (!root) return;
+  root.computeWorldMatrix(true);
+  const first = root.getHierarchyBoundingVectors(true);
+  const height = first.max.y - first.min.y;
+  if (!(height > 1e-4)) return;
+  figure.head.computeWorldMatrix(true);
+  const target = Math.max(1.2, figure.head.getAbsolutePosition().y + 0.16);
+  root.scaling.scaleInPlace(target / height);
+  root.computeWorldMatrix(true);
+  const box = root.getHierarchyBoundingVectors(true);
+  root.position.x += -0.5 * (box.min.x + box.max.x);
+  root.position.z += -0.5 * (box.min.z + box.max.z);
+  root.position.y += -box.min.y;
+  root.computeWorldMatrix(true);
+}
+
+function disposeWomanSculpt(figure) {
+  const sculpt = figure.sculpt;
+  if (!sculpt) return;
+  for (const mesh of sculpt.meshes || []) {
+    if (mesh && typeof mesh.dispose === "function") mesh.dispose();
+  }
+  if (sculpt.root && typeof sculpt.root.dispose === "function") sculpt.root.dispose();
+  if (sculpt.skeleton && typeof sculpt.skeleton.dispose === "function") sculpt.skeleton.dispose();
+  figure.sculpt = null;
+}
 
 const SCULPT_BONE_JOINT = {
   hips: "hips",
@@ -1557,7 +1607,11 @@ export async function hangWomanSculpt(BABYLON, scene, figure, url = SCULPT_URL) 
   if (Ctor && !BABYLON.SceneLoader.IsPluginForExtensionAvailable(".glb")) {
     BABYLON.SceneLoader.RegisterPlugin(new Ctor());
   }
-  const result = await BABYLON.SceneLoader.ImportMeshAsync("", "", url, scene);
+  disposeWomanSculpt(figure);
+  const slash = String(url).lastIndexOf("/");
+  const rootUrl = slash >= 0 ? url.slice(0, slash + 1) : "./";
+  const fileName = decodeURIComponent(slash >= 0 ? url.slice(slash + 1) : url);
+  const result = await BABYLON.SceneLoader.ImportMeshAsync("", rootUrl, fileName, scene);
   for (const group of result.animationGroups || []) group.stop();
   const root = result.meshes[0] || null;
   const skeleton = result.skeletons[0] || null;
@@ -1569,6 +1623,7 @@ export async function hangWomanSculpt(BABYLON, scene, figure, url = SCULPT_URL) 
 
   posePulleyFigure(figure, standingPulleySliders());
   refreshWorld(figure.root);
+  if (!skeleton) fitStaticSculpt(figure, root);
 
   const joints = new Map();
   const boneRests = new Map();
