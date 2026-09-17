@@ -1,5 +1,5 @@
 import { adImageSrc, applyHandoffSettings, formatById, handoffRuntimeMs } from "../ad-catalog.js?v=cam23";
-import { gwdLightFromCombo, gwdPlayMarkup, gwdPreviewSrc, loadGwdServeOrigin, releaseGwdPreviewUrl } from "./light.js?v=gwd39";
+import { gwdLightFromCombo, gwdPlayMarkup, gwdPreviewSrc, loadGwdServeOrigin, releaseGwdPreviewUrl } from "./light.js?v=gwd41";
 import { propActionMs } from "../prop-climax.js";
 import { gwdSceneBodyMs } from "./gaps/scene.js";
 
@@ -18,7 +18,18 @@ const state = {
 };
 
 export function ensureModelViewer() {
-  return Promise.resolve();
+  const src = `${location.origin}/gwd/vendor/model-viewer.min.js?v=gwd41`;
+  if (document.querySelector("script[data-gwd-mv]")) return Promise.resolve();
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.type = "module";
+    script.src = src;
+    script.crossOrigin = "anonymous";
+    script.dataset.gwdMv = "1";
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
+    document.head.append(script);
+  });
 }
 
 export function isGwdGallery() {
@@ -109,6 +120,7 @@ export async function mountGwdPlay(host, item, extras = {}, format = formatById(
   frame.title = item.alias || "GWD";
   frame.setAttribute("scrolling", "no");
   frame.setAttribute("allowfullscreen", "");
+  frame.setAttribute("allow", "fullscreen");
   frame.width = String(format.w);
   frame.height = String(format.h);
   frame.style.cssText = `border:0;display:block;width:${format.w}px;height:${format.h}px;max-width:100%;background:transparent`;

@@ -31,7 +31,7 @@ import { gwdNativePasteSnippet, gwdNativePublicAdHtml } from "./hosts/native.js"
 import { zipStore } from "./zip.js";
 import { propActionMs } from "../prop-climax.js";
 
-const GWD_KIT_V = "39";
+const GWD_KIT_V = "41";
 const GWD_ORIGIN_KEY = "gwd-serve-origin";
 const GWD_GTM_KEY = "gwd-gtm-container";
 let serveOrigin = "";
@@ -257,24 +257,39 @@ async function gwdPublishedClimaxUrl(spec) {
   return "";
 }
 
-export async function gwdPreviewSrc(item, spec = gwdLightFromCombo(item), profileId = "") {
-  if (!spec?.ok) return gwdLabAdHref(item, profileId);
+export async function gwdPreviewDoc(item, spec = gwdLightFromCombo(item), profileId = "") {
+  if (!spec?.ok) return { html: "", url: gwdLabAdHref(item, profileId), meshBlob: "" };
   const cssText = await liveCssText();
-  if (spec.kind === "scene") return gwdPreviewDocUrl(item, spec, { cssText });
+  const wrap = (opts = {}) => ({
+    html: gwdIframeHtml(item, spec, { includeGtm: false, live: true, cssText, ...opts }) || "",
+    url: "",
+    meshBlob: opts.meshBlob || "",
+  });
+  if (spec.kind === "scene") return wrap();
   try {
     const published = await gwdPublishedClimaxUrl(spec);
-    if (published) return gwdPreviewDocUrl(item, spec, { glb: published, cssText });
+    if (published) return wrap({ glb: published });
   } catch {
     /* hornear desde assets/3d si public/gwd aún no tiene el clímax */
   }
   try {
     const bytes = await bakeClimaxForGwd(spec, item.propAct || "drop");
     const meshBlob = URL.createObjectURL(new Blob([bytes], { type: "model/gltf-binary" }));
-    return gwdPreviewDocUrl(item, spec, { glb: meshBlob, meshBlob, cssText });
+    return wrap({ glb: meshBlob, meshBlob });
   } catch {
-    if (spec.src) return gwdPreviewDocUrl(item, spec, { glb: spec.src, cssText });
+    if (spec.src) return wrap({ glb: spec.src });
   }
-  return gwdLabAdHref(item, profileId);
+  return { html: "", url: gwdLabAdHref(item, profileId), meshBlob: "" };
+}
+
+export async function gwdPreviewSrc(item, spec = gwdLightFromCombo(item), profileId = "") {
+  const doc = await gwdPreviewDoc(item, spec, profileId);
+  if (doc.html) {
+    const href = URL.createObjectURL(new Blob([doc.html], { type: "text/html" }));
+    if (doc.meshBlob) previewMeshBlobs.set(href, doc.meshBlob);
+    return href;
+  }
+  return doc.url || "";
 }
 
 export function gwdIframeTag(item, spec = gwdLightFromCombo(item)) {
@@ -426,11 +441,16 @@ function gwdLivePreviewScript() {
   </script>`;
 }
 
+function gwdModelViewerUrl() {
+  return `${gwdApiOrigin()}/gwd/vendor/model-viewer.min.js?v=${GWD_KIT_V}`;
+}
+
 function gwdLivePreviewAssets() {
   const origin = gwdApiOrigin();
   return {
     css: `${origin}/ad-play.css?v=${GWD_KIT_V}`,
     shell: `${origin}/gwd/shell.js?v=${GWD_KIT_V}`,
+    modelViewer: gwdModelViewerUrl(),
   };
 }
 
@@ -459,9 +479,10 @@ export function gwdIframeHtml(item, spec = gwdLightFromCombo(item), opts = {}) {
     : gwdSnippetImgHref(spec);
   const canvas2d = isCanvas2DPlay(spec.play);
   const play2dSrc = canvas2d && liveMode ? `${gwdApiOrigin()}/play-2d.js?v=${GWD_KIT_V}` : "";
+  const mvSrc = liveMode ? live.modelViewer : gwdKitUrl("model-viewer.min.js");
   const mvScript = scene
-    ? (play2dSrc ? `<script type="module" src="${play2dSrc}"></script>` : "")
-    : `<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>`;
+    ? (play2dSrc ? `<script type="module" src="${play2dSrc}" crossorigin></script>` : "")
+    : `<script type="module" src="${mvSrc}" crossorigin></script>`;
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -474,7 +495,8 @@ export function gwdIframeHtml(item, spec = gwdLightFromCombo(item), opts = {}) {
   <style>
     html, body { width: 100%; height: 100%; margin: 0; }
     body.player-embed .ad-container canvas { display: none; }
-    body.player-embed .ad-container canvas.ad-gwd-canvas { display: block; }
+    body.player-embed .ad-container canvas.ad-gwd-canvas,
+    body.player-embed .ad-container #webgl-canvas { display: block; }
   </style>
   ${mvScript}
 </head>
@@ -973,8 +995,10 @@ export function gwdLightAdHtml(item, spec = gwdLightFromCombo(item)) {
   <style>
     html, body { width: 100%; height: 100%; margin: 0; }
     body.player-embed .ad-container canvas { display: none; }
+    body.player-embed .ad-container canvas.ad-gwd-canvas,
+    body.player-embed .ad-container #webgl-canvas { display: block; }
   </style>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
+  <script type="module" src="model-viewer.min.js" crossorigin></script>
 </head>
 <body class="player-embed gwd-unit">
 ${gwdLightInner(item, spec, viewer).trim()}

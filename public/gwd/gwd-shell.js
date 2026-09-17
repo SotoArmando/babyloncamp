@@ -363,13 +363,56 @@
   }
   function sceneOf(mv) {
     if (!mv) return null;
-    const key = Object.getOwnPropertySymbols(mv).find((sym) => String(sym) === "Symbol(scene)");
+    const key = mvSym(mv, "Symbol(scene)");
     return key ? mv[key] : null;
+  }
+  function mvSym(node, label) {
+    let proto = node;
+    while (proto) {
+      for (const sym of Object.getOwnPropertySymbols(proto)) {
+        if (String(sym) === label) return sym;
+      }
+      proto = Object.getPrototypeOf(proto);
+    }
+    return null;
+  }
+  function pinMvFlag(mv, label, value) {
+    const key = mvSym(mv, label);
+    if (key) mv[key] = value;
   }
   function forceInView(mv) {
     if (!mv) return;
-    const key = Object.getOwnPropertySymbols(mv).find((sym) => String(sym) === "Symbol(isElementInViewport)");
-    if (key) mv[key] = true;
+    pinMvFlag(mv, "Symbol(isElementInViewport)", true);
+    pinMvFlag(mv, "Symbol(lastReportedProgress)", 1);
+    pinMvFlag(mv, "Symbol(modelIsRevealed)", true);
+    pinMvFlag(mv, "Symbol(transitioned)", true);
+    const root = mv.shadowRoot;
+    const poster = root?.querySelector(".slot.poster");
+    if (mv.loaded && poster?.classList.contains("show")) {
+      try { mv.dismissPoster(); } catch { /* 1.6: Qh exige progress=1 */ }
+    }
+    pinMvFlag(mv, "Symbol(isElementInViewport)", true);
+    pinMvFlag(mv, "Symbol(lastReportedProgress)", 1);
+    pinMvFlag(mv, "Symbol(modelIsRevealed)", true);
+    pinMvFlag(mv, "Symbol(transitioned)", true);
+    poster?.classList.remove("show");
+    if (root && !root.querySelector("style[data-gwd-mesh]")) {
+      const css = document.createElement("style");
+      css.dataset.gwdMesh = "1";
+      css.textContent = ":host{contain:none!important}canvas.show,canvas#webgl-canvas{display:block!important}.slot.poster{opacity:0!important;pointer-events:none!important}";
+      root.appendChild(css);
+    }
+    const rendererKey = mvSym(mv, "Symbol(renderer)");
+    const renderer = rendererKey ? mv[rendererKey] : null;
+    try { renderer?.selectCanvas?.(); } catch { /* 1.6 */ }
+    const input = root?.querySelector(".userInput");
+    const gl = renderer?.canvasElement
+      || root?.getElementById("webgl-canvas")
+      || mv.ownerDocument?.getElementById("webgl-canvas");
+    if (gl) {
+      if (input && gl.parentElement !== input) input.appendChild(gl);
+      gl.classList.add("show");
+    }
   }
   function askLoad(mv) {
     if (!mv) return;
@@ -679,6 +722,13 @@
       liveCameraFromClip(box, mv);
       revealPlay(box);
     };
+    function viewerSrc(mv) {
+      if (!mv) return "";
+      return String(mv.src || mv.getAttribute?.("src") || "");
+    }
+    function viewerUpgraded(mv) {
+      return Boolean(mv && typeof mv.play === "function");
+    }
     const failSafe = () => {
       if (joined) return;
       if (box.dataset.gwdPaused === "1") {
@@ -686,10 +736,22 @@
         return;
       }
       const mv = innerModelViewer(viewer);
-      const loading = Boolean(mv && mv.src && !mv.loaded && performance.now() - bootAt < 20000);
-      if (loading) {
+      const src = viewerSrc(mv);
+      const wait = performance.now() - bootAt < 20000;
+      if (wait && src && !viewerUpgraded(mv)) {
         askLoad(mv);
-        setTimeout(failSafe, 700);
+        setTimeout(failSafe, 400);
+        return;
+      }
+      if (wait && src && viewerUpgraded(mv) && !mv.loaded) {
+        askLoad(mv);
+        setTimeout(failSafe, 400);
+        return;
+      }
+      if (wait && src && mv.loaded && !clipArmed) {
+        bindClimaxClip(mv);
+        askLoad(mv);
+        setTimeout(failSafe, 400);
         return;
       }
       if (!clipArmed) go();
@@ -709,8 +771,9 @@
       }
       askLoad(mv);
       if (!mv.loaded) return;
-      if (clipSrc !== String(mv.src || "")) {
-        clipSrc = String(mv.src || "");
+      const srcNow = viewerSrc(mv);
+      if (clipSrc !== srcNow) {
+        clipSrc = srcNow;
         clipOrigin = 0;
         clipArmed = false;
       }
@@ -765,6 +828,14 @@
     };
     watch(viewer);
     watch(innerModelViewer(viewer));
+    if (window.customElements?.whenDefined) {
+      customElements.whenDefined("model-viewer").then(() => {
+        const mv = innerModelViewer(viewer);
+        watch(mv);
+        askLoad(mv);
+        kick();
+      }).catch(() => {});
+    }
     const obs = viewer && new MutationObserver(() => {
       watch(innerModelViewer(viewer));
       kick();

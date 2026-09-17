@@ -2791,8 +2791,8 @@
   </script>
   <script type="module">
     import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam25";
-    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop53";
-    import { isGwdGallery, ensureModelViewer, gwdPlayDurationMs, mountGwdPlay, disposeGwdPlay, rewindGwdPlay, applyGwdViewerLive, pauseGwdPlay, markGwdUnsupported, markGwdCats } from "./gwd/play.js?v=gwd39";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop54";
+    import { isGwdGallery, ensureModelViewer, gwdPlayDurationMs, mountGwdPlay, disposeGwdPlay, rewindGwdPlay, applyGwdViewerLive, pauseGwdPlay, markGwdUnsupported, markGwdCats } from "./gwd/play.js?v=gwd41";
     import {
       loadGalleryStore,
       loadServeStore,
@@ -2815,7 +2815,7 @@
       resetGalleryCacheAndSettings,
     } from "./ad-profile.js?v=poster42";
     import { comboById, comboPlayExtras, replyPlayCombo } from "./play-route.js?v=8";
-    import { gwdLightFromCombo, gwdPlayMarkup } from "./gwd/light.js?v=gwd39";
+    import { gwdLightFromCombo, gwdPlayMarkup } from "./gwd/light.js?v=gwd41";
     import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
 

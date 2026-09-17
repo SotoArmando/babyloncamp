@@ -456,6 +456,7 @@ function attachTimedClimax(container, scene, ms) {
       return;
     }
     if (container.dataset.play === "prop") {
+      if (unit.waitProp && !unit.propReady) return;
       if (unit.propRewind) return;
       if (typeof unit.propT === "number") {
         if (unit.propT >= 1) reveal();
@@ -1176,6 +1177,10 @@ function buildPropScene(scene) {
       unit.journeyAt = 0;
     }
   });
+  setTimeout(() => {
+    const unit = ads.get(id);
+    if (unit?.waitProp && !unit.propReady) unit.propReady = true;
+  }, 12000);
   scene.onBeforeRenderObservable.add(() => {
     const view = journeyView(scene);
     const action = host?.dataset.propAct || "drop";
@@ -1305,7 +1310,8 @@ function buildPropScene(scene) {
     }
     const poseHalf = useCustom ? customHalf * (dim.y / size) : dim.y * 0.5;
     const step = 1 / CONFIG.logicHz;
-    const ready = Boolean(unit?.visible) || hold;
+    const meshHold = Boolean(unit?.waitProp && !unit.propReady);
+    const ready = (Boolean(unit?.visible) || hold) && !meshHold;
     if (!ready) {
       logicAcc = 0;
       logicT = 0;
