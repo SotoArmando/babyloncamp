@@ -1,6 +1,7 @@
-import { adImageSrc, applyHandoffSettings, formatById, handoffRuntimeMs } from "./ad-catalog.js?v=cam23";
-import { gwdLightFromCombo, gwdPlayMarkup, gwdPreviewSrc, loadGwdServeOrigin } from "./gwd-light.js";
-import { propActionMs } from "./prop-climax.js";
+import { adImageSrc, applyHandoffSettings, formatById, handoffRuntimeMs } from "../ad-catalog.js?v=cam23";
+import { gwdLightFromCombo, gwdPlayMarkup, gwdPreviewSrc, loadGwdServeOrigin, releaseGwdPreviewUrl } from "./light.js?v=gwd39";
+import { propActionMs } from "../prop-climax.js";
+import { gwdSceneBodyMs } from "./gaps/scene.js";
 
 const NOTE = " (no hay soporte aun)";
 const REVEAL_MS = 780;
@@ -21,10 +22,12 @@ export function ensureModelViewer() {
 }
 
 export function isGwdGallery() {
-  const file = (location.pathname.split("/").pop() || "").replace(/\.html$/i, "");
+  const pathname = String(location.pathname || "");
+  const file = (pathname.split("/").pop() || "").replace(/\.html$/i, "");
   const hash = String(location.hash || "");
   return document.body.dataset.visor === "gwd"
     || file === "gallery-gwd"
+    || pathname.includes("/gwd/")
     || new URLSearchParams(location.search).get("visor") === "gwd"
     || hash.includes("visor=gwd");
 }
@@ -32,12 +35,12 @@ export function isGwdGallery() {
 export function gwdPlayDurationMs(item) {
   if (!item) return REVEAL_MS;
   const hand = handoffRuntimeMs(item.hand, { ...item, play: item.play });
-  const body = item.play === "prop" ? propActionMs(item.propAct) : 2400;
+  const body = item.play === "prop" ? propActionMs(item.propAct) : gwdSceneBodyMs(item.play);
   return body + REVEAL_MS + hand;
 }
 
 export function disposeGwdPlay(host) {
-  if (state.blob) URL.revokeObjectURL(state.blob);
+  if (state.blob) releaseGwdPreviewUrl(state.blob);
   state.blob = "";
   state.frame = null;
   state.item = null;
@@ -49,6 +52,24 @@ export function disposeGwdPlay(host) {
 
 export function applyGwdViewerLive(item) {
   if (item) state.item = item;
+  const win = state.frame?.contentWindow;
+  if (!win || !item) return;
+  try {
+    win.postMessage({ type: "gwd-live", item }, location.origin || "*");
+  } catch { /* iframe aún no lista */ }
+}
+
+export function pauseGwdPlay(on) {
+  const paused = Boolean(on);
+  const box = state.host?.querySelector(".ad-container");
+  box?.classList.toggle("is-paused", paused);
+  if (box) box.dataset.gwdPaused = paused ? "1" : "0";
+  const win = state.frame?.contentWindow;
+  if (!win) return paused;
+  try {
+    win.postMessage({ type: paused ? "gwd-pause" : "gwd-resume" }, location.origin || "*");
+  } catch { /* iframe aún no lista */ }
+  return paused;
 }
 
 export async function rewindGwdPlay() {
@@ -58,23 +79,31 @@ export async function rewindGwdPlay() {
 }
 
 export async function mountGwdPlay(host, item, extras = {}, format = formatById(item?.ad)) {
-  disposeGwdPlay(host);
   if (!host || !item) return null;
   const spec = gwdLightFromCombo(item);
-  state.host = host;
-  state.item = item;
-  state.extras = extras;
-  state.format = format;
+  host.dataset.gwdWait = "1";
   if (!spec.ok) {
+    disposeGwdPlay(host);
     host.innerHTML = gwdPlayMarkup(item, spec, {
       extras,
       imgHref: spec.img ? adImageSrc(spec.img) : "",
     });
     applyHandoffSettings(host.querySelector(".ad-container"), extras);
+    host.dataset.gwdWait = "0";
     return { box: host.querySelector(".ad-container"), view: null, frame: null };
   }
-  const src = await gwdPreviewSrc(item, spec, extras.profileId || "");
-  if (src.startsWith("blob:")) state.blob = src;
+  let src = "";
+  try {
+    src = await gwdPreviewSrc(item, spec, extras.profileId || "");
+  } catch {
+    src = "";
+  }
+  const oldBlob = state.blob;
+  state.host = host;
+  state.item = item;
+  state.extras = extras;
+  state.format = format;
+  state.blob = src.startsWith("blob:") ? src : "";
   const frame = document.createElement("iframe");
   frame.className = "gwd-play-frame";
   frame.title = item.alias || "GWD";
@@ -86,6 +115,8 @@ export async function mountGwdPlay(host, item, extras = {}, format = formatById(
   host.replaceChildren(frame);
   state.frame = frame;
   frame.src = src;
+  host.dataset.gwdWait = "0";
+  if (oldBlob && oldBlob !== src) releaseGwdPreviewUrl(oldBlob);
   return { box: null, view: null, frame };
 }
 
@@ -114,14 +145,9 @@ export function markGwdUnsupported(root = document) {
   mark(root.querySelector("#sel-clock-size")?.closest("label")?.querySelector("span"));
   mark(root.querySelector("#sel-blit")?.closest(".nav-field")?.querySelector(":scope > span"));
   mark(root.querySelector("#sel-afps")?.closest(".nav-field")?.querySelector(":scope > span"));
-  markSel(root, "#pal-panel-title");
   mark(root.querySelector("#asset-pick-clear"));
 }
 
 export function markGwdCats(nav) {
   if (!nav) return;
-  nav.querySelectorAll("[data-cat]").forEach((btn) => {
-    if (btn.dataset.cat === "all" || btn.dataset.cat === "objeto") return;
-    mark(btn);
-  });
 }

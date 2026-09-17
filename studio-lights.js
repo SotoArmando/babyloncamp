@@ -103,6 +103,10 @@ export const STUDIO_PRESET_LIST = [
 export const MAX_STUDIO_EXTRAS = 4;
 export const MAX_STUDIO_EXTRA_INTENSITY = 16;
 export const DEFAULT_STUDIO_EXTRA_INTENSITY = 4;
+export const STUDIO_CHANNEL_MIN = 0;
+export const STUDIO_CHANNEL_MAX = 3;
+export const STUDIO_EXPOSURE_MIN = 0.2;
+export const STUDIO_EXPOSURE_MAX = 3;
 
 export const STUDIO_CHANNEL_COLORS = {
   world: STUDIO_PRESETS.catalog.worldCol,
@@ -239,11 +243,11 @@ export function normalizeStudioState(raw) {
     && (!src.rimCol || normStudioHex(src.rimCol, catalogCols.rimCol) === catalogCols.rimCol);
   return {
     preset,
-    world: clamp(src.world, 0, 1.2, fromPreset.world),
-    key: clamp(src.key, 0, 1.2, fromPreset.key),
-    fill: clamp(src.fill, 0, 1.2, fromPreset.fill),
-    rim: clamp(src.rim, 0, 1.2, fromPreset.rim),
-    exposure: clamp(src.exposure, 0.6, 1.4, fromPreset.exposure),
+    world: clamp(src.world, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.world),
+    key: clamp(src.key, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.key),
+    fill: clamp(src.fill, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.fill),
+    rim: clamp(src.rim, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.rim),
+    exposure: clamp(src.exposure, STUDIO_EXPOSURE_MIN, STUDIO_EXPOSURE_MAX, fromPreset.exposure),
     worldCol: leftoverCatalogTint ? fromPreset.worldCol : normStudioHex(src.worldCol, fromPreset.worldCol || base.worldCol),
     keyCol: leftoverCatalogTint ? fromPreset.keyCol : normStudioHex(src.keyCol, fromPreset.keyCol || base.keyCol),
     fillCol: leftoverCatalogTint ? fromPreset.fillCol : normStudioHex(src.fillCol, fromPreset.fillCol || base.fillCol),
@@ -427,11 +431,11 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
     }
     const v = Number(value);
     if (!Number.isFinite(v)) return snapshot();
-    if (name === "world") state.world = clamp(v, 0, 1.2, state.world);
-    if (name === "key") state.key = clamp(v, 0, 1.2, state.key);
-    if (name === "fill") state.fill = clamp(v, 0, 1.2, state.fill);
-    if (name === "rim") state.rim = clamp(v, 0, 1.2, state.rim);
-    if (name === "exposure") state.exposure = clamp(v, 0.6, 1.4, state.exposure);
+    if (name === "world") state.world = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.world);
+    if (name === "key") state.key = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.key);
+    if (name === "fill") state.fill = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.fill);
+    if (name === "rim") state.rim = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.rim);
+    if (name === "exposure") state.exposure = clamp(v, STUDIO_EXPOSURE_MIN, STUDIO_EXPOSURE_MAX, state.exposure);
     applyState();
     return snapshot();
   };

@@ -1,4 +1,4 @@
-import { samplePropClimax } from "./prop-climax.js";
+import { samplePropClimax } from "../prop-climax.js";
 
 function pad4(n) {
   return (4 - (n % 4)) % 4;

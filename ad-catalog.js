@@ -350,6 +350,10 @@ export function normalizeViewShelf(value) {
   return value === "belt" ? "belt" : "column";
 }
 
+export function normalizeViewSideDlg(value) {
+  return value === true || value === 1 || value === "1" || value === "on";
+}
+
 export function normalizeViewZoom(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
@@ -553,6 +557,17 @@ export function normHex(value, fallback = "#000000") {
   const h = raw.startsWith("#") ? raw.slice(1) : raw;
   if (/^[0-9a-fA-F]{6}$/.test(h)) return `#${h.toLowerCase()}`;
   if (/^[0-9a-fA-F]{3}$/.test(h)) return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`.toLowerCase();
+  return fallback;
+}
+
+export function playStageHex(item, fallback = "#f5f2ed") {
+  const pal = item?.pal && typeof item.pal === "object" ? item.pal : {};
+  const studio = item?.studio && typeof item.studio === "object" ? item.studio : {};
+  const ph = item?.ph && typeof item.ph === "object" ? item.ph : {};
+  if (pal.fog) return normHex(pal.fog, fallback);
+  if (studio.worldCol) return normHex(studio.worldCol, fallback);
+  if (ph.bg) return normHex(ph.bg, fallback);
+  if (ph.fm) return normHex(ph.fm, fallback);
   return fallback;
 }
 

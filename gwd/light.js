@@ -1,6 +1,7 @@
 import {
   adImageSrc,
   adPlaceFitStyle,
+  adPlaceFromPlay,
   adPlaceVars,
   escapeHandoffClaim,
   formatById,
@@ -14,25 +15,61 @@ import {
   normalizePropCog,
   normalizePropFlat,
   normalizePropFloor,
-  normalizePropLcol,
   normalizePropSpin,
   playById,
-  propAimLightById,
-  propAimPlaceById,
+  resolveAdPlace,
   transitionById,
   resolveHandoffClaim,
-} from "./ad-catalog.js?v=cam23";
-import { comboPlayExtras, livePlaceFrom } from "./play-route.js?v=8";
-import { playerUrl } from "./player-origin.js";
-import { bakeClimaxFromUrl } from "./gwd-bake.js";
-import { zipStore } from "./gwd-zip.js";
-import { propActionMs } from "./prop-climax.js";
+} from "../ad-catalog.js?v=cam23";
+import { playerUrl } from "../player-origin.js";
+import { serializeStudioState, STUDIO_CHANNEL_MAX, STUDIO_CHANNEL_MIN, STUDIO_EXPOSURE_MAX, STUDIO_EXPOSURE_MIN } from "../studio-lights.js";
+import { bakeClimaxFromUrl } from "./bake.js";
+import { applyGwdGaps } from "./gaps.js";
+import { paintStudioEnv } from "./gaps/env.js";
+import { gwdSceneMarkup, isCanvas2DPlay, isGwdScenePlay } from "./gaps/scene.js";
+import { gwdNativePasteSnippet, gwdNativePublicAdHtml } from "./hosts/native.js";
+import { zipStore } from "./zip.js";
+import { propActionMs } from "../prop-climax.js";
 
-const GWD_KIT_V = "8";
+const GWD_KIT_V = "39";
 const GWD_ORIGIN_KEY = "gwd-serve-origin";
 const GWD_GTM_KEY = "gwd-gtm-container";
 let serveOrigin = "";
 let serveGtmId = "";
+
+function livePlaceFrom(item, phRaw = item?.ph) {
+  const ph = resolveAdPlace(phRaw);
+  if (ph.style !== "play") return ph;
+  return {
+    ...adPlaceFromPlay(item?.play || "climax", item?.pal),
+    img: ph.img,
+    fit: ph.fit,
+    fx: ph.fx,
+    fy: ph.fy,
+    fz: ph.fz,
+    fm: ph.fm,
+  };
+}
+
+export function comboPlayExtras(item, phRaw) {
+  if (!item) return {};
+  return {
+    pal: item.pal,
+    ph: livePlaceFrom(item, phRaw !== undefined ? phRaw : item.ph),
+    propAct: item.propAct,
+    handoff: handoffById(item.hand).id,
+    hms: item.hms,
+    hnb: item.hnb,
+    hst: item.hst,
+    hin: item.hin,
+    hhd: item.hhd,
+    hbt: item.hbt,
+    htm: item.htm,
+    htxt: item.htxt,
+    hempty: item.hempty,
+    studioLights: serializeStudioState(item.studio),
+  };
+}
 
 export function normalizeGwdGtmId(value) {
   const id = String(value || "").trim().toUpperCase();
@@ -130,6 +167,11 @@ export function gwdServeUrl(path, version) {
   return `${url}?v=${encodeURIComponent(String(version))}`;
 }
 
+/** Archivos de la previa blob: esta página, no el origen publicado (túnel/CDN). */
+function gwdLiveFileUrl(path) {
+  return `${gwdApiOrigin()}/${String(path || "").replace(/^\/+/, "")}`;
+}
+
 export function gwdKitUrl(file) {
   const v = /\.(glb|hdr)$/i.test(file) ? "" : GWD_KIT_V;
   return gwdServeUrl(`public/gwd/${file}`, v);
@@ -139,12 +181,25 @@ function gwdLightGlbName(spec) {
   return String(spec.file || "prop").replace(/\.glb$/i, "") + "-climax.glb";
 }
 
+function gwdClimaxRel(spec) {
+  return `public/gwd/${gwdLightGlbName(spec)}`;
+}
+
+function gtmMeshRel(spec) {
+  const file = spec?.file;
+  return file ? `public/gtm/${file}` : "";
+}
+
+function gtmImgRel(spec) {
+  return spec?.img ? `public/gtm/${spec.img}` : "";
+}
+
 export function gwdPublishedGlbUrl(spec) {
-  return gwdServeUrl(`public/gtm/${gwdLightGlbName(spec)}`);
+  return gwdServeUrl(gwdClimaxRel(spec));
 }
 
 export function gwdIframeSrc(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok) return "";
+  if (!spec?.ok || spec.kind === "scene") return "";
   return gwdServeUrl(`public/iframe/${gwdLightSlug(item, spec)}.html`);
 }
 
@@ -156,19 +211,68 @@ export function gwdLabAdHref(item, profileId) {
   return `gwd-light-ad.html#${parts.join("&")}`;
 }
 
-export function gwdPreviewDocUrl(item, spec = gwdLightFromCombo(item)) {
-  const html = gwdIframeHtml(item, spec, { includeGtm: false });
+const previewMeshBlobs = new Map();
+
+export function releaseGwdPreviewUrl(href) {
+  if (!href) return;
+  const mesh = previewMeshBlobs.get(href);
+  if (mesh) {
+    previewMeshBlobs.delete(href);
+    try { URL.revokeObjectURL(mesh); } catch { /* already gone */ }
+  }
+  if (String(href).startsWith("blob:")) {
+    try { URL.revokeObjectURL(href); } catch { /* already gone */ }
+  }
+}
+
+export function gwdPreviewDocUrl(item, spec = gwdLightFromCombo(item), opts = {}) {
+  const html = gwdIframeHtml(item, spec, {
+    includeGtm: false,
+    live: true,
+    glb: opts.glb,
+    cssText: opts.cssText,
+  });
   if (!html) return "";
-  return URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const mesh = opts.meshBlob || (String(opts.glb || "").startsWith("blob:") ? opts.glb : "");
+  if (mesh) previewMeshBlobs.set(href, mesh);
+  return href;
+}
+
+let liveCssTextCache = "";
+
+async function liveCssText() {
+  if (liveCssTextCache) return liveCssTextCache;
+  try {
+    const res = await fetch(`${gwdApiOrigin()}/ad-play.css?v=${GWD_KIT_V}`, { cache: "force-cache" });
+    if (res.ok) liveCssTextCache = await res.text();
+  } catch { /* el blob usa el <link> */ }
+  return liveCssTextCache;
+}
+
+async function gwdPublishedClimaxUrl(spec) {
+  const name = gwdLightGlbName(spec);
+  if (await gwdHeadOk(`public/gwd/${name}`)) return gwdLiveFileUrl(`public/gwd/${name}`);
+  if (await gwdHeadOk(`public/gtm/${name}`)) return gwdLiveFileUrl(`public/gtm/${name}`);
+  return "";
 }
 
 export async function gwdPreviewSrc(item, spec = gwdLightFromCombo(item), profileId = "") {
   if (!spec?.ok) return gwdLabAdHref(item, profileId);
+  const cssText = await liveCssText();
+  if (spec.kind === "scene") return gwdPreviewDocUrl(item, spec, { cssText });
   try {
-    const status = await gwdCheckPublic(item);
-    if (status.glb) return gwdPreviewDocUrl(item, spec);
+    const published = await gwdPublishedClimaxUrl(spec);
+    if (published) return gwdPreviewDocUrl(item, spec, { glb: published, cssText });
   } catch {
-    /* el lab hornea si public/gtm aún no tiene el clímax */
+    /* hornear desde assets/3d si public/gwd aún no tiene el clímax */
+  }
+  try {
+    const bytes = await bakeClimaxForGwd(spec, item.propAct || "drop");
+    const meshBlob = URL.createObjectURL(new Blob([bytes], { type: "model/gltf-binary" }));
+    return gwdPreviewDocUrl(item, spec, { glb: meshBlob, meshBlob, cssText });
+  } catch {
+    if (spec.src) return gwdPreviewDocUrl(item, spec, { glb: spec.src, cssText });
   }
   return gwdLabAdHref(item, profileId);
 }
@@ -201,7 +305,7 @@ export function gwdGtmPreviewUrl(item, spec = gwdLightFromCombo(item)) {
 
 function gwdSnippetImgHref(spec) {
   if (!spec?.img) return "";
-  return gwdServeUrl(`public/gtm/${spec.img}`);
+  return spec.img ? gwdServeUrl(gtmImgRel(spec)) : "";
 }
 
 export function gwdPublicFiles(item, spec = gwdLightFromCombo(item)) {
@@ -224,7 +328,11 @@ function gwdApiOrigin() {
 
 async function gwdHeadOk(path) {
   try {
-    const res = await fetch(`${gwdApiOrigin()}/${String(path).replace(/^\/+/, "")}`, { method: "HEAD", cache: "no-store" });
+    const res = await fetch(`${gwdApiOrigin()}/${String(path).replace(/^\/+/, "")}`, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: AbortSignal.timeout(1500),
+    });
     return res.ok;
   } catch {
     return false;
@@ -236,11 +344,14 @@ export async function gwdCheckPublic(item) {
   const files = gwdPublicFiles(item, spec);
   const kit = {};
   for (const name of files.kit) kit[name] = await gwdHeadOk(`public/gwd/${name}`);
+  const glbGwd = await gwdHeadOk(gwdClimaxRel(spec));
+  const glbLegacy = glbGwd ? false : await gwdHeadOk(`public/gtm/${files.glb}`);
   return {
     files,
     kit,
-    glb: await gwdHeadOk(`public/gtm/${files.glb}`),
-    img: files.img ? await gwdHeadOk(`public/gtm/${files.img}`) : true,
+    glb: glbGwd || glbLegacy,
+    glbPath: glbGwd || !glbLegacy ? gwdClimaxRel(spec) : `public/gtm/${files.glb}`,
+    img: files.img ? await gwdHeadOk(gtmImgRel(spec)) : true,
     iframe: await gwdHeadOk(`public/iframe/${files.iframe}`),
     snippet: await gwdHeadOk(`public/iframe/${files.snippet}`),
   };
@@ -250,12 +361,31 @@ export function gwdPublicStatusText(status) {
   if (!status?.files) return "";
   const { files } = status;
   const lines = files.kit.map((name) => `${status.kit?.[name] ? "ok   " : "falta"}  public/gwd/${name}`);
-  lines.push(`${status.glb ? "ok   " : "falta"}  public/gtm/${files.glb}`);
+  lines.push(`${status.glb ? "ok   " : "falta"}  ${status.glbPath || `public/gwd/${files.glb}`}`);
   if (files.img) lines.push(`${status.img ? "ok   " : "falta"}  public/gtm/${files.img}`);
   lines.push(`${status.iframe ? "ok   " : "falta"}  public/iframe/${files.iframe}`);
   lines.push(`${status.snippet ? "ok   " : "falta"}  public/iframe/${files.snippet}`);
   lines.push(`iframe  ${gwdServeUrl(`public/iframe/${files.iframe}`)}`);
   lines.push(`gtm     ${gwdServeOrigin()}/gtm.html?ad=${files.iframe.replace(/\.html$/i, "")}`);
+  return lines.join("\n");
+}
+
+export async function gwdCheckNativePublic(item) {
+  const spec = item ? gwdLightFromCombo(item) : {};
+  const files = ["index.html", "babylon-ads-player.js", "ad-play.css"];
+  const kit = {};
+  for (const name of files) kit[name] = await gwdHeadOk(`public/player/${name}`);
+  const extra = [];
+  if (spec.file) extra.push({ path: gtmMeshRel(spec), ok: await gwdHeadOk(gtmMeshRel(spec)) });
+  if (spec.img) extra.push({ path: gtmImgRel(spec), ok: await gwdHeadOk(gtmImgRel(spec)) });
+  return { files, kit, extra, href: gwdServeUrl("public/player/index.html") };
+}
+
+export function gwdNativePublicStatusText(status) {
+  if (!status?.files) return "";
+  const lines = status.files.map((name) => `${status.kit?.[name] ? "ok   " : "falta"}  public/player/${name}`);
+  for (const row of status.extra || []) lines.push(`${row.ok ? "ok   " : "falta"}  ${row.path}`);
+  lines.push(`player  ${status.href}`);
   return lines.join("\n");
 }
 
@@ -268,12 +398,70 @@ function bytesToBase64(bytes) {
   return btoa(bin);
 }
 
+function gwdLivePreviewScript() {
+  const href = `${gwdApiOrigin()}/gwd/light.js?v=${GWD_KIT_V}`;
+  return `<script type="module">
+    import { applyGwdModelView, applyGwdStageLayers, gwdLightFromCombo } from ${JSON.stringify(href)};
+    window.addEventListener("message", (ev) => {
+      if (ev.origin !== location.origin) return;
+      if (!ev.data) return;
+      if (ev.data.type === "gwd-pause" || ev.data.type === "gwd-resume") {
+        const on = ev.data.type === "gwd-pause";
+        const box = document.querySelector(".ad-container");
+        if (box) {
+          box.dataset.gwdPaused = on ? "1" : "0";
+          box.classList.toggle("is-paused", on);
+        }
+        const view = document.querySelector("model-viewer, gwd-3d-model-viewer");
+        try { on ? view?.pause() : view?.play(); } catch { /* 1.6 */ }
+        return;
+      }
+      if (ev.data.type !== "gwd-live" || !ev.data.item) return;
+      const live = gwdLightFromCombo(ev.data.item);
+      const box = document.querySelector(".ad-container");
+      const view = document.querySelector("model-viewer, gwd-3d-model-viewer");
+      if (view) applyGwdModelView(view, live);
+      else if (box) applyGwdStageLayers(box, live);
+    });
+  </script>`;
+}
+
+function gwdLivePreviewAssets() {
+  const origin = gwdApiOrigin();
+  return {
+    css: `${origin}/ad-play.css?v=${GWD_KIT_V}`,
+    shell: `${origin}/gwd/shell.js?v=${GWD_KIT_V}`,
+  };
+}
+
 export function gwdIframeHtml(item, spec = gwdLightFromCombo(item), opts = {}) {
   if (!spec?.ok) return "";
   const format = formatById(item?.ad);
-  const glb = gwdPublishedGlbUrl(spec);
+  const liveMode = Boolean(opts.live);
+  const scene = spec.kind === "scene" || isGwdScenePlay(spec.play);
+  const glb = scene
+    ? ""
+    : opts.glb || (liveMode ? gwdLiveFileUrl(gwdClimaxRel(spec)) : gwdPublishedGlbUrl(spec));
   const gtm = opts.includeGtm === false ? "" : gwdGtmId();
-  const viewer = `<div class="ad-stage"><model-viewer id="view" src="${glb}" camera-controls autoplay animation-name="climax" interaction-prompt="none" loading="eager" reveal="auto" ${gwdViewerTagAttrs(spec)}></model-viewer></div>`;
+  const live = gwdLivePreviewAssets();
+  const cssHref = liveMode ? live.css : gwdKitUrl("ad-play.css");
+  const cssTag = opts.cssText
+    ? `<style>${String(opts.cssText).replace(/<\/style/gi, "<\\/style")}</style>`
+    : `<link rel="stylesheet" href="${cssHref}" />`;
+  const shellSrc = liveMode ? live.shell : gwdKitUrl("gwd-shell.js");
+  const viewer = scene
+    ? gwdSceneMarkup(spec.play)
+    : `<div class="ad-stage"><model-viewer id="view" src="${glb}" camera-controls autoplay animation-name="climax" interaction-prompt="none" loading="eager" reveal="auto" ${gwdViewerTagAttrs(spec, { live: liveMode })}></model-viewer></div>`;
+  const imgHref = liveMode && spec.img
+    ? (/^https?:\/\//i.test(adImageSrc(spec.img))
+      ? adImageSrc(spec.img)
+      : `${gwdApiOrigin()}/${String(adImageSrc(spec.img)).replace(/^\/+/, "")}`)
+    : gwdSnippetImgHref(spec);
+  const canvas2d = isCanvas2DPlay(spec.play);
+  const play2dSrc = canvas2d && liveMode ? `${gwdApiOrigin()}/play-2d.js?v=${GWD_KIT_V}` : "";
+  const mvScript = scene
+    ? (play2dSrc ? `<script type="module" src="${play2dSrc}"></script>` : "")
+    : `<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>`;
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -282,27 +470,56 @@ export function gwdIframeHtml(item, spec = gwdLightFromCombo(item), opts = {}) {
   <meta name="ad.size" content="width=${format.w},height=${format.h}" />
   <title>${item.alias || spec.file || "GWD iframe"}</title>
   ${gwdGtmHeadHtml(gtm)}
-  <link rel="stylesheet" href="${gwdKitUrl("ad-play.css")}" />
+  ${cssTag}
   <style>
     html, body { width: 100%; height: 100%; margin: 0; }
     body.player-embed .ad-container canvas { display: none; }
+    body.player-embed .ad-container canvas.ad-gwd-canvas { display: block; }
   </style>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
+  ${mvScript}
 </head>
 <body class="player-embed gwd-unit">
 ${gwdGtmBodyHtml(gtm)}
-${gwdLightInner(item, spec, viewer, { imgHref: gwdSnippetImgHref(spec) }).trim()}
-  <script src="${gwdKitUrl("gwd-shell.js")}"></script>
+${gwdLightInner(item, spec, viewer, { imgHref }).trim()}
+  <script src="${shellSrc}"></script>
+  ${liveMode ? gwdLivePreviewScript() : ""}
 </body>
 </html>
 `;
 }
 
-export async function gwdPublishPublic(item) {
+export async function gwdPublishPublic(item, opts = {}) {
+  if (opts.host === "native") {
+    const spec = gwdLightFromCombo(item);
+    const slug = gwdLightSlug(item, spec);
+    const origin = opts.origin || gwdServeOrigin();
+    const profileId = opts.profileId || "";
+    const payload = {
+      iframeName: `${slug}-native.html`,
+      iframeHtml: gwdNativePublicAdHtml(item, spec, origin, profileId),
+      snippetName: `${slug}-gwd-native.html`,
+      snippetHtml: gwdNativePasteSnippet(item, spec, origin, profileId),
+      imgName: spec.img || "",
+    };
+    if (spec.file && spec.src && !(await gwdHeadOk(gtmMeshRel(spec)))) {
+      payload.glbName = spec.file;
+      payload.glbFolder = "gtm";
+      payload.glbBase64 = bytesToBase64(await fetchBytesFromUrl(spec.src));
+    }
+    const res = await fetch(`${gwdApiOrigin()}/api/gwd-publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Reiniciá npm start para publicar en public/");
+    }
+    return data;
+  }
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok) throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
   const files = gwdPublicFiles(item, spec);
-  const status = await gwdCheckPublic(item);
   const payload = {
     iframeName: files.iframe,
     iframeHtml: gwdIframeHtml(item, spec),
@@ -310,9 +527,12 @@ export async function gwdPublishPublic(item) {
     snippetHtml: gwdPasteSnippet(item, spec),
     imgName: files.img,
   };
-  if (!status.glb) {
+  if (!(await gwdHeadOk(gwdClimaxRel(spec)))) {
     payload.glbName = files.glb;
-    payload.glbBase64 = bytesToBase64(await bakeClimaxForGwd(spec, item.propAct || "drop"));
+    payload.glbFolder = "gwd";
+    if (!(await gwdHeadOk(`public/gtm/${files.glb}`))) {
+      payload.glbBase64 = bytesToBase64(await bakeClimaxForGwd(spec, item.propAct || "drop"));
+    }
   }
   const res = await fetch(`${gwdApiOrigin()}/api/gwd-publish`, {
     method: "POST",
@@ -372,27 +592,26 @@ export function gwdLightFromCombo(item) {
   const px = Number(normalizePropCamPan(item?.ppx));
   const py = Number(normalizePropCamPan(item?.ppy));
   const world = Number(item?.studio?.world ?? 0.7);
-  const fill = Math.min(1, Math.max(0, Number(item?.studio?.fill ?? 0.42)));
-  const rim = Math.min(1, Math.max(0, Number(item?.studio?.rim ?? 0.2)));
-  const exposure = Number(item?.studio?.exposure ?? 1) * (0.62 + world * 0.38);
+  const fill = Math.min(STUDIO_CHANNEL_MAX, Math.max(STUDIO_CHANNEL_MIN, Number(item?.studio?.fill ?? 0.42)));
+  const rim = Math.min(STUDIO_CHANNEL_MAX, Math.max(STUDIO_CHANNEL_MIN, Number(item?.studio?.rim ?? 0.2)));
+  const exposure = Number(item?.studio?.exposure ?? 1) * (0.62 + Math.min(1, world / STUDIO_CHANNEL_MAX) * 0.38);
   const shadow = Math.min(1, Math.max(0, Number(item?.studio?.key ?? 0.55)));
-  const soft = Math.round(fill * 100) / 100;
+  const soft = Math.round(Math.min(1, fill) * 100) / 100;
   const flat = normalizePropFlat(item?.pflat) === "1";
   const floor = normalizePropFloor(item?.pfloor) === "1";
   const cog = normalizePropCog(item?.pcog) === "1";
-  const env = flat ? "" : playerUrl("assets/3d/env-neutral.hdr", "env-neutral.hdr");
-  const aim = gwdAimFromCombo(item);
-  const extras = gwdExtrasFromCombo(item);
-  const key = Math.min(1, Math.max(0, Number(item?.studio?.key ?? 0.55)));
-  return {
-    ok: play.id === "prop" && Boolean(src),
+  const env = "";
+  const key = Math.min(STUDIO_CHANNEL_MAX, Math.max(STUDIO_CHANNEL_MIN, Number(item?.studio?.key ?? 0.55)));
+  const spec = {
+    ok: play.id === "prop" ? Boolean(src) : true,
+    kind: play.id === "prop" ? "mesh" : "scene",
     play: play.id,
     file,
     src,
     w: format.w,
     h: format.h,
     pan,
-    orbit: `${h}deg ${Math.max(5, 75 - v)}deg ${frame.radius}m`,
+    orbit: `${h}deg ${Math.min(175, Math.max(5, 75 + v))}deg ${frame.radius}m`,
     target: pan
       ? `${(-px).toFixed(2)}m ${(0.35 + py).toFixed(2)}m 0m`
       : cog
@@ -418,70 +637,32 @@ export function gwdLightFromCombo(item) {
     keyCol: String(item?.studio?.keyCol || "#fff7eb"),
     key,
     floorCol: String(item?.pal?.floor || "#3a2a1c"),
-    aimMode: aim.mode,
-    aimCol: aim.col,
-    aimGain: aim.gain,
-    aimX: aim.x,
-    aimY: aim.y,
-    aimSize: aim.size,
-    extras,
+    aimMode: "none",
+    aimCol: "#fff0d1",
+    aimGain: 0,
+    aimX: 50,
+    aimY: 22,
+    aimSize: 1,
+    extras: [],
     inId: transitionById(item?.in).id,
     preset: String(item?.studio?.preset || "catalog"),
     soft: String(soft),
     stage: frame.stage,
-    exposure: String(Math.min(2, Math.max(0.4, exposure))),
+    exposure: String(Math.min(STUDIO_EXPOSURE_MAX, Math.max(STUDIO_EXPOSURE_MIN, exposure))),
     shadow: String(Math.round(shadow * 100) / 100),
     autoRotate: item?.propAct === "turn",
     handoff: handoffById(item?.hand).id,
     img: normalizeAdImg(livePlaceFrom(item).img),
   };
+  return applyGwdGaps(spec, item);
 }
 
-function extraPlaceId(place) {
-  if (place === "lado" || place === "arriba" || place === "contra") return place;
-  if (place === "atras" || place === "detras") return "atras";
-  return "frente";
+function gwdPalInner() {
+  return `<i class="ad-prop-pal-stand"></i><i class="ad-prop-pal-object"></i><i class="ad-prop-pal-ball"></i><i class="ad-prop-pal-beam"></i><i class="ad-prop-pal-star"></i>`;
 }
 
-function extraPlaceAt(place) {
-  const id = extraPlaceId(place);
-  if (id === "lado") return [0, 46];
-  if (id === "arriba") return [50, 0];
-  if (id === "atras") return [50, 100];
-  if (id === "contra") return [100, 38];
-  return [50, 22];
-}
-
-function gwdAimFromCombo(item) {
-  const mode = propAimLightById(item?.plight).id;
-  const gain = Math.min(1, Math.max(0, Number(item?.plint ?? 0.35)));
-  const dist = Math.min(8, Math.max(1.2, Number(item?.pldist ?? 3.3)));
-  const h = Number(item?.plhrot ?? 0);
-  const v = Number(item?.plvrot ?? 0);
-  const place = propAimPlaceById(item?.plpos).id;
-  const base = extraPlaceAt(place);
-  return {
-    mode,
-    col: normalizePropLcol(item?.plcol),
-    gain: mode === "none" ? 0 : gain,
-    x: Math.min(94, Math.max(6, base[0] + h / 180 * 40)),
-    y: Math.min(88, Math.max(4, base[1] - v / 55 * 16)),
-    size: Math.min(1.35, Math.max(0.45, 3.3 / dist)),
-  };
-}
-
-function gwdExtrasFromCombo(item) {
-  const list = Array.isArray(item?.studio?.extras) ? item.studio.extras : [];
-  return list.slice(0, 4).map((ex) => {
-    const [x, y] = extraPlaceAt(ex?.place);
-    return {
-      col: String(ex?.color || "#ffb347"),
-      i: Math.min(1, Math.max(0, Number(ex?.intensity || 0) / 16)),
-      x,
-      y,
-      place: extraPlaceId(ex?.place),
-    };
-  });
+function gwdPalMarkup(spec) {
+  return `<div class="ad-prop-pal" data-pal-act="${spec?.palAct || "drop"}" aria-hidden="true">${gwdPalInner()}</div>`;
 }
 
 function gwdAimMarkup(aimMode) {
@@ -491,56 +672,158 @@ function gwdAimMarkup(aimMode) {
   return `<div class="ad-prop-aim" data-aim="${mode}"${mode === "none" ? " hidden" : ""} aria-hidden="true">${beams}</div>`;
 }
 
-function gwdExtrasMarkup(list = []) {
-  if (!list.length) return `<div class="ad-prop-extras" hidden></div>`;
+function gwdExtrasMarkup(list = [], envLit = false) {
+  if (!list.length || envLit) return `<div class="ad-prop-extras" hidden></div>`;
+  const wash = envLit ? 0 : 1;
   return `<div class="ad-prop-extras" aria-hidden="true">${list.map((ex) =>
-    `<i class="ad-prop-extra" data-place="${ex.place || "frente"}" style="--gwd-x:${ex.x}%;--gwd-y:${ex.y}%;--gwd-x-col:${ex.col};--gwd-x-i:${ex.i}"></i>`
+    `<i class="ad-prop-extra" data-place="${ex.place || "frente"}" style="--gwd-x:${ex.x}%;--gwd-y:${ex.y}%;--gwd-x-col:${ex.col};--gwd-x-i:${ex.i * wash}"></i>`
   ).join("")}</div>`;
 }
 
-function applyGwdStageLayers(host, spec) {
+function applyGwdSceneVars(host, spec) {
+  const ms = Number(spec?.bodyMs);
+  if (ms > 0) {
+    host.dataset.gwdBodyMs = String(ms);
+    host.style.setProperty("--gwd-body-ms", `${ms}ms`);
+  }
+  const pal = spec?.scene;
+  if (!pal || typeof pal !== "object") return;
+  host.dataset.pal = encodeURIComponent(JSON.stringify(pal));
+  for (const [key, value] of Object.entries(pal)) {
+    if (value) host.style.setProperty(`--gwd-sc-${key}`, value);
+  }
+}
+
+export function applyGwdStageLayers(host, spec) {
   if (!host?.style || !spec) return;
   host.style.setProperty("--gwd-stage", spec.stage);
   host.style.setProperty("--gwd-prop-sx", String(spec.scaleX ?? spec.scale ?? 1));
   host.style.setProperty("--gwd-prop-sy", String(spec.scaleY ?? spec.scale ?? 1));
+  host.style.setProperty("--gwd-prop-sz", String(spec.scaleZ ?? spec.scale ?? 1));
   host.style.setProperty("--gwd-fill", spec.fillCol || "#ebf2ff");
   host.style.setProperty("--gwd-rim", spec.rimCol || "#d9e6ff");
-  host.style.setProperty("--gwd-fill-i", String(spec.fill ?? 0));
-  host.style.setProperty("--gwd-rim-i", String(spec.rim ?? 0));
+  const wash = spec.envLit ? 0 : 1;
+  host.style.setProperty("--gwd-fill-i", String((spec.fill ?? 0) * wash));
+  host.style.setProperty("--gwd-rim-i", String((spec.rim ?? 0) * wash));
   host.style.setProperty("--gwd-key", spec.keyCol || "#fff7eb");
-  host.style.setProperty("--gwd-key-i", String(spec.key ?? 0.55));
+  host.style.setProperty("--gwd-key-i", String((spec.key ?? 0.55) * wash));
+  host.style.setProperty("--gwd-world", spec.worldCol || "#ede8e0");
+  host.style.setProperty("--gwd-world-i", String((spec.worldI ?? spec.world ?? 0.7) * wash));
   host.style.setProperty("--gwd-floor", spec.floorCol || "#3a2a1c");
+  host.style.setProperty("--gwd-floor-x", spec.floorX || "50%");
+  host.style.setProperty("--gwd-floor-y", spec.floorY || "4%");
+  host.style.setProperty("--gwd-floor-w", spec.floorW || "80%");
   host.style.setProperty("--gwd-aim", spec.aimCol || "#fff0d1");
   host.style.setProperty("--gwd-aim-i", String(spec.aimGain ?? 0));
   host.style.setProperty("--gwd-aim-x", `${spec.aimX ?? 50}%`);
   host.style.setProperty("--gwd-aim-y", `${spec.aimY ?? 28}%`);
   host.style.setProperty("--gwd-aim-s", String(spec.aimSize ?? 1));
+  host.style.setProperty("--gwd-pal-stand", spec.palStand || "#3a3a3e");
+  host.style.setProperty("--gwd-pal-object", spec.palObject || "#dbc7a8");
+  host.style.setProperty("--gwd-pal-ball", spec.palBall || "#d1472e");
+  host.style.setProperty("--gwd-pal-beam", spec.palBeam || "#ffe8b8");
+  host.style.setProperty("--gwd-pal-star", spec.palStar || "#ffe566");
+  applyGwdSceneVars(host, spec);
   host.dataset.propFloor = spec.floor ? "1" : "0";
+  host.dataset.propFlat = spec.flat ? "1" : "0";
   host.dataset.propCog = spec.cog ? "1" : "0";
+  host.dataset.propCamMode = spec.pan ? "pan" : "orbit";
+  if (spec.orbit) host.dataset.gwdOrbit = spec.orbit;
+  if (spec.fov) host.dataset.gwdFov = spec.fov;
+  if (spec.radius != null && spec.radius !== "") host.dataset.gwdRadius = String(spec.radius);
+  if (spec.target) host.dataset.gwdTarget = spec.target;
+  else delete host.dataset.gwdTarget;
+  if (spec.orient) host.dataset.gwdOrient = spec.orient;
+  else delete host.dataset.gwdOrient;
+  host.dataset.propSx = String(spec.scaleX ?? spec.scale ?? 1);
+  host.dataset.propSy = String(spec.scaleY ?? spec.scale ?? 1);
+  host.dataset.propSz = String(spec.scaleZ ?? spec.scale ?? 1);
   host.dataset.propAim = spec.aimMode || "none";
-  const aim = host.querySelector(".ad-prop-aim");
-  if (aim) {
-    const mode = spec.aimMode || "none";
-    aim.dataset.aim = mode;
-    aim.hidden = mode === "none";
-    const n = mode === "multi" ? 3 : mode === "spot" ? 1 : 0;
-    if (aim.querySelectorAll(".ad-prop-aim-beam").length !== n) {
-      aim.innerHTML = Array.from({ length: n }, (_, i) => `<i class="ad-prop-aim-beam" style="--i:${i}"></i>`).join("");
-    }
+  if (spec.palAct) host.dataset.propAct = spec.palAct;
+  host.dataset.palObject = spec.palObjectOn ? "1" : "0";
+  host.dataset.palBall = spec.palBallOn ? "1" : "0";
+  host.dataset.palBeam = spec.palBeamOn ? "1" : "0";
+  host.dataset.palStar = spec.palStarOn ? "1" : "0";
+  host.dataset.gwdExposure = spec.exposure || "1";
+  host.dataset.gwdShadow = spec.shadow || "0";
+  host.dataset.gwdSoft = spec.soft || "0.4";
+  if (spec.lights) host.dataset.gwdLights = encodeURIComponent(JSON.stringify(spec.lights));
+  else delete host.dataset.gwdLights;
+  let aim = host.querySelector(".ad-prop-aim");
+  if (!aim) {
+    aim = document.createElement("div");
+    aim.className = "ad-prop-aim";
+    aim.setAttribute("aria-hidden", "true");
+    host.append(aim);
   }
-  const extras = host.querySelector(".ad-prop-extras");
-  if (extras) {
-    extras.hidden = !spec.extras?.length;
-    extras.innerHTML = (spec.extras || []).map((ex) =>
-      `<i class="ad-prop-extra" data-place="${ex.place || "frente"}" style="--gwd-x:${ex.x}%;--gwd-y:${ex.y}%;--gwd-x-col:${ex.col};--gwd-x-i:${ex.i}"></i>`
-    ).join("");
+  const mode = spec.aimMode || "none";
+  aim.dataset.aim = mode;
+  aim.hidden = mode === "none";
+  const n = mode === "multi" ? 3 : mode === "spot" ? 1 : 0;
+  if (aim.querySelectorAll(".ad-prop-aim-beam").length !== n) {
+    aim.innerHTML = Array.from({ length: n }, (_, i) => `<i class="ad-prop-aim-beam" style="--i:${i}"></i>`).join("");
   }
+  let extras = host.querySelector(".ad-prop-extras");
+  if (!extras) {
+    extras = document.createElement("div");
+    extras.className = "ad-prop-extras";
+    extras.setAttribute("aria-hidden", "true");
+    host.append(extras);
+  }
+  extras.hidden = !spec.extras?.length || Boolean(spec.envLit);
+  const extraWash = spec.envLit ? 0 : 1;
+  extras.innerHTML = (spec.extras || []).map((ex) =>
+    `<i class="ad-prop-extra" data-place="${ex.place || "frente"}" style="--gwd-x:${ex.x}%;--gwd-y:${ex.y}%;--gwd-x-col:${ex.col};--gwd-x-i:${ex.i * extraWash}"></i>`
+  ).join("");
+  let pal = host.querySelector(".ad-prop-pal");
+  if (!pal) {
+    pal = document.createElement("div");
+    pal.className = "ad-prop-pal";
+    pal.setAttribute("aria-hidden", "true");
+    host.append(pal);
+  }
+  pal.dataset.palAct = spec.palAct || "drop";
+  if (!pal.querySelector(".ad-prop-pal-object")) pal.innerHTML = gwdPalInner();
 }
 
 function gwdInnerModelViewer(el) {
   if (!el) return null;
   if (String(el.tagName).toLowerCase() === "model-viewer") return el;
   return el.querySelector?.("model-viewer") || null;
+}
+
+function setGwdEnvAttr(el, url) {
+  if (!url) {
+    el.removeAttribute("environment-image");
+    try { el.environmentImage = ""; } catch { /* 1.6 */ }
+    return;
+  }
+  el.setAttribute("environment-image", url);
+  try { el.environmentImage = url; } catch { /* 1.6 */ }
+}
+
+function pinGwdEnv(el, spec, host) {
+  const inner = gwdInnerModelViewer(el);
+  const packed = host?.dataset.gwdLights || (spec.lights ? encodeURIComponent(JSON.stringify(spec.lights)) : "");
+  if (packed && host?._gwdLightsPainted === packed && host._gwdEnvBlob) {
+    const keep = `${host._gwdEnvBlob}#.hdr`;
+    if (el.getAttribute("environment-image") !== keep) setGwdEnvAttr(el, keep);
+    if (inner && inner !== el && inner.getAttribute("environment-image") !== keep) setGwdEnvAttr(inner, keep);
+    return;
+  }
+  const url = spec.lights ? paintStudioEnv(spec.lights) : spec.env || "";
+  const prev = host?._gwdEnvBlob || el._gwdEnvBlob || "";
+  setGwdEnvAttr(el, url);
+  if (inner && inner !== el) setGwdEnvAttr(inner, url);
+  const blob = url.startsWith("blob:") ? url.split("#")[0] : "";
+  if (prev && prev !== blob) {
+    try { URL.revokeObjectURL(prev); } catch { /* already gone */ }
+  }
+  el._gwdEnvBlob = blob;
+  if (host) {
+    host._gwdEnvBlob = blob;
+    host._gwdLightsPainted = packed;
+  }
 }
 
 function applyGwdModelViewNode(el, spec) {
@@ -573,28 +856,25 @@ function applyGwdModelViewNode(el, spec) {
     el.setAttribute("shadow-softness", spec.soft);
     el.shadowSoftness = spec.soft;
   }
-  const meshScale = `${spec.scaleX ?? 1} ${spec.scaleY ?? 1} ${spec.scaleZ ?? 1}`;
+  const meshScale = spec.scaleAttr || `${spec.scaleX ?? 1} ${spec.scaleY ?? 1} ${spec.scaleZ ?? 1}`;
   el.setAttribute("scale", meshScale);
-  if ("scale" in el) el.scale = meshScale;
+  try { el.scale = meshScale; } catch { /* 1.6 */ }
   el.style.setProperty("background", spec.stage);
   el.style.setProperty("--poster-color", spec.stage);
-  if (spec.flat || !spec.env) {
-    el.removeAttribute("environment-image");
-  } else {
-    el.setAttribute("environment-image", spec.env);
-  }
   el.jumpCameraToGoal?.();
 }
 
 export function applyGwdModelView(el, spec) {
   if (!el || !spec?.ok) return;
+  const host = el.closest?.(".ad-container") || el.parentElement;
+  applyGwdStageLayers(host, spec);
   applyGwdModelViewNode(el, spec);
   const inner = gwdInnerModelViewer(el);
   if (inner && inner !== el) applyGwdModelViewNode(inner, spec);
-  applyGwdStageLayers(el.closest?.(".ad-container") || el.parentElement, spec);
+  pinGwdEnv(el, spec, host);
 }
 
-export function gwdViewerTagAttrs(spec) {
+export function gwdViewerTagAttrs(spec, opts = {}) {
   const bits = [
     `camera-orbit="${spec.orbit}"`,
     `field-of-view="${spec.fov}"`,
@@ -606,11 +886,11 @@ export function gwdViewerTagAttrs(spec) {
     `shadow-intensity="${spec.shadow}"`,
     `shadow-softness="${spec.soft || "0.4"}"`,
     `autoplay-duration="12"`,
-    `scale="${spec.scaleX ?? 1} ${spec.scaleY ?? 1} ${spec.scaleZ ?? 1}"`,
+    `scale="${spec.scaleAttr || `${spec.scaleX ?? 1} ${spec.scaleY ?? 1} ${spec.scaleZ ?? 1}`}"`,
   ];
   if (spec.target && spec.target !== "auto") bits.push(`camera-target="${spec.target}"`);
   if (spec.orient) bits.push(`orientation="${spec.orient}"`);
-  if (!spec.flat) bits.push(`environment-image="${gwdKitUrl("env-neutral.hdr")}"`);
+  if (spec.env && !/^(data:|blob:)/i.test(spec.env)) bits.push(`environment-image="${spec.env}"`);
   bits.push(`style="background:${spec.stage};--poster-color:${spec.stage}"`);
   return bits.join(" ");
 }
@@ -621,6 +901,17 @@ export function gwdLightSlug(item, spec = gwdLightFromCombo(item)) {
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
     .slice(0, 48) || "gwd-light";
+}
+
+function gwdSceneCss(spec) {
+  const bits = [`--gwd-body-ms:${Number(spec?.bodyMs) || 2400}ms`];
+  const pal = spec?.scene;
+  if (pal && typeof pal === "object") {
+    for (const [key, value] of Object.entries(pal)) {
+      if (value) bits.push(`--gwd-sc-${key}:${value}`);
+    }
+  }
+  return bits.join(";");
 }
 
 export function gwdPlayMarkup(item, spec = gwdLightFromCombo(item), opts = {}) {
@@ -640,14 +931,16 @@ export function gwdPlayMarkup(item, spec = gwdLightFromCombo(item), opts = {}) {
   const claim = escapeHandoffClaim(resolveHandoffClaim(extras, format));
   return `<aside class="ad-slot" data-in="${inId}" data-play="${play}" style="--ad-w:${format.w}px;--ad-h:${format.h}px;--ad-ratio:${format.w} / ${format.h}">
   <div class="ad-frame">
-    <div id="gwd-play" class="ad-container" data-prop-ms="${propActionMs(item.propAct)}" data-prop-act="${item.propAct || "drop"}" data-play="${play}" data-prop-flat="${spec.flat ? "1" : "0"}" data-prop-floor="${spec.floor ? "1" : "0"}" data-prop-cog="${spec.cog ? "1" : "0"}" data-prop-aim="${spec.aimMode || "none"}" data-prop-cam-mode="${spec.pan ? "pan" : "orbit"}" data-gwd-orbit="${spec.orbit || ""}" data-gwd-fov="${spec.fov || ""}" data-gwd-radius="${spec.radius || ""}" data-gwd-target="${spec.target || "auto"}" data-gwd-env="${spec.flat || !spec.env ? "" : gwdKitUrl("env-neutral.hdr")}" data-gwd-soft="${spec.soft || "0.4"}" data-gwd-orient="${spec.orient || ""}" data-prop-sx="${spec.scaleX ?? 1}" data-prop-sy="${spec.scaleY ?? 1}" data-prop-sz="${spec.scaleZ ?? 1}" data-handoff="${hand}" data-handoff-ms="${handSet.hms}" data-handoff-bands="${handSet.hnb}" data-handoff-stagger="${handSet.hst}" data-handoff-hold="${handSet.hhd}" data-handoff-in="${handSet.hin}" data-handoff-beats="${handSet.hbt}" data-handoff-tempo="${handSet.htm}" style="${adPlaceVars(ph)};--gwd-stage:${spec.stage || "#f5f2ed"};--gwd-prop-sx:${spec.scaleX ?? 1};--gwd-prop-sy:${spec.scaleY ?? 1};--gwd-fill:${spec.fillCol || "#ebf2ff"};--gwd-rim:${spec.rimCol || "#d9e6ff"};--gwd-fill-i:${spec.fill ?? 0};--gwd-rim-i:${spec.rim ?? 0};--gwd-key:${spec.keyCol || "#fff7eb"};--gwd-key-i:${spec.key ?? 0.55};--gwd-floor:${spec.floorCol || "#3a2a1c"};--gwd-aim:${spec.aimCol || "#fff0d1"};--gwd-aim-i:${spec.aimGain ?? 0};--gwd-aim-x:${spec.aimX ?? 50}%;--gwd-aim-y:${spec.aimY ?? 28}%;--gwd-aim-s:${spec.aimSize ?? 1};--handoff-ms:${handSet.hms}ms;--handoff-bands:${handSet.hnb};--handoff-stagger:${handSet.hst}ms;--handoff-hold:${handSet.hhd}ms;--handoff-rise:${handSet.hin}ms;--handoff-fade:${fade}ms">
+    <div id="gwd-play" class="ad-container" data-prop-ms="${spec.bodyMs || propActionMs(item.propAct)}" data-gwd-body-ms="${spec.bodyMs || propActionMs(item.propAct)}" data-prop-act="${item.propAct || "drop"}" data-play="${play}"${spec.scene ? ` data-pal="${encodeURIComponent(JSON.stringify(spec.scene))}"` : ""} data-prop-flat="${spec.flat ? "1" : "0"}" data-prop-floor="${spec.floor ? "1" : "0"}" data-prop-cog="${spec.cog ? "1" : "0"}" data-prop-aim="${spec.aimMode || "none"}" data-pal-object="${spec.palObjectOn ? "1" : "0"}" data-pal-ball="${spec.palBallOn ? "1" : "0"}" data-pal-beam="${spec.palBeamOn ? "1" : "0"}" data-pal-star="${spec.palStarOn ? "1" : "0"}" data-prop-cam-mode="${spec.pan ? "pan" : "orbit"}" data-gwd-orbit="${spec.orbit || ""}" data-gwd-fov="${spec.fov || ""}" data-gwd-radius="${spec.radius || ""}" data-gwd-target="${spec.target || "auto"}" data-gwd-env="${!spec.env || /^(data:|blob:)/i.test(String(spec.env)) ? "" : spec.env}" data-gwd-lights="${spec.lights ? encodeURIComponent(JSON.stringify(spec.lights)) : ""}" data-gwd-soft="${spec.soft || "0.4"}" data-gwd-exposure="${spec.exposure || "1"}" data-gwd-shadow="${spec.shadow || "0"}" data-gwd-orient="${spec.orient || ""}" data-gwd-floor-x="${spec.floorX || "50%"}" data-gwd-floor-y="${spec.floorY || "4%"}" data-gwd-floor-w="${spec.floorW || "80%"}" data-prop-sx="${spec.scaleX ?? 1}" data-prop-sy="${spec.scaleY ?? 1}" data-prop-sz="${spec.scaleZ ?? 1}" data-handoff="${hand}" data-handoff-ms="${handSet.hms}" data-handoff-bands="${handSet.hnb}" data-handoff-stagger="${handSet.hst}" data-handoff-hold="${handSet.hhd}" data-handoff-in="${handSet.hin}" data-handoff-beats="${handSet.hbt}" data-handoff-tempo="${handSet.htm}" style="${adPlaceVars(ph)};--gwd-stage:${spec.stage || "#f5f2ed"};--gwd-prop-sx:${spec.scaleX ?? 1};--gwd-prop-sy:${spec.scaleY ?? 1};--gwd-prop-sz:${spec.scaleZ ?? 1};--gwd-fill:${spec.fillCol || "#ebf2ff"};--gwd-rim:${spec.rimCol || "#d9e6ff"};--gwd-fill-i:${(spec.fill ?? 0) * (spec.envLit ? 0 : 1)};--gwd-rim-i:${(spec.rim ?? 0) * (spec.envLit ? 0 : 1)};--gwd-key:${spec.keyCol || "#fff7eb"};--gwd-key-i:${(spec.key ?? 0.55) * (spec.envLit ? 0 : 1)};--gwd-world:${spec.worldCol || "#ede8e0"};--gwd-world-i:${(spec.worldI ?? spec.world ?? 0.7) * (spec.envLit ? 0 : 1)};--gwd-floor:${spec.floorCol || "#3a2a1c"};--gwd-floor-x:${spec.floorX || "50%"};--gwd-floor-y:${spec.floorY || "4%"};--gwd-floor-w:${spec.floorW || "80%"};--gwd-aim:${spec.aimCol || "#fff0d1"};--gwd-aim-i:${spec.aimGain ?? 0};--gwd-aim-x:${spec.aimX ?? 50}%;--gwd-aim-y:${spec.aimY ?? 28}%;--gwd-aim-s:${spec.aimSize ?? 1};--gwd-pal-stand:${spec.palStand || "#3a3a3e"};--gwd-pal-object:${spec.palObject || "#dbc7a8"};--gwd-pal-ball:${spec.palBall || "#d1472e"};--gwd-pal-beam:${spec.palBeam || "#ffe8b8"};--gwd-pal-star:${spec.palStar || "#ffe566"};--handoff-ms:${handSet.hms}ms;--handoff-bands:${handSet.hnb};--handoff-stagger:${handSet.hst}ms;--handoff-hold:${handSet.hhd}ms;--handoff-rise:${handSet.hin}ms;--handoff-fade:${fade}ms;${gwdSceneCss(spec)}">
       ${viewerHtml}
+      <div class="ad-prop-world" aria-hidden="true"></div>
       <div class="ad-prop-floor" aria-hidden="true"></div>
       <div class="ad-prop-key" aria-hidden="true"></div>
       <div class="ad-prop-fill" aria-hidden="true"></div>
       <div class="ad-prop-rim" aria-hidden="true"></div>
       ${gwdAimMarkup(spec.aimMode)}
-      ${gwdExtrasMarkup(spec.extras)}
+      ${gwdExtrasMarkup(spec.extras, spec.envLit)}
+      ${gwdPalMarkup(spec)}
       <div class="ad-handoff" aria-hidden="true">
         ${handoffBandsMarkup(handSet.hnb, claim)}
       </div>
@@ -668,8 +961,7 @@ function gwdLightInner(item, spec, viewerHtml, opts = {}) {
 export function gwdLightAdHtml(item, spec = gwdLightFromCombo(item)) {
   const format = formatById(item?.ad);
   const glbName = gwdLightGlbName(spec);
-  const env = spec.flat ? "" : ` environment-image="neutral"`;
-  const viewer = `<div class="ad-stage"><model-viewer id="view" src="${glbName}" camera-controls autoplay animation-name="climax" interaction-prompt="none"${env} ${gwdViewerTagAttrs(spec)}></model-viewer></div>`;
+  const viewer = `<div class="ad-stage"><model-viewer id="view" src="${glbName}" camera-controls autoplay animation-name="climax" interaction-prompt="none" ${gwdViewerTagAttrs(spec)}></model-viewer></div>`;
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -757,12 +1049,12 @@ function gwdBannerPageCss(format) {
 }
 
 export function gwdInsertGuide(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok) return "";
+  if (!spec?.ok || spec.kind === "scene") return "";
   const glbUrl = gwdPublishedGlbUrl(spec);
   const iframeUrl = gwdServeUrl(`public/iframe/${gwdLightSlug(item, spec)}.html`);
   return `Nuevo proyecto GWD · Banner 3.0 · ${spec.w}×${spec.h} · handoff ${spec.handoff}
 
-Kit en public/gwd, GLB/foto en public/gtm, snippet en public/iframe.
+Kit en public/gwd (clip horneado + shell). Foto y mesh nativo en public/gtm. Snippet en public/iframe.
 Iframe: ${iframeUrl}
 
 1. File → New. Banner. Tamaño ${spec.w} × ${spec.h} px.
@@ -773,7 +1065,7 @@ Iframe: ${iframeUrl}
 }
 
 export function gwdPasteSnippet(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok) return "";
+  if (!spec?.ok || spec.kind === "scene") return "";
   const format = formatById(item?.ad);
   const glb = gwdPublishedGlbUrl(spec);
   const viewer = `<gwd-3d-model-viewer id="gwd-model" src="${glb}" autoplay animation-name="climax" ${gwdViewerTagAttrs(spec)}></gwd-3d-model-viewer>`;
@@ -877,9 +1169,20 @@ export function gwdViewerSnippet(spec, item) {
   return gwdInsertGuide(item, spec);
 }
 
+function fetchSource(path) {
+  if (path === "gwd-shell.js") return "gwd/shell.js";
+  return path;
+}
+
 async function fetchBytes(path) {
-  const res = await fetch(path);
+  const res = await fetch(fetchSource(path));
   if (!res.ok) throw new Error(`No se pudo leer ${path}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function fetchBytesFromUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`No se pudo leer ${url}`);
   return new Uint8Array(await res.arrayBuffer());
 }
 
@@ -895,7 +1198,7 @@ function clickDownload(name, data, type) {
 
 export async function gwdDownloadPart(item, kind) {
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok) throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
   if (kind === "snippet") {
     clickDownload(`${gwdLightSlug(item, spec)}-gwd-snippet.html`, gwdPasteSnippet(item, spec), "text/html");
     return;
@@ -943,7 +1246,7 @@ async function bakeClimaxForGwd(spec, action) {
 
 export async function gwdLightExportZip(item) {
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok) throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
   const slug = gwdLightSlug(item, spec);
   const glbName = gwdLightGlbName(spec);
   const imgName = spec.img;

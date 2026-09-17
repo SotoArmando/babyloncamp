@@ -22,6 +22,7 @@ import {
   normalizeViewFps,
   normalizeViewBlit,
   normalizeViewShelf,
+  normalizeViewSideDlg,
   normalizeViewZoom,
   normalizeViewClock,
   normalizeViewClockStyle,
@@ -43,7 +44,7 @@ import {
   serializeAdPlace,
   resolvePalette,
   resolveAdPlace,
-} from "./ad-catalog.js?v=cam24";
+} from "./ad-catalog.js?v=cam25";
 import { normalizeStudioState } from "./studio-lights.js";
 import { onPlayerOriginChange, playerUrl } from "./player-origin.js";
 
@@ -53,7 +54,9 @@ export const PROFILE_KEY_GWD = "babylon-ads-gallery-gwd";
 export function isGwdGalleryPage() {
   if (typeof document !== "undefined" && document.body?.dataset.visor === "gwd") return true;
   if (typeof location === "undefined") return false;
-  const file = (location.pathname.split("/").pop() || "").replace(/\.html$/i, "");
+  const pathname = String(location.pathname || "");
+  const file = (pathname.split("/").pop() || "").replace(/\.html$/i, "");
+  if (pathname.includes("/gwd/")) return true;
   if (file === "gallery-gwd" || file === "gwd-light" || file === "gwd-light-ad") return true;
   try {
     const q = new URLSearchParams(location.search);
@@ -73,7 +76,7 @@ function uid() {
 }
 
 function defaultView() {
-  return { cols: "3", size: "m", gap: "md", previewW: null, voidL: 14, zoom: 1, format: "medium", cat: "all", showOff: false, afps: 0, blit: 1.5, shelf: "column", clock: true, clockStyle: "sweep", clockTone: "dark", clockSize: 100, ph: resolveAdPlace() };
+  return { cols: "3", size: "m", gap: "md", previewW: null, voidL: 14, zoom: 1, format: "medium", cat: "all", showOff: false, afps: 0, blit: 1.5, shelf: "column", sideDlg: false, clock: true, clockStyle: "sweep", clockTone: "dark", clockSize: 100, ph: resolveAdPlace() };
 }
 
 export function comboTitle(item) {
@@ -207,8 +210,7 @@ export function galleryStorage() {
   return localStorage;
 }
 
-export function loadGalleryStore(storage = galleryStorage()) {
-  const key = galleryStorageKey();
+export function loadGalleryStore(storage = galleryStorage(), key = galleryStorageKey()) {
   const gwd = key === PROFILE_KEY_GWD;
   try {
     const raw = JSON.parse(storage.getItem(key) || "null");
@@ -218,7 +220,7 @@ export function loadGalleryStore(storage = galleryStorage()) {
         : emptyStore();
     }
     if (!raw.view) raw.view = defaultView();
-    else raw.view = { ...defaultView(), ...raw.view, ph: resolveAdPlace(raw.view.ph), afps: normalizeViewFps(raw.view.afps), blit: normalizeViewBlit(raw.view.blit), shelf: normalizeViewShelf(raw.view.shelf), zoom: normalizeViewZoom(raw.view.zoom), clock: normalizeViewClock(raw.view.clock), clockStyle: normalizeViewClockStyle(raw.view.clockStyle), clockTone: normalizeViewClockTone(raw.view.clockTone), clockSize: normalizeViewClockSize(raw.view.clockSize) };
+    else raw.view = { ...defaultView(), ...raw.view, ph: resolveAdPlace(raw.view.ph), afps: normalizeViewFps(raw.view.afps), blit: normalizeViewBlit(raw.view.blit), shelf: normalizeViewShelf(raw.view.shelf), sideDlg: normalizeViewSideDlg(raw.view.sideDlg), zoom: normalizeViewZoom(raw.view.zoom), clock: normalizeViewClock(raw.view.clock), clockStyle: normalizeViewClockStyle(raw.view.clockStyle), clockTone: normalizeViewClockTone(raw.view.clockTone), clockSize: normalizeViewClockSize(raw.view.clockSize) };
     if (!raw.activeId || !raw.profiles.some((item) => item.id === raw.activeId)) {
       raw.activeId = raw.profiles[0].id;
     }
@@ -231,7 +233,7 @@ export function loadGalleryStore(storage = galleryStorage()) {
       if (orderPinnedFirst(profile.items)) dirty = true;
       if (JSON.stringify(profile.items) !== before) dirty = true;
     }
-    if (dirty) saveGalleryStore(raw, storage);
+    if (dirty) saveGalleryStore(raw, storage, key);
     return raw;
   } catch {
     return gwd
@@ -240,9 +242,96 @@ export function loadGalleryStore(storage = galleryStorage()) {
   }
 }
 
-export function saveGalleryStore(store, storage = galleryStorage()) {
-  storage.setItem(galleryStorageKey(), JSON.stringify(store));
+export function saveGalleryStore(store, storage = galleryStorage(), key = galleryStorageKey()) {
+  storage.setItem(key, JSON.stringify(store));
   return store;
+}
+
+function readStoredStore(storage, key) {
+  try {
+    return JSON.parse(storage.getItem(key) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function profilesOnlyStore(raw) {
+  const profiles = Array.isArray(raw?.profiles)
+    ? raw.profiles.map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      createdAt: profile.createdAt,
+      ...(profile.file ? { file: profile.file } : {}),
+      ...(profile.packed ? { packed: true } : {}),
+      items: Array.isArray(profile.items) ? profile.items : [],
+    }))
+    : [];
+  const activeId = profiles.some((profile) => profile.id === raw?.activeId)
+    ? raw.activeId
+    : (profiles[0]?.id || "");
+  return {
+    version: raw?.version || 1,
+    activeId,
+    view: defaultView(),
+    profiles,
+  };
+}
+
+function wipeStorageExcept(storage, keep) {
+  const drop = [];
+  for (let i = 0; i < storage.length; i += 1) {
+    const key = storage.key(i);
+    if (key && !keep.has(key)) drop.push(key);
+  }
+  for (const key of drop) storage.removeItem(key);
+}
+
+export async function resetGalleryCacheAndSettings(store, storage = galleryStorage()) {
+  const keep = new Set([PROFILE_KEY, PROFILE_KEY_GWD]);
+  const currentKey = galleryStorageKey();
+  const current = profilesOnlyStore(store || readStoredStore(storage, currentKey));
+  const otherKey = currentKey === PROFILE_KEY ? PROFILE_KEY_GWD : PROFILE_KEY;
+  const otherRaw = readStoredStore(storage, otherKey);
+  const bags = [storage];
+  try {
+    if (typeof localStorage !== "undefined" && localStorage !== storage) bags.push(localStorage);
+  } catch {
+    /* optional */
+  }
+  try {
+    if (window.parent && window.parent !== window && window.parent.localStorage && !bags.includes(window.parent.localStorage)) {
+      bags.push(window.parent.localStorage);
+    }
+  } catch {
+    /* iframe sin acceso al padre */
+  }
+  for (const bag of bags) {
+    wipeStorageExcept(bag, keep);
+    bag.setItem(currentKey, JSON.stringify(current));
+    if (otherRaw) bag.setItem(otherKey, JSON.stringify(profilesOnlyStore(otherRaw)));
+    else bag.removeItem(otherKey);
+  }
+  try { sessionStorage.clear(); } catch { /* optional */ }
+  try {
+    if (window.parent && window.parent !== window) window.parent.sessionStorage.clear();
+  } catch { /* optional */ }
+  try {
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+  } catch { /* optional */ }
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((reg) => reg.unregister()));
+  } catch { /* optional */ }
+  serveStoreOnce.live = null;
+  serveStoreOnce.gwd = null;
+  if (store && typeof store === "object") {
+    store.version = current.version;
+    store.activeId = current.activeId;
+    store.view = current.view;
+    store.profiles = current.profiles;
+  }
+  return current;
 }
 
 export function activeProfile(store) {
@@ -408,7 +497,8 @@ export async function loadServeStore(kind = "auto") {
   const gwd = useGwdPack(kind);
   const cacheKey = gwd ? "gwd" : "live";
   if (serveStoreOnce[cacheKey]) return serveStoreOnce[cacheKey];
-  const live = loadGalleryStore();
+  const storeKey = gwd ? PROFILE_KEY_GWD : PROFILE_KEY;
+  const live = loadGalleryStore(galleryStorage(), storeKey);
   const packed = await loadPackedProfiles(gwd ? "gwd" : "live");
   const used = new Set((live.profiles || []).map((entry) => entry.id));
   const extra = packed.filter((entry) => !used.has(entry.id));

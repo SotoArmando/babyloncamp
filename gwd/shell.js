@@ -7,6 +7,141 @@
     if (!Number.isFinite(n)) return fallback;
     return String(Math.round(Math.min(hi, Math.max(lo, n))));
   }
+  function paintStudioEnv(recipe) {
+    if (!recipe) return "";
+    var W = 256;
+    var H = 128;
+    var buf = new Float32Array(W * H * 4);
+    var ambient = (0.1 + (recipe.wi || 0) * 0.4) * (recipe.ei || 0.85);
+    var wr = (recipe.w && recipe.w[0]) || 0.9;
+    var wg = (recipe.w && recipe.w[1]) || 0.88;
+    var wb = (recipe.w && recipe.w[2]) || 0.84;
+    var j;
+    var i;
+    for (j = 0; j < H; j += 1) {
+      var v = (j + 0.5) / H;
+      var y = Math.sin((0.5 - v) * Math.PI);
+      var hem = y >= 0 ? 0.72 + y * 0.38 : 0.42 + y * 0.18;
+      var ar = wr * ambient * hem;
+      var ag = wg * ambient * hem;
+      var ab = wb * ambient * hem;
+      for (i = 0; i < W; i += 1) {
+        var k = (j * W + i) * 4;
+        buf[k] = ar;
+        buf[k + 1] = ag;
+        buf[k + 2] = ab;
+        buf[k + 3] = 1;
+      }
+    }
+    (recipe.l || []).forEach(function (lamp) {
+      var lx = -lamp.d[0];
+      var ly = -lamp.d[1];
+      var lz = -lamp.d[2];
+      var len = Math.hypot(lx, ly, lz) || 1;
+      var dx = lx / len;
+      var dy = ly / len;
+      var dz = lz / len;
+      var rad = Math.max(0.02, lamp.r);
+      var power = Math.max(14, 1 / (rad * rad));
+      var cr = lamp.c[0];
+      var cg = lamp.c[1];
+      var cb = lamp.c[2];
+      var row;
+      var col;
+      for (row = 0; row < H; row += 1) {
+        var lat = (0.5 - (row + 0.5) / H) * Math.PI;
+        var sy = Math.sin(lat);
+        var xz = Math.cos(lat);
+        for (col = 0; col < W; col += 1) {
+          var lon = ((col + 0.5) / W - 0.5) * Math.PI * 2;
+          var ndot = xz * Math.sin(lon) * dx + sy * dy + xz * Math.cos(lon) * dz;
+          if (ndot <= 0.002) continue;
+          var fall = Math.pow(ndot, power);
+          if (fall < 1e-5) continue;
+          var pk = (row * W + col) * 4;
+          var gain = lamp.e * fall;
+          buf[pk] += cr * gain;
+          buf[pk + 1] += cg * gain;
+          buf[pk + 2] += cb * gain;
+        }
+      }
+    });
+    function rgbe(r, g, b) {
+      var peak = Math.max(r, g, b);
+      if (!(peak > 1e-32)) return [0, 0, 0, 0];
+      var e = Math.floor(Math.log2(peak)) + 1;
+      var s = 256 / Math.pow(2, e);
+      return [Math.min(255, Math.floor(r * s)), Math.min(255, Math.floor(g * s)), Math.min(255, Math.floor(b * s)), e + 128];
+    }
+    function rle(values) {
+      var out = [];
+      var at = 0;
+      while (at < values.length) {
+        var val = values[at];
+        var run = 1;
+        while (at + run < values.length && run < 127 && values[at + run] === val) run += 1;
+        if (run >= 4) {
+          out.push(128 + run, val);
+          at += run;
+          continue;
+        }
+        var dumpAt = at;
+        var dump = 1;
+        at += 1;
+        while (at < values.length && dump < 127) {
+          var ahead = 1;
+          var next = values[at];
+          while (at + ahead < values.length && ahead < 4 && values[at + ahead] === next) ahead += 1;
+          if (ahead >= 4) break;
+          dump += 1;
+          at += 1;
+        }
+        out.push(dump);
+        for (var d = 0; d < dump; d += 1) out.push(values[dumpAt + d]);
+      }
+      return out;
+    }
+    var header = "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y " + H + " +X " + W + "\n";
+    var body = [];
+    for (j = 0; j < H; j += 1) {
+      body.push(2, 2, (W >> 8) & 255, W & 255);
+      var ch = [[], [], [], []];
+      for (i = 0; i < W; i += 1) {
+        var pix = rgbe(buf[(j * W + i) * 4], buf[(j * W + i) * 4 + 1], buf[(j * W + i) * 4 + 2]);
+        ch[0].push(pix[0]);
+        ch[1].push(pix[1]);
+        ch[2].push(pix[2]);
+        ch[3].push(pix[3]);
+      }
+      ch.forEach(function (channel) { Array.prototype.push.apply(body, rle(channel)); });
+    }
+    var bytes = new Uint8Array(header.length + body.length);
+    for (i = 0; i < header.length; i += 1) bytes[i] = header.charCodeAt(i);
+    bytes.set(body, header.length);
+    return URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" })) + "#.hdr";
+  }
+  function envFromBox(box, mv) {
+    if (!mv || !box) return;
+    var raw = box.dataset.gwdLights || "";
+    var env = "";
+    if (raw) {
+      if (box._gwdLightsPainted === raw) return;
+      try { env = paintStudioEnv(JSON.parse(decodeURIComponent(raw))); } catch (err) { env = ""; }
+      if (box._gwdEnvBlob) {
+        try { URL.revokeObjectURL(box._gwdEnvBlob); } catch (err) { /* already gone */ }
+      }
+      box._gwdEnvBlob = env && env.startsWith("blob:") ? env.split("#")[0] : "";
+      box._gwdLightsPainted = raw;
+    }
+    if (!env) env = mv.getAttribute("environment-image") || box.dataset.gwdEnv || "";
+    if (!env || env === "neutral") {
+      mv.removeAttribute("environment-image");
+      return;
+    }
+    if (mv.getAttribute("environment-image") === env) return;
+    setAttrIf(mv, "environment-image", env);
+    mv.environmentImage = env;
+  }
   function handoffById(id) {
     const key = String(id || "");
     return HANDS.includes(key) ? key : "none";
@@ -226,6 +361,37 @@
     const m = String(s).match(/^(-?[\d.]+)(.*)$/);
     return { n: Number(m?.[1]) || 0, u: m?.[2] || "" };
   }
+  function sceneOf(mv) {
+    if (!mv) return null;
+    const key = Object.getOwnPropertySymbols(mv).find((sym) => String(sym) === "Symbol(scene)");
+    return key ? mv[key] : null;
+  }
+  function forceInView(mv) {
+    if (!mv) return;
+    const key = Object.getOwnPropertySymbols(mv).find((sym) => String(sym) === "Symbol(isElementInViewport)");
+    if (key) mv[key] = true;
+  }
+  function askLoad(mv) {
+    if (!mv) return;
+    forceInView(mv);
+    if (mv.loaded) return;
+    const key = Object.getOwnPropertySymbols(mv).find((sym) => String(sym) === "Symbol(updateSource)");
+    if (key && typeof mv[key] === "function") {
+      try {
+        const pending = mv[key]();
+        if (pending && typeof pending.catch === "function") pending.catch(() => {});
+      } catch { /* 1.6 */ }
+    }
+  }
+  function driveClip(mv, t) {
+    if (!mv) return;
+    try { mv.currentTime = t; } catch { /* 1.6 */ }
+    const scene = sceneOf(mv);
+    if (!scene) return;
+    try { scene.mixer && scene.mixer.setTime(t); } catch { /* 1.6 */ }
+    try { scene.updateMatrixWorld(true); } catch { /* 1.6 */ }
+    scene.isDirty = true;
+  }
   function liveCameraFromClip(box, mv) {
     if (!box || !mv || box.dataset.propCamMode === "pan") return;
     const d = Number(mv.duration) || 0;
@@ -235,11 +401,24 @@
     const th = numUnit(base.th);
     const rad = numUnit(base.rad);
     const next = `${th.n + cam.a * (180 / Math.PI)}${th.u || "deg"} ${base.ph} ${rad.n * cam.r * (1 - cam.punch)}${rad.u || "m"}`;
+    let dirty = false;
     if (mv.cameraOrbit !== next) {
       mv.cameraOrbit = next;
       mv.setAttribute("camera-orbit", next);
-      mv.jumpCameraToGoal?.();
+      dirty = true;
     }
+    const climax = sceneOf(mv)?.getObjectByName?.("climax");
+    if (climax) {
+      const lookX = climax.position.x * 0.35;
+      const lookY = Math.min(0.55, climax.position.y * 0.45 + 0.22);
+      const look = `${lookX}m ${lookY}m 0m`;
+      if (mv.cameraTarget !== look) {
+        mv.cameraTarget = look;
+        mv.setAttribute("camera-target", look);
+        dirty = true;
+      }
+    }
+    if (dirty) mv.jumpCameraToGoal?.();
   }
   function freezeClimax(mv) {
     if (!mv) return;
@@ -290,9 +469,11 @@
     node.style.setProperty("transform", "none", "important");
   }
 
-  function playClimaxClip(viewer) {
-    const mv = innerModelViewer(viewer);
+  function bindClimaxClip(mv) {
     if (!mv || typeof mv.play !== "function") return false;
+    if (mv.closest && mv.closest(".ad-container") && mv.closest(".ad-container").classList.contains("is-climax")) {
+      return false;
+    }
     const names = Array.from(mv.availableAnimations || []);
     if (!names.length) return false;
     const name = names.includes("climax") ? "climax" : names[0];
@@ -300,11 +481,11 @@
     if (mv.animationName !== name) mv.animationName = name;
     if ("animationLoop" in mv) mv.animationLoop = false;
     if (mv.hasAttribute("animation-loop")) mv.removeAttribute("animation-loop");
+    forceInView(mv);
+    try { mv.autoplay = true; } catch { /* 1.6 */ }
     if (!mv.hasAttribute("autoplay")) mv.setAttribute("autoplay", "");
-    const t = Number(mv.currentTime) || 0;
-    if (mv.paused === false) return true;
-    try { mv.play(); } catch { /* 1.6 */ }
-    return mv.paused === false;
+    try { mv.play(); } catch { /* 1.6 arma el mixer */ }
+    return Number(mv.duration) > 0.05;
   }
 
   function pinPlayCamera(box, viewer) {
@@ -313,6 +494,10 @@
     fillViewerBox(viewer);
     fillViewerBox(box.querySelector(".ad-stage"));
     if (!mv) return;
+    if (box.dataset.gwdPlaying === "1") {
+      fillViewerBox(mv);
+      return;
+    }
     const orbit = box.dataset.gwdOrbit;
     const fov = box.dataset.gwdFov;
     const radius = box.dataset.gwdRadius;
@@ -344,19 +529,64 @@
       setAttrIf(mv, "orientation", orient);
       mv.orientation = orient;
     }
-    const meshScale = `${box.dataset.propSx || 1} ${box.dataset.propSy || 1} ${box.dataset.propSz || box.dataset.propSx || 1}`;
-    if (typeof mv.scale === "string") {
-      setAttrIf(mv, "scale", meshScale);
-      mv.scale = meshScale;
-    }
+    const sx = box.dataset.propSx || "0.72";
+    const sy = box.dataset.propSy || sx;
+    const sz = box.dataset.propSz || sx;
+    const meshScale = `${sx} ${sy} ${sz}`;
+    setAttrIf(mv, "scale", meshScale);
+    try { mv.scale = meshScale; } catch { /* 1.6 / wrapper GWD */ }
     fillViewerBox(mv);
     const soft = box.dataset.gwdSoft;
     if (soft) {
       setAttrIf(mv, "shadow-softness", soft);
       mv.shadowSoftness = soft;
     }
+    const exposure = box.dataset.gwdExposure;
+    if (exposure) {
+      setAttrIf(mv, "exposure", exposure);
+      try { mv.exposure = exposure; } catch { /* 1.6 */ }
+    }
+    if (box.dataset.propFloor === "0") {
+      setAttrIf(mv, "shadow-intensity", "0");
+      try { mv.shadowIntensity = 0; } catch { /* 1.6 */ }
+    } else if (box.dataset.gwdShadow) {
+      setAttrIf(mv, "shadow-intensity", box.dataset.gwdShadow);
+      try { mv.shadowIntensity = box.dataset.gwdShadow; } catch { /* 1.6 */ }
+    }
+    const floorX = box.dataset.gwdFloorX;
+    const floorY = box.dataset.gwdFloorY;
+    const floorW = box.dataset.gwdFloorW;
+    if (floorX) box.style.setProperty("--gwd-floor-x", floorX);
+    if (floorY) box.style.setProperty("--gwd-floor-y", floorY);
+    if (floorW) box.style.setProperty("--gwd-floor-w", floorW);
+    const ensureLayer = (cls, before) => {
+      if (box.querySelector(`.${cls}`)) return;
+      const layer = document.createElement("div");
+      layer.className = cls;
+      layer.setAttribute("aria-hidden", "true");
+      if (before && box.contains(before)) box.insertBefore(layer, before);
+      else box.append(layer);
+    };
+    ensureLayer("ad-prop-world", box.querySelector(".ad-prop-floor"));
+    ensureLayer("ad-prop-floor");
+    ["ad-prop-key", "ad-prop-fill", "ad-prop-rim", "ad-prop-extras", "ad-prop-aim", "ad-prop-pal"].forEach((cls) => ensureLayer(cls));
+    const aim = box.querySelector(".ad-prop-aim");
+    if (aim) {
+      const mode = box.dataset.propAim || "none";
+      aim.dataset.aim = mode;
+      aim.hidden = mode === "none";
+      const n = mode === "multi" ? 3 : mode === "spot" ? 1 : 0;
+      if (aim.querySelectorAll(".ad-prop-aim-beam").length !== n) {
+        aim.innerHTML = Array.from({ length: n }, (_, i) => `<i class="ad-prop-aim-beam" style="--i:${i}"></i>`).join("");
+      }
+    }
+    const pal = box.querySelector(".ad-prop-pal");
+    if (pal && !pal.querySelector(".ad-prop-pal-object")) {
+      pal.innerHTML = '<i class="ad-prop-pal-stand"></i><i class="ad-prop-pal-object"></i><i class="ad-prop-pal-ball"></i><i class="ad-prop-pal-beam"></i><i class="ad-prop-pal-star"></i>';
+    }
     mv.style.setProperty("background", stage);
     mv.style.setProperty("--poster-color", stage);
+    envFromBox(box, mv);
     if ("interpolationDecay" in mv) mv.interpolationDecay = 0;
     mv.jumpCameraToGoal?.();
   }
@@ -382,14 +612,6 @@
     document.body.style.setProperty("transform-style", "flat", "important");
   }
 
-  function clipIsPlaying(mv) {
-    if (!mv || typeof mv.play !== "function") return false;
-    if (mv.loaded === false) return false;
-    if (!Array.from(mv.availableAnimations || []).length) return false;
-    if (mv.paused !== false) return false;
-    return (Number(mv.currentTime) || 0) > 0.01;
-  }
-
   function emitClipReady(box, mv, reason) {
     const detail = { reason: reason || "ready", time: Number(mv?.currentTime) || 0 };
     box.dispatchEvent(new CustomEvent("gwd-clip-ready", { bubbles: true, detail }));
@@ -403,41 +625,119 @@
     applyHandoffSettings(box);
     const viewer = nestViewer(box);
     pinPlayCamera(box, viewer);
+    const sceneCanvas = box.querySelector("canvas.ad-gwd-canvas");
+    const sceneOnly = Boolean(box.querySelector(".ad-gwd-scene") || sceneCanvas) && !innerModelViewer(viewer);
+    if (sceneOnly) {
+      playSlotIntro(document.querySelector(".ad-slot"));
+      function goScene() {
+        revealPlay(box);
+      }
+      if (sceneCanvas) {
+        const startCanvas = () => {
+          if (typeof window.bootPlay2D !== "function") return false;
+          window.bootPlay2D(box, { canvas: sceneCanvas, onReveal: goScene });
+          return true;
+        };
+        if (!startCanvas()) {
+          window.addEventListener("play-2d-ready", startCanvas, { once: true });
+          const delay = Number(box.dataset.gwdBodyMs) || Number(box.dataset.propMs) || 2400;
+          setTimeout(() => {
+            if (typeof window.bootPlay2D !== "function") goScene();
+          }, delay);
+        }
+        return;
+      }
+      const delay = Number(box.dataset.gwdBodyMs) || Number(box.dataset.propMs) || 2400;
+      setTimeout(goScene, delay);
+      box.addEventListener("click", goScene);
+      box.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          goScene();
+        }
+      });
+      box.tabIndex = 0;
+      return;
+    }
     let pinnedInner = innerModelViewer(viewer);
     let clipArmed = false;
     let kicking = false;
-    let playStarted = 0;
-    let handoffTimer = 0;
-    let lastT = 0;
+    let clipOrigin = 0;
+    let clipPauseAt = 0;
+    let clipSrc = "";
     let joined = false;
+    const bootAt = performance.now();
     const delay = Number(box.dataset.propMs) || propMs(box.dataset.propAct);
+    playSlotIntro(document.querySelector(".ad-slot"));
+    askLoad(innerModelViewer(viewer));
     const go = () => {
       if (joined || box.classList.contains("is-climax")) return;
       joined = true;
-      if (handoffTimer) clearTimeout(handoffTimer);
+      box.dataset.gwdPlaying = "0";
       const mv = innerModelViewer(viewer);
       freezeClimax(mv);
       liveCameraFromClip(box, mv);
       revealPlay(box);
     };
-    const armHandoff = (reason) => {
-      if (handoffTimer) return;
+    const failSafe = () => {
+      if (joined) return;
+      if (box.dataset.gwdPaused === "1") {
+        setTimeout(failSafe, 700);
+        return;
+      }
       const mv = innerModelViewer(viewer);
-      playStarted = Date.now();
-      playSlotIntro(document.querySelector(".ad-slot"));
-      emitClipReady(box, mv, reason);
-      const clipMs = Number(mv?.duration) > 0.2 ? Math.round(Number(mv.duration) * 1000) : delay;
-      handoffTimer = setTimeout(go, clipMs);
+      const loading = Boolean(mv && mv.src && !mv.loaded && performance.now() - bootAt < 20000);
+      if (loading) {
+        askLoad(mv);
+        setTimeout(failSafe, 700);
+        return;
+      }
+      if (!clipArmed) go();
     };
-    const tryReady = (reason) => {
-      if (clipArmed) return;
-      const mv = innerModelViewer(viewer);
-      if (!clipIsPlaying(mv)) return;
-      clipArmed = true;
-      armHandoff(reason);
+    setTimeout(failSafe, delay + 1600);
+    const stepClip = (mv) => {
+      if (!mv || joined) return;
+      if (box.dataset.gwdPaused === "1") {
+        if (!clipPauseAt) clipPauseAt = performance.now();
+        try { mv.pause(); } catch { /* 1.6 */ }
+        liveCameraFromClip(box, mv);
+        return;
+      }
+      if (clipPauseAt) {
+        if (clipOrigin) clipOrigin += performance.now() - clipPauseAt;
+        clipPauseAt = 0;
+      }
+      askLoad(mv);
+      if (!mv.loaded) return;
+      if (clipSrc !== String(mv.src || "")) {
+        clipSrc = String(mv.src || "");
+        clipOrigin = 0;
+        clipArmed = false;
+      }
+      if (!bindClimaxClip(mv)) return;
+      const d = Number(mv.duration) || 0;
+      if (d < 0.05) return;
+      if (!clipOrigin) {
+        clipOrigin = performance.now();
+        box.dataset.gwdPlaying = "1";
+        driveClip(mv, 0);
+        try { mv.play(); } catch { /* 1.6 */ }
+      }
+      const t = Math.min(d, (performance.now() - clipOrigin) / 1000);
+      const shown = Number(mv.currentTime) || 0;
+      if (mv.paused || Math.abs(shown - t) > 0.12) {
+        driveClip(mv, t);
+        try { mv.play(); } catch { /* 1.6 */ }
+      }
+      liveCameraFromClip(box, mv);
+      if (!clipArmed && t > 0.01) {
+        clipArmed = true;
+        emitClipReady(box, mv, "clock");
+      }
+      if (t >= d - 0.02) go();
     };
     const kick = () => {
-      if (clipArmed || kicking) return;
+      if (joined || kicking) return;
       kicking = true;
       try {
         const inner = innerModelViewer(viewer);
@@ -445,8 +745,7 @@
           pinPlayCamera(box, viewer);
           pinnedInner = inner;
         }
-        playClimaxClip(viewer);
-        tryReady("kick");
+        stepClip(inner);
       } finally {
         kicking = false;
       }
@@ -455,14 +754,14 @@
     const watch = (node) => {
       if (!node || node.dataset.gwdPlayKick === "1") return;
       node.dataset.gwdPlayKick = "1";
-      node.addEventListener("load", () => { kick(); tryReady("load"); });
-      node.addEventListener("preload", kick);
-      node.addEventListener("model-visibility", (event) => {
+      node.addEventListener("load", () => {
+        clipOrigin = 0;
+        clipArmed = false;
+        clipSrc = "";
         kick();
-        if (event.detail?.visible !== false) tryReady("visible");
       });
-      node.addEventListener("play", () => tryReady("play"));
-      node.addEventListener("scene-rendered", () => tryReady("rendered"));
+      node.addEventListener("preload", kick);
+      node.addEventListener("model-visibility", kick);
     };
     watch(viewer);
     watch(innerModelViewer(viewer));
@@ -473,26 +772,13 @@
     if (viewer && obs) obs.observe(viewer, { childList: true, subtree: true });
     window.addEventListener("adinitialized", kick);
     window.addEventListener("WebComponentsReady", kick);
-    viewer?.addEventListener("scene-rendered", kick);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) kick();
     });
-    [50, 120, 240, 480, 900, 1600, 2800, 4500, 7000].forEach((ms) => setTimeout(() => { kick(); tryReady("poll"); }, ms));
+    [50, 120, 240, 480, 900, 1600, 2800].forEach((ms) => setTimeout(kick, ms));
     const pollReady = () => {
       if (joined) return;
-      const mv = innerModelViewer(viewer);
-      if (!clipArmed) {
-        kick();
-        tryReady("raf");
-      }
-      liveCameraFromClip(box, mv);
-      const t = Number(mv?.currentTime) || 0;
-      const d = Number(mv?.duration) || 0;
-      if (clipArmed && d > 0.2 && (t >= d - 0.03 || (lastT > d * 0.55 && t + 0.12 < lastT))) {
-        go();
-        return;
-      }
-      lastT = t;
+      stepClip(innerModelViewer(viewer));
       requestAnimationFrame(pollReady);
     };
     requestAnimationFrame(pollReady);
@@ -504,13 +790,6 @@
       }
     });
     box.tabIndex = 0;
-    const onDone = () => go();
-    viewer?.addEventListener("finished", onDone);
-    const armFinished = () => {
-      innerModelViewer(viewer)?.addEventListener("finished", onDone);
-    };
-    armFinished();
-    viewer?.addEventListener("load", armFinished);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

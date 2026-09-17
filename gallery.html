@@ -476,6 +476,22 @@
       display: flex;
       flex-direction: column;
     }
+    body.is-side-dlg .g-modal-wide[open] {
+      position: fixed;
+      inset: auto auto 0 0;
+      top: var(--side-dlg-t, 0px);
+      width: var(--side-dlg-w, 32%);
+      height: var(--side-dlg-h, 100%);
+      max-width: 100%;
+      max-height: none;
+      margin: 0;
+      border-radius: 0;
+      border-right: 1px solid var(--line);
+      box-shadow: 16px 0 40px rgba(26, 35, 48, 0.14);
+    }
+    body.is-side-dlg .g-modal-wide::backdrop {
+      background: rgba(26, 35, 48, 0.08);
+    }
     .g-modal-wide h2 {
       flex: 0 0 auto;
       margin-bottom: 1rem;
@@ -1201,6 +1217,18 @@
       cursor: default;
       transform: none;
     }
+    .pause-fab {
+      width: 48px;
+      height: 48px;
+    }
+    .pause-fab svg {
+      width: 22px;
+      height: 22px;
+    }
+    .pause-fab.is-on {
+      color: #fff;
+      background: var(--neon);
+    }
     .play-fab svg {
       display: block;
       width: 26px;
@@ -1683,6 +1711,10 @@
       animation: none;
       pointer-events: none;
     }
+    .ad-container.is-paused,
+    .ad-container.is-paused * {
+      animation-play-state: paused !important;
+    }
     .ad-clock-layer {
       position: absolute;
       inset: 0;
@@ -1751,19 +1783,6 @@
     body.clock-off .ad-clock-layer {
       display: none;
     }
-    body.gwd-visor .ad-clock,
-    body.gwd-visor .ad-clock-layer { display: none; }
-    body.gwd-visor .ad-container canvas { display: none; }
-    body.gwd-visor .ad-container model-viewer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      --poster-color: transparent;
-    }
-    body.gwd-visor .ad-container.is-climax model-viewer { opacity: 0.42; }
-    body.gwd-visor .ad-container[data-play="prop"].is-climax model-viewer { opacity: 0.72; }
     .ad-container canvas {
       position: absolute;
       inset: 0;
@@ -2394,6 +2413,12 @@
                 </svg>
               </button>
             </div>
+            <button type="button" class="play-fab pause-fab" id="btn-pause" disabled aria-label="Pausa" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="6.2" y="5.2" width="3.8" height="13.6" rx="1.1" fill="currentColor"/>
+                <rect x="14" y="5.2" width="3.8" height="13.6" rx="1.1" fill="currentColor"/>
+              </svg>
+            </button>
             <button type="button" class="play-fab" id="btn-play" disabled aria-label="Play">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 6.8v10.4L16.8 12z"/></svg>
             </button>
@@ -2470,6 +2495,11 @@
         <input type="checkbox" id="sel-show-off" />
       </label>
       <label class="check-row">
+        <span>Diálogos a la izquierda</span>
+        <input type="checkbox" id="sel-side-dlg" />
+      </label>
+      <p class="g-fps-hint">Objeto, colores y anuncio se abren en la columna izquierda, del ancho de la galería y a toda altura.</p>
+      <label class="check-row">
         <span>Reloj del anuncio</span>
         <input type="checkbox" id="sel-clock" checked />
       </label>
@@ -2506,6 +2536,8 @@
         <input id="file-import-profile" type="file" accept="application/json,.json" hidden />
         <button type="button" id="btn-new-profile">Nuevo perfil</button>
         <button type="button" id="btn-reset-width" hidden>Restaurar ancho</button>
+        <button type="button" id="btn-clear-cache">Limpiar caché y vista</button>
+        <p class="g-fps-hint">Borra settings y caché. Quedan los perfiles y sus clímax.</p>
         <button type="button" class="primary" id="btn-gallery-opts-close">Listo</button>
       </div>
     </div>
@@ -2555,23 +2587,23 @@
       <div class="ph-styles" id="studio-presets"></div>
       <label class="prop-lint">
         <span>Luz ambiente <output id="studio-world-val">0.70</output><input id="studio-world-col" data-scol="worldCol" type="color" value="#ede8e0" aria-label="Color de la luz ambiente" /></span>
-        <input id="studio-world" data-ch="world" type="range" min="0" max="1.2" step="0.02" value="0.7" />
+        <input id="studio-world" data-ch="world" type="range" min="0" max="3" step="0.02" value="0.7" />
       </label>
       <label class="prop-lint">
         <span>Key <output id="studio-key-val">0.55</output><input id="studio-key-col" data-scol="keyCol" type="color" value="#fff7eb" aria-label="Color key" /></span>
-        <input id="studio-key" data-ch="key" type="range" min="0" max="1.2" step="0.02" value="0.55" />
+        <input id="studio-key" data-ch="key" type="range" min="0" max="3" step="0.02" value="0.55" />
       </label>
       <label class="prop-lint">
         <span>Fill <output id="studio-fill-val">0.42</output><input id="studio-fill-col" data-scol="fillCol" type="color" value="#ebf2ff" aria-label="Color fill" /></span>
-        <input id="studio-fill" data-ch="fill" type="range" min="0" max="1.2" step="0.02" value="0.42" />
+        <input id="studio-fill" data-ch="fill" type="range" min="0" max="3" step="0.02" value="0.42" />
       </label>
       <label class="prop-lint">
         <span>Rim <output id="studio-rim-val">0.20</output><input id="studio-rim-col" data-scol="rimCol" type="color" value="#d9e6ff" aria-label="Color rim" /></span>
-        <input id="studio-rim" data-ch="rim" type="range" min="0" max="1.2" step="0.02" value="0.20" />
+        <input id="studio-rim" data-ch="rim" type="range" min="0" max="3" step="0.02" value="0.20" />
       </label>
       <label class="prop-lint">
         <span>Exposición <output id="studio-exposure-val">1.02</output></span>
-        <input id="studio-exposure" data-ch="exposure" type="range" min="0.6" max="1.4" step="0.02" value="1.02" />
+        <input id="studio-exposure" data-ch="exposure" type="range" min="0.2" max="3" step="0.02" value="1.02" />
       </label>
       <h3>Luces de color</h3>
       <div class="studio-extras" id="studio-extras"></div>
@@ -2711,9 +2743,8 @@
     } }
   </script>
   <script type="module">
-    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam24";
-    import { bootContainers, startAd, disposeAds, restAds, rewindAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop50";
-    import { isGwdGallery, ensureModelViewer, gwdPlayDurationMs, mountGwdPlay, disposeGwdPlay, rewindGwdPlay, applyGwdViewerLive, markGwdUnsupported, markGwdCats } from "./gwd-gallery-play.js";
+    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam25";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop53";
     import {
       loadGalleryStore,
       saveGalleryStore,
@@ -2732,24 +2763,10 @@
       setComboPmesh,
       loadComboPropFiles,
       deleteComboPropFiles,
-    } from "./ad-profile.js?v=poster39";
+      resetGalleryCacheAndSettings,
+    } from "./ad-profile.js?v=poster42";
     import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
-
-    const GWD_VISOR = isGwdGallery();
-    if (GWD_VISOR) {
-      ensureModelViewer();
-      document.body.classList.add("gwd-visor");
-      document.body.dataset.visor = "gwd";
-      document.title = "Galería GWD · Plays guardados";
-      const title = document.getElementById("app-page-title");
-      if (title) title.textContent = "Galería GWD";
-      const swap = document.getElementById("app-gwd-link");
-      if (swap) {
-        swap.href = "gallery.html";
-        swap.textContent = "Galería Babylon";
-      }
-    }
 
     const grid = document.getElementById("grid");
     const gPane = document.getElementById("g-pane");
@@ -2776,6 +2793,7 @@
     const selPreviewZoom = document.getElementById("sel-preview-zoom");
     const previewZoomVal = document.getElementById("preview-zoom-val");
     const btnPlay = document.getElementById("btn-play");
+    const btnPause = document.getElementById("btn-pause");
     const side = document.getElementById("side");
     const btnGalleryOpts = document.getElementById("btn-gallery-opts");
     const galleryOpts = document.getElementById("gallery-opts");
@@ -2838,6 +2856,7 @@
     const phColors = document.getElementById("ph-colors");
     const btnPhSave = document.getElementById("btn-ph-save");
     const selShowOff = document.getElementById("sel-show-off");
+    const selSideDlg = document.getElementById("sel-side-dlg");
     const selClock = document.getElementById("sel-clock");
     const clockLook = document.getElementById("clock-look");
     const clockStyles = document.getElementById("clock-styles");
@@ -2907,6 +2926,8 @@
     const preloadCue = document.getElementById("preload-cue");
     let formatId = formatById(store.view.format).id;
     let playing = false;
+    let paused = false;
+    let pauseHeld = 0;
     let playStartedAt = 0;
     let playSpanMs = 1;
     let playRaf = 0;
@@ -2914,7 +2935,6 @@
     let playPaintAt = 0;
 
     function applyGalleryCost() {
-      if (GWD_VISOR) return;
       applyAnimCost({
         blitDpr: normalizeViewBlit(store.view.blit),
         fpsVisible: normalizeViewFps(store.view.afps),
@@ -2998,7 +3018,29 @@
         shell.style.removeProperty("--preview-w");
         btnResetWidth.hidden = true;
       }
-      requestAnimationFrame(syncOpsDock);
+      requestAnimationFrame(() => {
+        syncOpsDock();
+        syncSideDlgBox();
+      });
+    }
+
+    function syncSideDlgBox() {
+      const shellBox = shell.getBoundingClientRect();
+      const paneW = gPane.getBoundingClientRect().width;
+      const sideW = side.getBoundingClientRect().width;
+      const paneHidden = paneW < 8 || getComputedStyle(gPane).display === "none";
+      const width = Math.round(paneHidden ? sideW : paneW);
+      document.body.style.setProperty("--side-dlg-t", `${Math.round(shellBox.top)}px`);
+      document.body.style.setProperty("--side-dlg-h", `${Math.round(shellBox.height)}px`);
+      document.body.style.setProperty("--side-dlg-w", `${Math.max(0, width)}px`);
+    }
+
+    function applySideDlg() {
+      const on = normalizeViewSideDlg(store.view.sideDlg);
+      store.view.sideDlg = on;
+      selSideDlg.checked = on;
+      document.body.classList.toggle("is-side-dlg", on);
+      syncSideDlgBox();
     }
 
     function applyVoidLight() {
@@ -3361,6 +3403,7 @@
         }
         wrap.classList.add("is-open");
         btn.setAttribute("aria-expanded", "true");
+        syncSideDlgBox();
         if (!dialog.open) dialog.showModal();
         return;
       }
@@ -3422,6 +3465,7 @@
       slot.querySelectorAll(".ad-container").forEach((el) => {
         el.dataset.pal = packed;
       });
+      nudgeAds();
     }
 
     function paintComboPoster(item) {
@@ -3564,10 +3608,6 @@
 
     function applyPropLightLive(item) {
       if (!item) return;
-      if (GWD_VISOR) {
-        applyGwdViewerLive(item);
-        return;
-      }
       const packed = serializeStudioState(item.studio);
       slot.querySelectorAll(".ad-container[data-play='prop']").forEach((el) => {
         el.dataset.studioLights = packed;
@@ -3583,6 +3623,7 @@
         el.dataset.propRhrot = normalizePropSpin(item.prh);
         el.dataset.propRvrot = normalizePropSpin(item.prv);
       });
+      nudgeAds();
     }
 
     function persistPropRhrot(raw, save) {
@@ -3744,10 +3785,6 @@
 
     async function preloadCombo(item) {
       if (!item) return;
-      if (GWD_VISOR) {
-        await preloadAdImage(item);
-        return;
-      }
       await Promise.all([
         preloadEngine(),
         applyComboPropModel(item),
@@ -3868,6 +3905,7 @@
       selSize.value = view.size;
       selGap.value = view.gap;
       selShowOff.checked = Boolean(view.showOff);
+      applySideDlg();
       selClock.checked = normalizeViewClock(view.clock);
       applyClock();
       selAfps.value = String(normalizeViewFps(view.afps));
@@ -3947,6 +3985,7 @@
         size: selSize.value,
         gap: selGap.value,
         showOff: selShowOff.checked,
+        sideDlg: selSideDlg.checked,
         clock: selClock.checked,
         clockStyle: normalizeViewClockStyle(store.view.clockStyle),
         clockTone: normalizeViewClockTone(store.view.clockTone),
@@ -4076,6 +4115,7 @@
       const item = selectedCombo();
       syncFormatFromCombo(item);
       btnPlay.disabled = !item;
+      syncPauseBtn();
       hydratePlaceFromCombo(item);
       syncPlaceSaveBtn(item);
       syncPalUi(item);
@@ -4174,7 +4214,6 @@
       gCats.innerHTML = CATS.map((cat) => `
         <button type="button" class="g-pill${cat.id === current ? " is-on" : ""}" data-cat="${cat.id}">${cat.label}</button>
       `).join("");
-      if (GWD_VISOR) markGwdCats(gCats);
     }
 
     function setCat(id) {
@@ -4274,7 +4313,8 @@
 
     function playProgressT() {
       if (!playing || !playStartedAt) return 0;
-      return Math.min(1, (performance.now() - playStartedAt) / playSpanMs);
+      const now = paused ? pauseHeld : performance.now();
+      return Math.min(1, (now - playStartedAt) / playSpanMs);
     }
 
     function applyClock() {
@@ -4344,12 +4384,13 @@
 
     function tickPlayProgress(now) {
       playRaf = 0;
+      if (paused) return;
       const t = playProgressT();
       syncAdClock(liveClockT());
       if (playing && t >= 1) {
         syncAdClock(1);
         syncPlayProgress(true);
-        if (!GWD_VISOR) window.setTimeout(() => restAds(), 220);
+        window.setTimeout(() => { if (!paused) restAds(); }, 220);
         return;
       }
       if (!playPaintAt || now - playPaintAt >= 50) {
@@ -4360,14 +4401,16 @@
     }
 
     function startPlayProgress(item) {
+      paused = false;
+      pauseHeld = 0;
+      resumeAds();
       playStartedAt = performance.now();
-      playSpanMs = Math.max(1, GWD_VISOR
-        ? gwdPlayDurationMs(item)
-        : playDurationMs(item.play, item.propAct, item.hand, item));
+      playSpanMs = Math.max(1, playDurationMs(item.play, item.propAct, item.hand, item));
       playPaintAt = 0;
       playCard = null;
       if (playRaf) cancelAnimationFrame(playRaf);
       syncPlayProgress(true);
+      syncPauseBtn();
       playRaf = requestAnimationFrame(tickPlayProgress);
     }
 
@@ -4377,9 +4420,47 @@
       if (playRaf) cancelAnimationFrame(playRaf);
       playRaf = 0;
       playing = false;
+      paused = false;
+      pauseHeld = 0;
       setAdClockT(0);
       syncPlayProgress(true);
+      syncPauseBtn();
       playCard = null;
+    }
+
+    function syncPauseBtn() {
+      btnPause.disabled = !playing;
+      btnPause.classList.toggle("is-on", paused);
+      btnPause.setAttribute("aria-pressed", paused ? "true" : "false");
+      btnPause.setAttribute("aria-label", paused ? "Seguir" : "Pausa");
+    }
+
+    function setPaused(on) {
+      if (on) {
+        if (!playing || paused) {
+          if (paused) pauseAds();
+          syncPauseBtn();
+          return;
+        }
+        paused = true;
+        pauseHeld = performance.now();
+        if (playRaf) cancelAnimationFrame(playRaf);
+        playRaf = 0;
+        pauseAds();
+        syncPlayProgress(true);
+        syncPauseBtn();
+        return;
+      }
+      if (!paused) return;
+      const held = Math.max(0, pauseHeld - playStartedAt);
+      const t = playProgressT();
+      paused = false;
+      pauseHeld = 0;
+      playStartedAt = performance.now() - held;
+      resumeAds();
+      syncPlayProgress(true);
+      syncPauseBtn();
+      if (playing && t < 1) playRaf = requestAnimationFrame(tickPlayProgress);
     }
 
     async function playSelected() {
@@ -4393,26 +4474,20 @@
       const format = selectedFormat();
       const key = playKey(item);
       playing = true;
+      paused = false;
+      pauseHeld = 0;
       playCard = null;
       syncPlayProgress(true);
+      syncPauseBtn();
       applyFormatChrome();
-      if (key === livePlayKey && (GWD_VISOR ? rewindGwdPlay() : rewindAds())) {
+      if (key === livePlayKey && rewindAds()) {
         applyPropLightLive(item);
         startPlayProgress(item);
         return;
       }
-      if (GWD_VISOR) disposeGwdPlay(slot);
-      else disposeAds();
+      disposeAds();
       livePlayKey = "";
       applyAdBox(format);
-      if (GWD_VISOR) {
-        await mountGwdPlay(slot, item, propMarkupExtras(item), format);
-        if (gen !== playGen) return;
-        applyPropLightLive(item);
-        livePlayKey = key;
-        startPlayProgress(item);
-        return;
-      }
       slot.innerHTML = adMarkup(format, "gal-play", item.in || "none", item.play, propMarkupExtras(item));
       applyPropLightLive(item);
       const ad = slot.querySelector(".ad-slot");
@@ -4437,8 +4512,7 @@
       setPreloadCue("");
       playing = false;
       clearPlayProgress();
-      if (GWD_VISOR) disposeGwdPlay(slot);
-      else disposeAds();
+      disposeAds();
       applyFormatChrome();
     }
 
@@ -4546,10 +4620,19 @@
       stopPlayer();
       renderGrid();
     });
+    document.getElementById("btn-clear-cache").addEventListener("click", async () => {
+      const ok = window.confirm("Se limpia la vista, la caché y el resto de settings. Los perfiles y sus clímax se quedan. ¿Seguir?");
+      if (!ok) return;
+      await resetGalleryCacheAndSettings(store);
+      const url = new URL(location.href);
+      url.searchParams.set("_", String(Date.now()));
+      location.replace(url.href);
+    });
     selCols.addEventListener("change", persistView);
     selGap.addEventListener("change", persistView);
     selSize.addEventListener("change", persistView);
     selShowOff.addEventListener("change", persistView);
+    selSideDlg.addEventListener("change", persistView);
     selClock.addEventListener("change", persistView);
     clockStyles.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-clock-style]");
@@ -4654,6 +4737,7 @@
       btnPlay.classList.remove("is-press");
     });
     btnPlay.addEventListener("click", preloadThenPlay);
+    btnPause.addEventListener("click", () => setPaused(!paused));
     btnPal.addEventListener("click", (event) => {
       event.stopPropagation();
       setPalOpen(!palPanel.open);
@@ -4829,8 +4913,12 @@
     window.addEventListener("resize", () => {
       syncBarLift();
       syncOpsDock();
+      syncSideDlgBox();
     });
-    new ResizeObserver(() => syncOpsDock()).observe(gPane);
+    new ResizeObserver(() => {
+      syncOpsDock();
+      syncSideDlgBox();
+    }).observe(gPane);
     gOpsDock.addEventListener("click", (event) => {
       const op = event.target.closest(".g-op");
       if (!op || !selectedId) return;
@@ -4858,10 +4946,6 @@
 
     function syncDrawFps() {
       if (!galleryOpts.open) return;
-      if (GWD_VISOR) {
-        viewFpsVal.textContent = "—";
-        return;
-      }
       const fps = getDrawFps();
       viewFpsVal.textContent = fps > 0 ? `${fps} fps` : "—";
     }
@@ -4872,7 +4956,6 @@
     fillPlacePanel();
     fillStudioPresets();
     fillHandStyles();
-    if (GWD_VISOR) markGwdUnsupported();
     renderGrid();
   </script>
   <script src="app-nav.js?v=nav3"></script>
