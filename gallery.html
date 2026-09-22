@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Galería · Plays guardados</title>
-  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <link rel="stylesheet" href="app-nav.css?v=nav5" />
   <style>
     :root {
       --bg: #f4f6f8;
@@ -807,10 +807,11 @@
       z-index: 1;
       aspect-ratio: 1 / 1;
       border-radius: 16px;
-      overflow: hidden;
+      overflow: clip;
       isolation: isolate;
       outline: none;
       background: #efefef;
+      background-clip: padding-box;
       box-shadow: none;
       filter: none;
     }
@@ -828,9 +829,9 @@
       background: rgba(0, 0, 0, 0.22);
     }
     .g-card.is-on .g-thumb {
-      box-shadow:
-        0 0 0 2px #fff,
-        0 0 0 3.5px var(--ink);
+      box-shadow: 0 0 0 2px #fff;
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
     }
     .g-thumb > svg {
       display: block;
@@ -1482,6 +1483,20 @@
     .ph-style:hover,
     .ph-style:focus-visible { outline: 1px solid var(--neon); }
     .ph-style.is-on { outline: 2px solid var(--neon); background: #fff; }
+    .prop-trails { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .prop-trails .ph-thumb {
+      height: 52px;
+      background-size: cover;
+      background-position: center;
+    }
+    .prop-trail-lab {
+      margin: 0.65rem 0 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
     .ph-thumb {
       display: grid;
       place-items: center;
@@ -1630,11 +1645,16 @@
       display: grid;
       place-items: center;
     }
+    .ad-plinth-host {
+      width: min(100%, var(--ad-w, 300px));
+      max-width: 100%;
+    }
     .ad-plinth {
       position: relative;
-      width: min(100%, var(--ad-w, 300px));
+      width: 100%;
       display: grid;
-      place-items: center;
+      align-items: center;
+      justify-items: stretch;
       zoom: var(--preview-zoom, 1);
     }
     .ad-plinth::after {
@@ -1649,8 +1669,38 @@
       filter: blur(10px);
       pointer-events: none;
     }
-    .stage-slot { width: 100%; }
-    .stage-slot .ad-slot { width: min(100%, var(--ad-w)); margin: 0; }
+    .perf-graph {
+      position: absolute;
+      left: 0.55rem;
+      right: 0.55rem;
+      bottom: 0.55rem;
+      z-index: 24;
+      pointer-events: none;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(8, 10, 14, 0.72);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(8px);
+    }
+    .perf-graph[hidden] { display: none; }
+    .perf-graph canvas {
+      display: block;
+      width: 100%;
+      height: 88px;
+    }
+    .perf-graph-readout {
+      margin: 0;
+      padding: 0 0.55rem 0.4rem;
+      font: 600 0.62rem/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.02em;
+      color: #d7e4f4;
+    }
+    .stage-slot {
+      width: 100%;
+      max-width: var(--ad-w, 300px);
+      justify-self: center;
+    }
+    .stage-slot .ad-slot { width: 100%; max-width: none; margin: 0; }
     .slot-idle {
       width: min(100%, var(--ad-w));
       aspect-ratio: var(--ad-w) / var(--ad-h);
@@ -1690,7 +1740,9 @@
       height: auto;
       aspect-ratio: var(--ad-ratio, var(--ad-w) / var(--ad-h));
       padding-bottom: 0;
-      box-shadow: 0 0 0 1px var(--item-line);
+      box-shadow: none;
+      outline: calc(1px / var(--preview-zoom, 1)) solid var(--item-line);
+      outline-offset: 0;
     }
     .ad-container {
       position: absolute;
@@ -1791,12 +1843,35 @@
       display: block;
       transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
     }
+    .ad-container canvas.ad-trail-2d {
+      z-index: 8;
+      pointer-events: none;
+      background: transparent;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+    .ad-container.is-trail .ad-creative,
+    .ad-container.is-trail .ad-hint {
+      opacity: 0 !important;
+      visibility: hidden;
+    }
+    .ad-container.is-climax canvas.ad-trail-2d,
+    .ad-container[data-play="prop"].is-climax canvas.ad-trail-2d {
+      opacity: 1;
+    }
     .ad-fallback { display: none; }
     .ad-hint {
       position: absolute; left: 8px; bottom: 6px; z-index: 3;
       font-size: 0.65rem;
       color: color-mix(in srgb, rgba(215, 226, 242, 0.75) calc(100% - var(--void-l) * 1%), #3a4450 calc(var(--void-l) * 1%));
       pointer-events: none;
+    }
+    .ad-container.is-warming,
+    .ad-container.is-warming canvas {
+      opacity: 0;
+      pointer-events: none;
+      transition: none;
     }
     .ad-container.is-climax .ad-hint,
     .ad-container.is-ad-in .ad-hint { opacity: 0; }
@@ -2287,7 +2362,7 @@
         <div class="app-user-menu" role="menu">
           <div class="app-user-head"><strong>Armando Soto</strong><span>editor@nexus.local</span></div>
           <a href="#" role="menuitem">Perfil</a>
-          <a href="#" role="menuitem">Preferencias</a>
+          <a href="#" role="menuitem" data-app-prefs>Preferencias</a>
           <button type="button" class="danger" role="menuitem">Cerrar sesión</button>
         </div>
       </div>
@@ -2344,8 +2419,14 @@
         </div>
         <div class="stage-core">
           <div class="stage-center">
-            <div class="ad-plinth">
-              <div class="stage-slot" id="slot"></div>
+            <div class="ad-plinth-host">
+              <div class="ad-plinth">
+                <div class="stage-slot" id="slot"></div>
+                <div class="perf-graph" id="perf-graph" hidden>
+                  <canvas id="perf-graph-canvas" width="720" height="176"></canvas>
+                  <p class="perf-graph-readout" id="perf-graph-readout">Esperando frames…</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2517,9 +2598,9 @@
         <span>Blit</span>
         <label class="clock-size-row">
           <span>Resolución <output id="view-blit-val">1.5×</output></span>
-          <input id="sel-blit" type="range" min="1" max="3" step="0.25" value="1.5" aria-label="Resolución de blit" />
+          <input id="sel-blit" type="range" min="0.1" max="3" step="0.05" value="1.5" aria-label="Resolución de la escena" />
         </label>
-        <p class="g-fps-hint">Nitidez del anuncio al copiar el 3D. Más alto, más GPU.</p>
+        <p class="g-fps-hint">Nitidez del 3D. 0.1× alivia GPU; 3× pide más.</p>
       </label>
       <label class="nav-field">
         <span>Dibujo</span>
@@ -2557,10 +2638,16 @@
   <dialog class="g-modal g-modal-wide" id="prop-panel" aria-labelledby="prop-panel-title">
     <h2 id="prop-panel-title">Objeto</h2>
     <div class="g-modal-body ph-panel">
+      <h3>Escena</h3>
+      <label class="prop-lint">
+        <span>Resolución <output id="prop-dpr-val">1.5×</output></span>
+        <input id="sel-prop-dpr" type="range" min="0.1" max="3" step="0.05" value="1.5" aria-label="Resolución de la escena" />
+      </label>
+      <p class="hand-blurb">Igual que en assets 3D: escala el raster del objeto. 0.1× a 3×.</p>
       <h3>Cámara</h3>
       <label class="prop-lint">
         <span>Distancia <output id="prop-cam-val">4.1</output></span>
-        <input id="sel-prop-cam" type="range" min="2.2" max="8" step="0.1" value="4.1" />
+        <input id="sel-prop-cam" type="range" min="1" max="8" step="0.1" value="4.1" />
       </label>
       <label class="prop-check prop-cam-plane">
         <input id="sel-prop-campan" type="checkbox" />
@@ -2608,6 +2695,57 @@
       <h3>Luces de color</h3>
       <div class="studio-extras" id="studio-extras"></div>
       <button type="button" class="prop-file-clear" id="studio-extra-add">Agregar luz</button>
+      <h3>Estela de entrada</h3>
+      <p class="hand-blurb" id="prop-trail-blurb">El objeto entra sin estela.</p>
+      <p class="prop-trail-lab">Trazo</p>
+      <div class="ph-styles prop-trails" id="prop-trails"></div>
+      <p class="prop-trail-lab">Naturaleza</p>
+      <div class="ph-styles prop-trails" id="prop-trails-nature"></div>
+      <div id="prop-trail-tune">
+        <label class="prop-lint">
+          <span>Marca <output id="prop-trail-mark-val">1</output></span>
+          <input id="sel-prop-trail-mark" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <label class="prop-lint">
+          <span>Esparcir <output id="prop-trail-spread-val">1</output></span>
+          <input id="sel-prop-trail-spread" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <label class="prop-lint">
+          <span>Velocidad <output id="prop-trail-spd-val">1</output>×</span>
+          <input id="sel-prop-trail-spd" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <p class="prop-trail-lab">Colores de la estela</p>
+        <label class="prop-lint">
+          <span>Color</span>
+          <input id="sel-prop-trail-2d-col" type="color" value="#f4fbff" aria-label="Color de la estela" />
+        </label>
+        <label class="prop-lint">
+          <span>Destello</span>
+          <input id="sel-prop-trail-glow" type="color" value="#ffffff" aria-label="Destello de la estela" />
+        </label>
+        <label class="prop-lint">
+          <span>Cola</span>
+          <input id="sel-prop-trail-tail" type="color" value="#5b7ea8" aria-label="Color de la cola" />
+        </label>
+        <label class="prop-lint">
+          <span>Contraste <output id="prop-trail-2d-con-val">1.3</output></span>
+          <input id="sel-prop-trail-2d-con" type="range" min="0.5" max="2.2" step="0.05" value="1.3" />
+        </label>
+        <p class="prop-trail-lab">Remate al objeto</p>
+        <div class="ph-styles" id="prop-trail-joins"></div>
+        <p class="hand-blurb" id="prop-trail-join-blurb">La estela estalla en el punto y deja el objeto.</p>
+        <label class="prop-lint">
+          <span>Estallido <output id="prop-trail-pop-val">1</output></span>
+          <input id="sel-prop-trail-pop" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <p class="prop-trail-lab">Entrada del objeto</p>
+        <div class="ph-styles" id="prop-trail-ins"></div>
+        <p class="hand-blurb" id="prop-trail-in-blurb">El objeto llega casi a tamaño real y se acomoda.</p>
+      </div>
+      <label class="prop-check">
+        <input id="sel-prop-trail-2d" type="checkbox" />
+        <span>Trazos 2D</span>
+      </label>
       <label class="prop-check">
         <input id="sel-prop-cog" type="checkbox" checked />
         <span>Alinear a la caja</span>
@@ -2743,8 +2881,8 @@
     } }
   </script>
   <script type="module">
-    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam25";
-    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop54";
+    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, PROP_TRAILS, propTrailById, PROP_TRAIL_JOINS, propTrailJoinById, PROP_TRAIL_INS, propTrailInById, normalizePropFloor, normalizePropFlat, normalizePropTrail2d, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailSpd, normalizePropTrailPop, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings     } from "./ad-catalog.js?v=cam50";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, watchDrawFrames, resetDrawFrames, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop128";
     import {
       loadGalleryStore,
       saveGalleryStore,
@@ -2764,7 +2902,7 @@
       loadComboPropFiles,
       deleteComboPropFiles,
       resetGalleryCacheAndSettings,
-    } from "./ad-profile.js?v=poster42";
+    } from "./ad-profile.js?v=poster47";
     import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
 
@@ -2783,6 +2921,94 @@
     const btnResetWidth = document.getElementById("btn-reset-width");
     const stage = document.getElementById("stage");
     const slot = document.getElementById("slot");
+    const perfOn = new URLSearchParams(location.search).get("perf") === "1";
+    const perfGraph = document.getElementById("perf-graph");
+    const perfCanvas = document.getElementById("perf-graph-canvas");
+    const perfRead = document.getElementById("perf-graph-readout");
+    const perfSamples = [];
+    const PERF_MAX = 240;
+    let perfPaint = 0;
+
+    function resetPerfGraph() {
+      if (!perfOn) return;
+      perfSamples.length = 0;
+      perfPaint = 0;
+      resetDrawFrames();
+      if (perfGraph) perfGraph.hidden = false;
+      if (perfRead) perfRead.textContent = "Calentando…";
+      paintPerfGraph();
+    }
+
+    function paintPerfGraph() {
+      if (!perfCanvas) return;
+      const ctx = perfCanvas.getContext("2d");
+      const w = perfCanvas.width;
+      const h = perfCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+      const maxMs = 50;
+      const top = 12;
+      const bot = h - 20;
+      const span = bot - top;
+      const yOf = (dt) => bot - (Math.min(maxMs, Math.max(0, dt)) / maxMs) * span;
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 1;
+      for (const ms of [16.7, 33.3]) {
+        const y = yOf(ms);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(215,228,242,0.45)";
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText("16 ms", 8, yOf(16.7) - 4);
+      ctx.fillText("33 ms", 8, yOf(33.3) - 4);
+      if (perfSamples.length < 2) return;
+      const n = perfSamples.length;
+      const xOf = (i) => (i / Math.max(1, PERF_MAX - 1)) * w;
+      ctx.beginPath();
+      ctx.moveTo(xOf(0), bot);
+      for (let i = 0; i < n; i += 1) ctx.lineTo(xOf(i), yOf(perfSamples[i].dt));
+      ctx.lineTo(xOf(n - 1), bot);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(110, 214, 168, 0.2)";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      for (let i = 1; i < n; i += 1) {
+        const a = perfSamples[i - 1];
+        const b = perfSamples[i];
+        ctx.beginPath();
+        ctx.moveTo(xOf(i - 1), yOf(a.dt));
+        ctx.lineTo(xOf(i), yOf(b.dt));
+        if (a.warm || b.warm) ctx.strokeStyle = "rgba(148, 176, 214, 0.95)";
+        else if (b.dt > 33) ctx.strokeStyle = "#ff5d6c";
+        else if (b.dt > 20) ctx.strokeStyle = "#ffc14d";
+        else ctx.strokeStyle = "#6ed6a8";
+        ctx.stroke();
+      }
+      const live = perfSamples.filter((s) => !s.warm && s.dt > 0);
+      const last = live[live.length - 1] || perfSamples[n - 1];
+      const sorted = live.map((s) => s.dt).sort((a, b) => a - b);
+      const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : 0;
+      const skips = live.filter((s) => s.dt > 28).length;
+      if (perfRead) {
+        const phase = last?.warm ? "warmup" : "play";
+        perfRead.textContent = `${last?.fps || "—"} fps  ·  ${(last?.dt || 0).toFixed(1)} ms  ·  p95 ${p95.toFixed(0)} ms  ·  skips ${skips}  ·  ${phase}`;
+      }
+    }
+
+    if (perfOn) {
+      watchDrawFrames((sample) => {
+        if (perfGraph) perfGraph.hidden = false;
+        perfSamples.push(sample);
+        if (perfSamples.length > PERF_MAX) perfSamples.shift();
+        const now = performance.now();
+        if (now - perfPaint < 32 && sample.dt < 28) return;
+        perfPaint = now;
+        paintPerfGraph();
+      });
+    }
     const sideCopy = document.getElementById("side-copy");
     const selProfile = document.getElementById("sel-profile");
     const selCols = document.getElementById("sel-cols");
@@ -2792,6 +3018,7 @@
     const selVoidL = document.getElementById("sel-void-l");
     const selPreviewZoom = document.getElementById("sel-preview-zoom");
     const previewZoomVal = document.getElementById("preview-zoom-val");
+    const adPlinthHost = document.querySelector(".ad-plinth-host");
     const btnPlay = document.getElementById("btn-play");
     const btnPause = document.getElementById("btn-pause");
     const side = document.getElementById("side");
@@ -2869,6 +3096,8 @@
     const viewFpsVal = document.getElementById("view-fps-val");
     const selBlit = document.getElementById("sel-blit");
     const viewBlitVal = document.getElementById("view-blit-val");
+    const selPropDpr = document.getElementById("sel-prop-dpr");
+    const propDprVal = document.getElementById("prop-dpr-val");
     const propWrap = document.getElementById("prop-wrap");
     const btnProp = document.getElementById("btn-prop");
     const propPanel = document.getElementById("prop-panel");
@@ -2896,6 +3125,25 @@
     const studioExtraAdd = document.getElementById("studio-extra-add");
     const selPropFloor = document.getElementById("sel-prop-floor");
     const selPropFlat = document.getElementById("sel-prop-flat");
+    const selPropTrail2d = document.getElementById("sel-prop-trail-2d");
+    const propTrailTune = document.getElementById("prop-trail-tune");
+    const propTrailJoins = document.getElementById("prop-trail-joins");
+    const propTrailJoinBlurb = document.getElementById("prop-trail-join-blurb");
+    const propTrailIns = document.getElementById("prop-trail-ins");
+    const propTrailInBlurb = document.getElementById("prop-trail-in-blurb");
+    const selPropTrailMark = document.getElementById("sel-prop-trail-mark");
+    const propTrailMarkVal = document.getElementById("prop-trail-mark-val");
+    const selPropTrailSpread = document.getElementById("sel-prop-trail-spread");
+    const propTrailSpreadVal = document.getElementById("prop-trail-spread-val");
+    const selPropTrailSpd = document.getElementById("sel-prop-trail-spd");
+    const propTrailSpdVal = document.getElementById("prop-trail-spd-val");
+    const selPropTrailPop = document.getElementById("sel-prop-trail-pop");
+    const propTrailPopVal = document.getElementById("prop-trail-pop-val");
+    const selPropTrail2dCol = document.getElementById("sel-prop-trail-2d-col");
+    const selPropTrailGlow = document.getElementById("sel-prop-trail-glow");
+    const selPropTrailTail = document.getElementById("sel-prop-trail-tail");
+    const selPropTrail2dCon = document.getElementById("sel-prop-trail-2d-con");
+    const propTrail2dConVal = document.getElementById("prop-trail-2d-con-val");
     const selPropCog = document.getElementById("sel-prop-cog");
     const selPropCam = document.getElementById("sel-prop-cam");
     const propCamVal = document.getElementById("prop-cam-val");
@@ -2910,6 +3158,9 @@
     const propRhrotVal = document.getElementById("prop-rhrot-val");
     const selPropRvrot = document.getElementById("sel-prop-rvrot");
     const propRvrotVal = document.getElementById("prop-rvrot-val");
+    const propTrails = document.getElementById("prop-trails");
+    const propTrailsNature = document.getElementById("prop-trails-nature");
+    const propTrailBlurb = document.getElementById("prop-trail-blurb");
     const palWrap = document.getElementById("pal-wrap");
     const btnPal = document.getElementById("btn-pal");
     const palPanel = document.getElementById("pal-panel");
@@ -2938,11 +3189,11 @@
       applyAnimCost({
         blitDpr: normalizeViewBlit(store.view.blit),
         fpsVisible: normalizeViewFps(store.view.afps),
-        propShadow: 0,
+        propShadow: 512,
         propSsao: false,
-        propLights: "simple",
-        propFog: 0,
-        propContact: 0,
+        propLights: "full",
+        propFog: 0.018,
+        propContact: 1,
         propBounds: 8,
         waterSubdivisions: 80,
         mirrorSize: 256,
@@ -3055,6 +3306,22 @@
       stage.dataset.ink = ink;
     }
 
+    function snapAdPlinth() {
+      if (!adPlinthHost) return;
+      adPlinthHost.style.translate = "none";
+      const target = adPlinthHost.querySelector(".ad-frame") || adPlinthHost;
+      const box = target.getBoundingClientRect();
+      const dx = Math.round(box.left) - box.left;
+      const dy = Math.round(box.top) - box.top;
+      adPlinthHost.style.translate = dx || dy ? `${dx}px ${dy}px` : "none";
+    }
+
+    function scheduleSnapAdPlinth() {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(snapAdPlinth);
+      });
+    }
+
     function applyPreviewZoom() {
       const zoom = normalizeViewZoom(store.view.zoom);
       store.view.zoom = zoom;
@@ -3064,6 +3331,7 @@
       previewZoomVal.value = `${pct}%`;
       previewZoomVal.textContent = `${pct}%`;
       stage.style.setProperty("--preview-zoom", String(zoom));
+      scheduleSnapAdPlinth();
     }
 
     function setZoomCue(on) {
@@ -3252,6 +3520,35 @@
         </button>`).join("");
     }
 
+    function trailButtons() {
+      return document.querySelectorAll("#prop-trails [data-trail], #prop-trails-nature [data-trail]");
+    }
+
+    function fillPropTrails() {
+      const paint = (host, group) => {
+        if (!host) return;
+        host.innerHTML = PROP_TRAILS.filter((item) => item.group === group).map((item) => `
+          <button type="button" class="ph-style" data-trail="${item.id}">
+            <span class="ph-thumb"${item.thumb ? ` style="background-image:url('${item.thumb}')"` : ""}></span>
+            <span>${item.label}</span>
+          </button>`).join("");
+      };
+      paint(propTrails, "trazo");
+      paint(propTrailsNature, "naturaleza");
+      if (propTrailJoins) {
+        propTrailJoins.innerHTML = PROP_TRAIL_JOINS.map((item) => `
+          <button type="button" class="ph-style" data-join="${item.id}">
+            <span>${item.label}</span>
+          </button>`).join("");
+      }
+      if (propTrailIns) {
+        propTrailIns.innerHTML = PROP_TRAIL_INS.map((item) => `
+          <button type="button" class="ph-style" data-in="${item.id}">
+            <span>${item.label}</span>
+          </button>`).join("");
+      }
+    }
+
     function fmtHandMs(ms) {
       const n = Number(ms);
       return n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${Math.round(n)}ms`;
@@ -3337,6 +3634,18 @@
         pal: item.pal,
         ph: livePlace(),
         propAct: item.propAct,
+        propTrail: propTrailById(item.ptrail).id,
+        propTrail2d: normalizePropTrail2d(item.p2d, item.ptrail),
+        propTrail2dCol: normalizePropTrail2dCol(item.p2dcol),
+        propTrailGlow: normalizePropTrailGlow(item.pglo, item.p2dcol),
+        propTrailTail: normalizePropTrailTail(item.ptl, item.p2dcol),
+        propTrail2dCon: normalizePropTrail2dCon(item.p2dcon),
+        propTrailMark: normalizePropTrailMark(item.pmk),
+        propTrailSpread: normalizePropTrailSpread(item.psp),
+        propTrailSpd: normalizePropTrailSpd(item.pvel),
+        propTrailPop: normalizePropTrailPop(item.ppop),
+        propTrailJoin: propTrailJoinById(item.pjoin).id,
+        propTrailIn: propTrailInById(item.pin).id,
         propCam: normalizePropCam(item.pcam),
         propCamH: normalizePropCamH(item.pch),
         propCamV: normalizePropCamV(item.pcv),
@@ -3539,6 +3848,26 @@
       paintStudioExtras(studio);
       selPropFloor.checked = normalizePropFloor(item.pfloor) === "1";
       selPropFlat.checked = normalizePropFlat(item.pflat) === "1";
+      if (selPropTrail2d) selPropTrail2d.checked = normalizePropTrail2d(item.p2d, item.ptrail) === "1";
+      const col = normalizePropTrail2dCol(item.p2dcol);
+      if (selPropTrail2dCol) selPropTrail2dCol.value = col;
+      if (selPropTrailGlow) selPropTrailGlow.value = normalizePropTrailGlow(item.pglo, col);
+      if (selPropTrailTail) selPropTrailTail.value = normalizePropTrailTail(item.ptl, col);
+      const con = normalizePropTrail2dCon(item.p2dcon);
+      if (selPropTrail2dCon) selPropTrail2dCon.value = con;
+      if (propTrail2dConVal) propTrail2dConVal.textContent = Number(con).toFixed(2);
+      const mark = normalizePropTrailMark(item.pmk);
+      const spread = normalizePropTrailSpread(item.psp);
+      const spd = normalizePropTrailSpd(item.pvel);
+      const pop = normalizePropTrailPop(item.ppop);
+      if (selPropTrailMark) selPropTrailMark.value = mark;
+      if (propTrailMarkVal) propTrailMarkVal.textContent = Number(mark).toFixed(2);
+      if (selPropTrailSpread) selPropTrailSpread.value = spread;
+      if (propTrailSpreadVal) propTrailSpreadVal.textContent = Number(spread).toFixed(2);
+      if (selPropTrailSpd) selPropTrailSpd.value = spd;
+      if (propTrailSpdVal) propTrailSpdVal.textContent = Number(spd).toFixed(2);
+      if (selPropTrailPop) selPropTrailPop.value = pop;
+      if (propTrailPopVal) propTrailPopVal.textContent = Number(pop).toFixed(2);
       selPropCog.checked = normalizePropCog(item.pcog) === "1";
       const cam = normalizePropCam(item.pcam);
       selPropCam.value = cam;
@@ -3550,6 +3879,22 @@
       const rvrot = normalizePropSpin(item.prv);
       selPropRvrot.value = rvrot;
       propRvrotVal.textContent = `${rvrot}°`;
+      const trail = propTrailById(item.ptrail);
+      if (propTrailTune) propTrailTune.hidden = trail.id === "none";
+      trailButtons().forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.trail === trail.id);
+      });
+      if (propTrailBlurb) propTrailBlurb.textContent = trail.blurb;
+      const join = propTrailJoinById(item.pjoin);
+      propTrailJoins?.querySelectorAll("[data-join]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.join === join.id);
+      });
+      if (propTrailJoinBlurb) propTrailJoinBlurb.textContent = join.blurb;
+      const inn = propTrailInById(item.pin);
+      propTrailIns?.querySelectorAll("[data-in]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.in === inn.id);
+      });
+      if (propTrailInBlurb) propTrailInBlurb.textContent = inn.blurb;
     }
 
     function paintStudioExtras(studio) {
@@ -3622,6 +3967,18 @@
         el.dataset.propCamPy = normalizePropCamPan(item.ppy);
         el.dataset.propRhrot = normalizePropSpin(item.prh);
         el.dataset.propRvrot = normalizePropSpin(item.prv);
+        el.dataset.propTrail = propTrailById(item.ptrail).id;
+        el.dataset.propTrail2d = normalizePropTrail2d(item.p2d, item.ptrail);
+        el.dataset.propTrail2dCol = normalizePropTrail2dCol(item.p2dcol);
+        el.dataset.propTrailGlow = normalizePropTrailGlow(item.pglo, item.p2dcol);
+        el.dataset.propTrailTail = normalizePropTrailTail(item.ptl, item.p2dcol);
+        el.dataset.propTrail2dCon = normalizePropTrail2dCon(item.p2dcon);
+        el.dataset.propTrailMark = normalizePropTrailMark(item.pmk);
+        el.dataset.propTrailSpread = normalizePropTrailSpread(item.psp);
+        el.dataset.propTrailSpd = normalizePropTrailSpd(item.pvel);
+        el.dataset.propTrailPop = normalizePropTrailPop(item.ppop);
+        el.dataset.propTrailJoin = propTrailJoinById(item.pjoin).id;
+        el.dataset.propTrailIn = propTrailInById(item.pin).id;
       });
       nudgeAds();
     }
@@ -3754,6 +4111,131 @@
       applyPropLightLive(item);
     }
 
+    function persistPropTrail2d(on) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.p2d = on ? "1" : "0";
+      saveGalleryStore(store);
+      syncPropUi(item);
+      applyPropLightLive(item);
+      rewindAds();
+    }
+
+    function persistPropTrail2dCol(hex, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.p2dcol = normalizePropTrail2dCol(hex);
+      if (selPropTrail2dCol) selPropTrail2dCol.value = item.p2dcol;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailGlow(hex, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pglo = normalizePropTrailGlow(hex, item.p2dcol);
+      if (selPropTrailGlow) selPropTrailGlow.value = item.pglo;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailTail(hex, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.ptl = normalizePropTrailTail(hex, item.p2dcol);
+      if (selPropTrailTail) selPropTrailTail.value = item.ptl;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrail2dCon(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.p2dcon = normalizePropTrail2dCon(raw);
+      if (selPropTrail2dCon) selPropTrail2dCon.value = item.p2dcon;
+      if (propTrail2dConVal) propTrail2dConVal.textContent = Number(item.p2dcon).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailMark(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pmk = normalizePropTrailMark(raw);
+      if (selPropTrailMark) selPropTrailMark.value = item.pmk;
+      if (propTrailMarkVal) propTrailMarkVal.textContent = Number(item.pmk).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailSpread(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.psp = normalizePropTrailSpread(raw);
+      if (selPropTrailSpread) selPropTrailSpread.value = item.psp;
+      if (propTrailSpreadVal) propTrailSpreadVal.textContent = Number(item.psp).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailSpd(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pvel = normalizePropTrailSpd(raw);
+      if (selPropTrailSpd) selPropTrailSpd.value = item.pvel;
+      if (propTrailSpdVal) propTrailSpdVal.textContent = Number(item.pvel).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailPop(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.ppop = normalizePropTrailPop(raw);
+      if (selPropTrailPop) selPropTrailPop.value = item.ppop;
+      if (propTrailPopVal) propTrailPopVal.textContent = Number(item.ppop).toFixed(2);
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+      if (save) rewindAds();
+    }
+
+    function persistPropTrailIn(id) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pin = propTrailInById(id).id;
+      saveGalleryStore(store);
+      syncPropUi(item);
+      applyPropLightLive(item);
+      rewindAds();
+    }
+
+    function persistPropTrailJoin(id) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.pjoin = propTrailJoinById(id).id;
+      saveGalleryStore(store);
+      syncPropUi(item);
+      applyPropLightLive(item);
+      rewindAds();
+    }
+
+    function persistPropTrail(id) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      item.ptrail = propTrailById(id).id;
+      saveGalleryStore(store);
+      syncPropUi(item);
+      applyPropLightLive(item);
+      rewindAds();
+    }
+
     function setPreloadCue(mode) {
       clearTimeout(preloadCueTimer);
       preloadCue.classList.remove("is-wait", "is-ready");
@@ -3768,6 +4250,14 @@
         preloadCueTimer = window.setTimeout(() => {
           if (preloadCue.classList.contains("is-ready")) setPreloadCue("");
         }, 1100);
+        return;
+      }
+      if (mode) {
+        preloadCue.textContent = String(mode);
+        preloadCue.classList.add("is-ready");
+        preloadCueTimer = window.setTimeout(() => {
+          if (preloadCue.classList.contains("is-ready")) setPreloadCue("");
+        }, 2200);
         return;
       }
       preloadCue.textContent = "";
@@ -3790,7 +4280,6 @@
         applyComboPropModel(item),
         preloadAdImage(item),
       ]);
-      if (playById(item.play).id === "prop" && item.pmesh) await warmupPropGpu();
     }
 
     async function preloadThenPlay() {
@@ -3800,8 +4289,9 @@
       setPreloadCue("wait");
       await preloadCombo(item);
       if (gen !== preloadGen || selectedId !== item.id) return;
-      setPreloadCue("ready");
       await playSelected();
+      if (gen !== preloadGen || selectedId !== item.id) return;
+      setPreloadCue("ready");
     }
 
     function selectAndPlay(id) {
@@ -3898,6 +4388,23 @@
       preloadThenPlay();
     }
 
+    function paintSceneDpr(value) {
+      const blit = normalizeViewBlit(value);
+      const label = `${Number(blit.toFixed(2))}×`;
+      selBlit.value = String(blit);
+      selPropDpr.value = String(blit);
+      viewBlitVal.value = label;
+      propDprVal.textContent = label;
+      return blit;
+    }
+
+    function applySceneDpr(value, persist) {
+      store.view.blit = paintSceneDpr(value);
+      applyGalleryCost();
+      nudgeAds();
+      if (persist) saveGalleryStore(store);
+    }
+
     function applyView() {
       const view = store.view;
       if (![...selCols.options].some((opt) => opt.value === view.cols)) view.cols = "4";
@@ -3909,9 +4416,7 @@
       selClock.checked = normalizeViewClock(view.clock);
       applyClock();
       selAfps.value = String(normalizeViewFps(view.afps));
-      const blit = normalizeViewBlit(view.blit);
-      selBlit.value = String(blit);
-      viewBlitVal.value = `${blit}×`;
+      paintSceneDpr(view.blit);
       grid.dataset.cols = view.cols;
       grid.dataset.size = view.size;
       grid.dataset.gap = view.gap;
@@ -4058,6 +4563,7 @@
       stage.dataset.ratio = formatShape(format);
       applyAdBox(format);
       if (!playing) idleSlot(format, item);
+      scheduleSnapAdPlinth();
     }
 
     let titleKey = "";
@@ -4477,6 +4983,7 @@
       paused = false;
       pauseHeld = 0;
       playCard = null;
+      resetPerfGraph();
       syncPlayProgress(true);
       syncPauseBtn();
       applyFormatChrome();
@@ -4661,7 +5168,10 @@
       setClockOn(false);
     });
     selAfps.addEventListener("change", persistView);
-    selBlit.addEventListener("input", persistView);
+    selBlit.addEventListener("input", () => applySceneDpr(selBlit.value, false));
+    selBlit.addEventListener("change", () => applySceneDpr(selBlit.value, true));
+    selPropDpr.addEventListener("input", () => applySceneDpr(selPropDpr.value, false));
+    selPropDpr.addEventListener("change", () => applySceneDpr(selPropDpr.value, true));
     selPropCam.addEventListener("input", () => persistPropCam(selPropCam.value, false));
     selPropCam.addEventListener("change", () => persistPropCam(selPropCam.value, true));
     selPropCamPan.addEventListener("change", () => persistPropCamPan(selPropCamPan.checked));
@@ -4761,6 +5271,26 @@
       const btn = event.target.closest("[data-hand]");
       if (!btn) return;
       persistHandoff(btn.dataset.hand);
+    });
+    propTrails?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-trail]");
+      if (!btn) return;
+      persistPropTrail(btn.dataset.trail);
+    });
+    propTrailsNature?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-trail]");
+      if (!btn) return;
+      persistPropTrail(btn.dataset.trail);
+    });
+    propTrailJoins?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-join]");
+      if (!btn) return;
+      persistPropTrailJoin(btn.dataset.join);
+    });
+    propTrailIns?.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-in]");
+      if (!btn) return;
+      persistPropTrailIn(btn.dataset.in);
     });
 
     function persistHandField(key, raw, normalize, save) {
@@ -4865,6 +5395,23 @@
     });
     selPropFloor.addEventListener("change", () => persistPropFloor(selPropFloor.checked));
     selPropFlat.addEventListener("change", () => persistPropFlat(selPropFlat.checked));
+    selPropTrail2d?.addEventListener("change", () => persistPropTrail2d(selPropTrail2d.checked));
+    selPropTrail2dCol?.addEventListener("input", () => persistPropTrail2dCol(selPropTrail2dCol.value, false));
+    selPropTrail2dCol?.addEventListener("change", () => persistPropTrail2dCol(selPropTrail2dCol.value, true));
+    selPropTrailGlow?.addEventListener("input", () => persistPropTrailGlow(selPropTrailGlow.value, false));
+    selPropTrailGlow?.addEventListener("change", () => persistPropTrailGlow(selPropTrailGlow.value, true));
+    selPropTrailTail?.addEventListener("input", () => persistPropTrailTail(selPropTrailTail.value, false));
+    selPropTrailTail?.addEventListener("change", () => persistPropTrailTail(selPropTrailTail.value, true));
+    selPropTrail2dCon?.addEventListener("input", () => persistPropTrail2dCon(selPropTrail2dCon.value, false));
+    selPropTrail2dCon?.addEventListener("change", () => persistPropTrail2dCon(selPropTrail2dCon.value, true));
+    selPropTrailMark?.addEventListener("input", () => persistPropTrailMark(selPropTrailMark.value, false));
+    selPropTrailMark?.addEventListener("change", () => persistPropTrailMark(selPropTrailMark.value, true));
+    selPropTrailSpread?.addEventListener("input", () => persistPropTrailSpread(selPropTrailSpread.value, false));
+    selPropTrailSpread?.addEventListener("change", () => persistPropTrailSpread(selPropTrailSpread.value, true));
+    selPropTrailSpd?.addEventListener("input", () => persistPropTrailSpd(selPropTrailSpd.value, false));
+    selPropTrailSpd?.addEventListener("change", () => persistPropTrailSpd(selPropTrailSpd.value, true));
+    selPropTrailPop?.addEventListener("input", () => persistPropTrailPop(selPropTrailPop.value, false));
+    selPropTrailPop?.addEventListener("change", () => persistPropTrailPop(selPropTrailPop.value, true));
     selPropCog.addEventListener("change", () => persistPropCog(selPropCog.checked));
     phShots.addEventListener("click", (event) => {
       const btn = event.target.closest(".ph-shot");
@@ -4914,11 +5461,14 @@
       syncBarLift();
       syncOpsDock();
       syncSideDlgBox();
+      scheduleSnapAdPlinth();
     });
     new ResizeObserver(() => {
       syncOpsDock();
       syncSideDlgBox();
+      scheduleSnapAdPlinth();
     }).observe(gPane);
+    if (stage) new ResizeObserver(scheduleSnapAdPlinth).observe(stage);
     gOpsDock.addEventListener("click", (event) => {
       const op = event.target.closest(".g-op");
       if (!op || !selectedId) return;
@@ -4956,8 +5506,9 @@
     fillPlacePanel();
     fillStudioPresets();
     fillHandStyles();
+    fillPropTrails();
     renderGrid();
   </script>
-  <script src="app-nav.js?v=nav3"></script>
+  <script src="app-nav.js?v=nav5"></script>
 </body>
 </html>

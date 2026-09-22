@@ -3,6 +3,25 @@ import {
   PROP_ACTIONS,
   playById,
   propActionById,
+  propTrailById,
+  normalizePropTrail2d,
+  normalizePropTrail2dCol,
+  normalizePropTrail2dCon,
+  normalizePropTrailGlow,
+  normalizePropTrailTail,
+  derivePropTrailGlow,
+  derivePropTrailTail,
+  normalizePropTrailMark,
+  normalizePropTrailSpread,
+  normalizePropTrailSpd,
+  normalizePropTrailPop,
+  propTrailJoinById,
+  propTrailInById,
+  DEFAULT_PROP_TRAIL_2D_COL,
+  DEFAULT_PROP_TRAIL_MARK,
+  DEFAULT_PROP_TRAIL_SPREAD,
+  DEFAULT_PROP_TRAIL_SPD,
+  DEFAULT_PROP_TRAIL_POP,
   propAimLightById,
   propAimPlaceById,
   normalizePropLint,
@@ -44,7 +63,7 @@ import {
   serializeAdPlace,
   resolvePalette,
   resolveAdPlace,
-} from "./ad-catalog.js?v=cam25";
+} from "./ad-catalog.js?v=cam49";
 import { normalizeStudioState } from "./studio-lights.js";
 import { onPlayerOriginChange, playerUrl } from "./player-origin.js";
 
@@ -111,6 +130,18 @@ export function makeCombo(partial = {}) {
     id: partial.id || uid(),
     play: play.id,
     propAct: play.id === "prop" ? propActionById(partial.propAct).id : "",
+    ptrail: play.id === "prop" ? propTrailById(partial.ptrail).id : "",
+    p2d: play.id === "prop" ? normalizePropTrail2d(partial.p2d, partial.ptrail) : "",
+    p2dcol: play.id === "prop" ? normalizePropTrail2dCol(partial.p2dcol) : "",
+    p2dcon: play.id === "prop" ? normalizePropTrail2dCon(partial.p2dcon) : "",
+    pglo: play.id === "prop" ? normalizePropTrailGlow(partial.pglo, partial.p2dcol) : "",
+    ptl: play.id === "prop" ? normalizePropTrailTail(partial.ptl, partial.p2dcol) : "",
+    pmk: play.id === "prop" ? normalizePropTrailMark(partial.pmk) : "",
+    psp: play.id === "prop" ? normalizePropTrailSpread(partial.psp) : "",
+    pvel: play.id === "prop" ? normalizePropTrailSpd(partial.pvel) : "",
+    ppop: play.id === "prop" ? normalizePropTrailPop(partial.ppop) : "",
+    pjoin: play.id === "prop" ? propTrailJoinById(partial.pjoin).id : "",
+    pin: play.id === "prop" ? propTrailInById(partial.pin).id : "",
     ad: formatById(partial.ad).id,
     in: partial.in || "none",
     hand: handoffById(partial.hand).id,
@@ -833,6 +864,17 @@ export function comboToLabHref(item, adId) {
     params.set("plight", propAimLightById(item.plight).id);
     params.set("plint", normalizePropLint(item.plint));
     if (normalizePropFloor(item.pfloor) === "0") params.set("pfloor", "0");
+    if (normalizePropTrail2d(item.p2d, item.ptrail) === "1") params.set("p2d", "1");
+    if (normalizePropTrail2dCol(item.p2dcol) !== DEFAULT_PROP_TRAIL_2D_COL) params.set("p2dcol", normalizePropTrail2dCol(item.p2dcol));
+    if (normalizePropTrail2dCon(item.p2dcon) !== "1.3") params.set("p2dcon", normalizePropTrail2dCon(item.p2dcon));
+    if (normalizePropTrailGlow(item.pglo, item.p2dcol) !== derivePropTrailGlow(item.p2dcol)) params.set("pglo", normalizePropTrailGlow(item.pglo, item.p2dcol));
+    if (normalizePropTrailTail(item.ptl, item.p2dcol) !== derivePropTrailTail(item.p2dcol)) params.set("ptl", normalizePropTrailTail(item.ptl, item.p2dcol));
+    if (normalizePropTrailMark(item.pmk) !== DEFAULT_PROP_TRAIL_MARK) params.set("pmk", normalizePropTrailMark(item.pmk));
+    if (normalizePropTrailSpread(item.psp) !== DEFAULT_PROP_TRAIL_SPREAD) params.set("psp", normalizePropTrailSpread(item.psp));
+    if (normalizePropTrailSpd(item.pvel) !== DEFAULT_PROP_TRAIL_SPD) params.set("pvel", normalizePropTrailSpd(item.pvel));
+    if (normalizePropTrailPop(item.ppop) !== DEFAULT_PROP_TRAIL_POP) params.set("ppop", normalizePropTrailPop(item.ppop));
+    if (propTrailJoinById(item.pjoin).id !== "burst") params.set("pjoin", propTrailJoinById(item.pjoin).id);
+    if (propTrailInById(item.pin).id !== "settle") params.set("pin", propTrailInById(item.pin).id);
     if (normalizePropFlat(item.pflat) === "1") params.set("pflat", "1");
     if (normalizePropCog(item.pcog) === "0") params.set("pcog", "0");
     params.set("plcol", normalizePropLcol(item.plcol));

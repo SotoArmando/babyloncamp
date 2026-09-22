@@ -18,7 +18,9 @@
       height: auto;
       aspect-ratio: var(--ad-ratio, var(--ad-w) / var(--ad-h));
       padding-bottom: 0;
-      box-shadow: 0 0 0 1px var(--item-line);
+      box-shadow: none;
+      outline: calc(1px / var(--preview-zoom, 1)) solid var(--item-line);
+      outline-offset: 0;
     }
     .ad-container {
       position: absolute;
@@ -121,12 +123,36 @@
       display: block;
       transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
     }
+    .ad-container canvas.ad-trail-2d {
+      z-index: 8;
+      pointer-events: none;
+      background: transparent;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+    .ad-container.is-trail .ad-creative,
+    .ad-container.is-trail .ad-hint {
+      opacity: 0 !important;
+      visibility: hidden;
+    }
+    .ad-container.is-climax canvas.ad-trail-2d,
+    .ad-container[data-play="prop"].is-climax canvas.ad-trail-2d {
+      opacity: 1;
+    }
     .ad-fallback { display: none; }
     .ad-hint {
       position: absolute; left: 8px; bottom: 6px; z-index: 3;
       font-size: 0.65rem;
       color: color-mix(in srgb, rgba(215, 226, 242, 0.75) calc(100% - var(--void-l) * 1%), #3a4450 calc(var(--void-l) * 1%));
       pointer-events: none;
+    }
+    .ad-container.is-warming,
+    .ad-container.is-warming canvas,
+    .ad-container.is-warming model-viewer {
+      opacity: 0;
+      pointer-events: none;
+      transition: none;
     }
     .ad-container.is-climax .ad-hint,
     .ad-container.is-ad-in .ad-hint { opacity: 0; }

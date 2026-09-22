@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="ad.size" content="width=970,height=250" />
+  <title>DONUT</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #fde4c8; }
+    html { --play-stage: #fde4c8; }
+    #gwd-slot { width: 100%; height: 100%; background: #fde4c8; }
+    body.gwd-ad .ad-label, body.gwd-ad .ad-hint { display: none; }
+    .player-miss { margin: 0; padding: 1rem; color: #d8d0c4; font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center; }
+  </style>
+</head>
+<body class="player-embed gwd-ad">
+  <div id="gwd-slot"></div>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.54.3/babylon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.3/babylonjs.loaders.min.js"></script>
+  <script src="https://camel-doc-postage-collaborative.trycloudflare.com/public/player/babylon-ads-player.js?v=prop54"></script>
+  <script>
+    (async function () {
+      var api = window.BabylonAdsPlayer;
+      var host = document.getElementById("gwd-slot");
+      if (!api || !api.mountPlay) {
+        host.innerHTML = "<p class=\"player-miss\">Falta el player en public/player.</p>";
+        return;
+      }
+      var item = {"id":"gmu1fktqotdif","play":"prop","propAct":"turn","ad":"billboard","in":"none","hand":"veil","hms":"2400","hnb":"3","hst":"120","hhd":"700","hin":"420","hbt":"4","htm":"0","htxt":"","hempty":"1","pal":{"fog":"#fde4c8"},"ph":{"style":"photo","img":"01a07e5a-a94f-7a65-8cf3-3e9b750c5e6c.png","fit":"cover","fx":"50","fy":"29","fz":"100","fm":"#f4e8d3","bg":"#f4e8d3","paper":"#f7f7f7","ink":"#00853f","accent":"#c8102e"},"pcam":"3.2","pch":"0","pcv":"-55","pcm":"orbit","ppx":"0","ppy":"0","psx":"0.72","psy":"0.72","psz":"0.72","plight":"none","plint":"1","pfloor":"0","pflat":"1","pcog":"1","plcol":"#99c1f1","pldist":"3.3","plpos":"frente","plhrot":"0","plvrot":"0","prh":"0","prv":"0","studio":{"preset":"highkey","world":1.05,"key":0.62,"fill":0.88,"rim":0.12,"exposure":1.16,"worldCol":"#f5f2ed","keyCol":"#fffaf2","fillCol":"#f3f7ff","rimCol":"#e8eeff","extras":[{"id":"xmtly0oegakx","color":"#dc8add","intensity":10.3,"place":"arriba"}]},"alias":"DONUT","off":false,"pin":true,"pmesh":{"name":"Pink_Frosted_Donut_With_Sprinkles-optimized.glb","extras":[],"assetId":"folder:Pink_Frosted_Donut_With_Sprinkles-optimized.glb"}};
+      var origin = "https://camel-doc-postage-collaborative.trycloudflare.com" || location.origin;
+      var meshUrl = "https://camel-doc-postage-collaborative.trycloudflare.com/public/gtm/Pink_Frosted_Donut_With_Sprinkles-optimized.glb";
+      api.setPlayerOrigin(origin);
+      var ok = await api.mountPlay(host, { item: item, playId: item.id, profileId: "gmu1fktqn5xte", slotId: "gwd-ad", origin: origin, meshUrl: meshUrl || undefined });
+      if (!ok) {
+        host.innerHTML = "<p class=\"player-miss\">Ese clímax no está en el perfil.</p>";
+        return;
+      }
+      var box = host.querySelector(".ad-container");
+      if (box && api.startAd) await api.startAd(box);
+    })();
+  </script>
+</body>
+</html>

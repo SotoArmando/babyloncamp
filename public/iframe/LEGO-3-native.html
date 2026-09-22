@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="ad.size" content="width=300,height=600" />
+  <title>LEGO #3</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f9f06b; }
+    html { --play-stage: #f9f06b; }
+    #gwd-slot { width: 100%; height: 100%; background: #f9f06b; }
+    body.gwd-ad .ad-label, body.gwd-ad .ad-hint { display: none; }
+    .player-miss { margin: 0; padding: 1rem; color: #d8d0c4; font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center; }
+  </style>
+</head>
+<body class="player-embed gwd-ad">
+  <div id="gwd-slot"></div>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.54.3/babylon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.3/babylonjs.loaders.min.js"></script>
+  <script src="https://camel-doc-postage-collaborative.trycloudflare.com/public/player/babylon-ads-player.js?v=prop54"></script>
+  <script>
+    (async function () {
+      var api = window.BabylonAdsPlayer;
+      var host = document.getElementById("gwd-slot");
+      if (!api || !api.mountPlay) {
+        host.innerHTML = "<p class=\"player-miss\">Falta el player en public/player.</p>";
+        return;
+      }
+      var item = {"id":"gmu1fktqq2w2u","play":"prop","propAct":"drop","ad":"half","in":"none","hand":"mist","hms":"1200","hnb":"3","hst":"120","hhd":"700","hin":"420","hbt":"4","htm":"0","htxt":"","hempty":"0","pal":{"floor":"#ffffff","fog":"#f9f06b"},"ph":{"style":"photo","img":"e2eca0f92dca8c121e1babb7941bb035.jpg","fit":"cover","fx":"50","fy":"50","fz":"100","fm":"#111111","bg":"#b89a6e","paper":"#efe0c4","ink":"#3d2a18","accent":"#8b5a2b"},"pcam":"3.2","pch":"0","pcv":"0","pcm":"orbit","ppx":"0","ppy":"0","psx":"0.72","psy":"0.72","psz":"0.72","plight":"spot","plint":"0.2","pfloor":"0","pflat":"1","pcog":"1","plcol":"#fff0d1","pldist":"5.8","plpos":"frente","plhrot":"0","plvrot":"0","prh":"180","prv":"0","studio":{"preset":"lowkey","world":0.16,"key":0.95,"fill":0.08,"rim":0.42,"exposure":0.9,"worldCol":"#141416","keyCol":"#ffd7a8","fillCol":"#6a7a9a","rimCol":"#9bb4ff","extras":[{"id":"xmtoxok9i60r","color":"#f8e45c","intensity":11,"place":"arriba"}]},"alias":"LEGO #3","off":false,"pin":true,"pmesh":{"name":"Lego_Castle_With_Dragon.glb","extras":[],"assetId":"folder:Lego_Castle_With_Dragon.glb"}};
+      var origin = "https://camel-doc-postage-collaborative.trycloudflare.com" || location.origin;
+      var meshUrl = "https://camel-doc-postage-collaborative.trycloudflare.com/public/gtm/Lego_Castle_With_Dragon.glb";
+      api.setPlayerOrigin(origin);
+      var ok = await api.mountPlay(host, { item: item, playId: item.id, profileId: "gmu1fktqn5xte", slotId: "gwd-ad", origin: origin, meshUrl: meshUrl || undefined });
+      if (!ok) {
+        host.innerHTML = "<p class=\"player-miss\">Ese clímax no está en el perfil.</p>";
+        return;
+      }
+      var box = host.querySelector(".ad-container");
+      if (box && api.startAd) await api.startAd(box);
+    })();
+  </script>
+</body>
+</html>

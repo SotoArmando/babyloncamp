@@ -1,7 +1,7 @@
-import { adMarkup, adPlaceFromPlay, formatById, handoffById, resolveAdPlace } from "./ad-catalog.js?v=cam23";
+import { adMarkup, adPlaceFromPlay, formatById, handoffById, handoffRuntimeMs, playById, propTrailMs, resolveAdPlace } from "./ad-catalog.js?v=cam50";
 import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=cam26";
 import { serializeStudioState } from "./studio-lights.js";
-import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop50";
+import { bootContainers, comboPropTag, currentPropTag, disposeAds, grabAdStill, playDurationMs, prepareComboMesh, preloadEngine, restorePropTag, setPropModelFiles, startAd, applyAnimCost, CONFIG } from "./ad-player.js?v=prop108";
 import { setPlayerOrigin, getPlayerOrigin } from "./player-origin.js";
 
 export { setPlayerOrigin, getPlayerOrigin };
@@ -118,6 +118,18 @@ export function comboPlayExtras(item, phRaw) {
     pal: item.pal,
     ph: livePlaceFrom(item, phRaw !== undefined ? phRaw : item.ph),
     propAct: item.propAct,
+    propTrail: item.ptrail,
+    propTrail2d: item.p2d,
+    propTrail2dCol: item.p2dcol,
+    propTrail2dCon: item.p2dcon,
+    propTrailGlow: item.pglo,
+    propTrailTail: item.ptl,
+    propTrailMark: item.pmk,
+    propTrailSpread: item.psp,
+    propTrailSpd: item.pvel,
+    propTrailPop: item.ppop,
+    propTrailJoin: item.pjoin,
+    propTrailIn: item.pin,
     propCam: item.pcam,
     propCamH: item.pch,
     propCamV: item.pcv,
@@ -183,13 +195,26 @@ export function profileName(profileId, store = loadGalleryStore()) {
   return profileById(profileId, store)?.name || "Galería";
 }
 
-export async function mountPlay(host, { profileId, playId, slotId, origin } = {}) {
+async function loadMeshFromUrl(url, name = "prop.glb") {
+  const res = await fetch(url);
+  if (!res.ok) return "";
+  const file = new File([await res.arrayBuffer()], name, { type: "model/gltf-binary" });
+  setPropModelFiles([file]);
+  return "url";
+}
+
+export async function mountPlay(host, { profileId, playId, slotId, origin, item: given, meshUrl, watch = true } = {}) {
   if (!host) return null;
   if (origin != null) setPlayerOrigin(origin);
-  const id = slotId || `ad-${playId}`;
-  const item = await resolvePlayCombo(playId, profileId);
+  const id = slotId || `ad-${playId || given?.id || "ad"}`;
+  const item = given ? makeCombo(given) : await resolvePlayCombo(playId, profileId);
   if (!item) return null;
-  const propTag = await prepareComboMesh(item);
+  let propTag = "";
+  if (meshUrl) {
+    const loaded = await loadMeshFromUrl(meshUrl, item?.pmesh?.name || "prop.glb");
+    if (loaded) propTag = comboPropTag(item) || "url";
+  }
+  if (!propTag) propTag = await prepareComboMesh(item);
   const format = formatById(item.ad);
   host.style.setProperty("--ad-w", `${format.w}px`);
   host.style.setProperty("--ad-h", `${format.h}px`);
@@ -197,12 +222,90 @@ export async function mountPlay(host, { profileId, playId, slotId, origin } = {}
   host.querySelector(".ad-slot")?.classList.add("is-in");
   const box = host.querySelector(".ad-container");
   if (box && (propTag || comboPropTag(item))) box.dataset.propTag = propTag || comboPropTag(item);
-  await bootContainers(host);
+  await bootContainers(host, { watch });
   return { item, slotId: id };
 }
 
 export function unmountPlay(slotId) {
   disposeAds(slotId);
+}
+
+const STILL_SIDE = 520;
+
+function stillBakeHost() {
+  let host = document.getElementById("browse-still-host");
+  if (host) return host;
+  host = document.createElement("div");
+  host.id = "browse-still-host";
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:fixed;left:0;top:0;width:520px;height:520px;opacity:0.02;z-index:-1;overflow:hidden;pointer-events:none;";
+  document.body.appendChild(host);
+  return host;
+}
+
+function stillSampleMs(item) {
+  const play = playById(item.play).id;
+  const extras = comboPlayExtras(item);
+  const total = playDurationMs(play, item.propAct, item.hand, extras);
+  const reveal = 780 + handoffRuntimeMs(item.hand, { play, ...extras });
+  const journey = Math.max(480, total - reveal);
+  if (play === "prop") {
+    const trail = propTrailMs(extras.propTrail, extras.propTrailSpd);
+    const action = Math.max(400, journey - trail);
+    const drive = String(item.propAct || extras.propAct || "").startsWith("drive");
+    const marks = drive ? [0.22, 0.38, 0.52, 0.7, 0.88, 0.98] : [0.52, 0.68, 0.82, 0.94];
+    return marks.map((p) => Math.round(trail + action * p));
+  }
+  const marks = play === "pre-enter"
+    ? [0.28, 0.4, 0.52, 0.64]
+    : [0.34, 0.44, 0.54, 0.66];
+  return marks.map((p) => Math.round(journey * p));
+}
+
+export function normalizeBrowseBlit(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0.8;
+  return Math.round(Math.min(1.5, Math.max(0.1, n)) * 20) / 20;
+}
+
+export function applyBrowseBlit(value) {
+  const blit = normalizeBrowseBlit(value);
+  applyAnimCost({ blitDpr: blit });
+  return blit;
+}
+
+export async function captureComboStill(item, { scale } = {}) {
+  if (!item) return "";
+  const format = formatById(item.ad);
+  const host = stillBakeHost();
+  const prevTag = currentPropTag();
+  const id = "browse-still";
+  const cap = Number.isFinite(Number(scale)) ? Number(scale) : CONFIG.blitDpr;
+  const side = `${STILL_SIDE}px`;
+  host.style.width = side;
+  host.style.height = side;
+  host.style.setProperty("--ad-w", side);
+  host.style.setProperty("--ad-h", side);
+  try {
+    await preloadEngine();
+    const propTag = await prepareComboMesh(item, { warmup: false, activate: true });
+    if (playById(item.play).id === "prop" && item.pmesh && !propTag) {
+      throw new Error("No se pudo cargar el modelo 3D.");
+    }
+    host.innerHTML = adMarkup({ ...format, w: STILL_SIDE, h: STILL_SIDE }, id, "none", item.play, comboPlayExtras(item));
+    const slot = host.querySelector(".ad-slot");
+    if (slot) slot.classList.add("is-in");
+    const box = host.querySelector(".ad-container");
+    if (box && (propTag || comboPropTag(item))) box.dataset.propTag = propTag || comboPropTag(item);
+    await bootContainers(host, { watch: false });
+    if (box) await startAd(box);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return await grabAdStill({ root: host, atMs: stillSampleMs(item), scale: cap, overlays: false, frameMesh: true });
+  } finally {
+    disposeAds(id);
+    host.innerHTML = "";
+    restorePropTag(prevTag);
+  }
 }
 
 export { formatById };

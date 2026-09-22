@@ -98,7 +98,7 @@ ${inner.trim()}
 mkdirSync(dest, { recursive: true });
 writeFileSync(join(dest, "Prueba donuts.html"), page);
 copyFileSync(join(root, "ad-play.css"), join(dest, "ad-play.css"));
-copyFileSync(join(root, "gwd-shell.js"), join(dest, "gwd-shell.js"));
+copyFileSync(join(root, "gwd/shell.js"), join(dest, "gwd-shell.js"));
 copyFileSync(join(root, "assets/ads", imgName), join(dest, imgName));
 
 const preview = join(dest, "gwd_preview_Prueba donuts");
@@ -106,7 +106,7 @@ try {
   mkdirSync(preview, { recursive: true });
   writeFileSync(join(preview, "index.html"), page.replace("<html", '<html').replace("<head>", '<head>\n  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">'));
   copyFileSync(join(root, "ad-play.css"), join(preview, "ad-play.css"));
-  copyFileSync(join(root, "gwd-shell.js"), join(preview, "gwd-shell.js"));
+  copyFileSync(join(root, "gwd/shell.js"), join(preview, "gwd-shell.js"));
   copyFileSync(join(root, "assets/ads", imgName), join(preview, imgName));
 } catch (err) {
   console.warn("preview no actualizado", err.message);

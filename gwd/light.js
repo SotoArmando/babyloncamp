@@ -31,7 +31,7 @@ import { gwdNativePasteSnippet, gwdNativePublicAdHtml } from "./hosts/native.js"
 import { zipStore } from "./zip.js";
 import { propActionMs } from "../prop-climax.js";
 
-const GWD_KIT_V = "41";
+const GWD_KIT_V = "42";
 const GWD_ORIGIN_KEY = "gwd-serve-origin";
 const GWD_GTM_KEY = "gwd-gtm-container";
 let serveOrigin = "";
@@ -177,6 +177,21 @@ export function gwdKitUrl(file) {
   return gwdServeUrl(`public/gwd/${file}`, v);
 }
 
+function gwdIsSceneSpec(spec) {
+  return spec?.kind === "scene" || isGwdScenePlay(spec?.play);
+}
+
+function gwdNeedsMesh(spec) {
+  return Boolean(spec?.ok) && !gwdIsSceneSpec(spec);
+}
+
+function gwdPlay2dScript(spec, liveMode, srcOverride) {
+  if (!isCanvas2DPlay(spec?.play)) return "";
+  const src = srcOverride
+    || (liveMode ? `${gwdApiOrigin()}/play-2d.js?v=${GWD_KIT_V}` : gwdKitUrl("play-2d.js"));
+  return `<script type="module" src="${src}" crossorigin></script>`;
+}
+
 function gwdLightGlbName(spec) {
   return String(spec.file || "prop").replace(/\.glb$/i, "") + "-climax.glb";
 }
@@ -199,7 +214,7 @@ export function gwdPublishedGlbUrl(spec) {
 }
 
 export function gwdIframeSrc(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok || spec.kind === "scene") return "";
+  if (!spec?.ok) return "";
   return gwdServeUrl(`public/iframe/${gwdLightSlug(item, spec)}.html`);
 }
 
@@ -325,9 +340,11 @@ function gwdSnippetImgHref(spec) {
 
 export function gwdPublicFiles(item, spec = gwdLightFromCombo(item)) {
   const slug = gwdLightSlug(item, spec);
+  const kit = ["ad-play.css", "gwd-shell.js", "env-neutral.hdr"];
+  if (isCanvas2DPlay(spec.play)) kit.push("play-2d.js", "ad-catalog.js", "player-origin.js");
   return {
-    kit: ["ad-play.css", "gwd-shell.js", "env-neutral.hdr"],
-    glb: gwdLightGlbName(spec),
+    kit,
+    glb: gwdNeedsMesh(spec) ? gwdLightGlbName(spec) : "",
     img: spec.img || "",
     iframe: `${slug}.html`,
     snippet: `${slug}-gwd-snippet.html`,
@@ -359,13 +376,15 @@ export async function gwdCheckPublic(item) {
   const files = gwdPublicFiles(item, spec);
   const kit = {};
   for (const name of files.kit) kit[name] = await gwdHeadOk(`public/gwd/${name}`);
-  const glbGwd = await gwdHeadOk(gwdClimaxRel(spec));
-  const glbLegacy = glbGwd ? false : await gwdHeadOk(`public/gtm/${files.glb}`);
+  const needsMesh = gwdNeedsMesh(spec);
+  const glbGwd = needsMesh ? await gwdHeadOk(gwdClimaxRel(spec)) : true;
+  const glbLegacy = needsMesh && !glbGwd ? await gwdHeadOk(`public/gtm/${files.glb}`) : false;
   return {
     files,
     kit,
-    glb: glbGwd || glbLegacy,
-    glbPath: glbGwd || !glbLegacy ? gwdClimaxRel(spec) : `public/gtm/${files.glb}`,
+    scene: gwdIsSceneSpec(spec),
+    glb: needsMesh ? Boolean(glbGwd || glbLegacy) : true,
+    glbPath: needsMesh ? (glbGwd || !glbLegacy ? gwdClimaxRel(spec) : `public/gtm/${files.glb}`) : "",
     img: files.img ? await gwdHeadOk(gtmImgRel(spec)) : true,
     iframe: await gwdHeadOk(`public/iframe/${files.iframe}`),
     snippet: await gwdHeadOk(`public/iframe/${files.snippet}`),
@@ -376,7 +395,8 @@ export function gwdPublicStatusText(status) {
   if (!status?.files) return "";
   const { files } = status;
   const lines = files.kit.map((name) => `${status.kit?.[name] ? "ok   " : "falta"}  public/gwd/${name}`);
-  lines.push(`${status.glb ? "ok   " : "falta"}  ${status.glbPath || `public/gwd/${files.glb}`}`);
+  if (files.glb) lines.push(`${status.glb ? "ok   " : "falta"}  ${status.glbPath || `public/gwd/${files.glb}`}`);
+  else lines.push("n/a   clímax 2D (sin GLB)");
   if (files.img) lines.push(`${status.img ? "ok   " : "falta"}  public/gtm/${files.img}`);
   lines.push(`${status.iframe ? "ok   " : "falta"}  public/iframe/${files.iframe}`);
   lines.push(`${status.snippet ? "ok   " : "falta"}  public/iframe/${files.snippet}`);
@@ -477,11 +497,9 @@ export function gwdIframeHtml(item, spec = gwdLightFromCombo(item), opts = {}) {
       ? adImageSrc(spec.img)
       : `${gwdApiOrigin()}/${String(adImageSrc(spec.img)).replace(/^\/+/, "")}`)
     : gwdSnippetImgHref(spec);
-  const canvas2d = isCanvas2DPlay(spec.play);
-  const play2dSrc = canvas2d && liveMode ? `${gwdApiOrigin()}/play-2d.js?v=${GWD_KIT_V}` : "";
   const mvSrc = liveMode ? live.modelViewer : gwdKitUrl("model-viewer.min.js");
   const mvScript = scene
-    ? (play2dSrc ? `<script type="module" src="${play2dSrc}" crossorigin></script>` : "")
+    ? gwdPlay2dScript(spec, liveMode)
     : `<script type="module" src="${mvSrc}" crossorigin></script>`;
   return `<!DOCTYPE html>
 <html lang="es">
@@ -540,7 +558,7 @@ export async function gwdPublishPublic(item, opts = {}) {
     return data;
   }
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok) throw new Error("Elegí un clímax exportable (2D o prop con GLB).");
   const files = gwdPublicFiles(item, spec);
   const payload = {
     iframeName: files.iframe,
@@ -549,7 +567,7 @@ export async function gwdPublishPublic(item, opts = {}) {
     snippetHtml: gwdPasteSnippet(item, spec),
     imgName: files.img,
   };
-  if (!(await gwdHeadOk(gwdClimaxRel(spec)))) {
+  if (gwdNeedsMesh(spec) && !(await gwdHeadOk(gwdClimaxRel(spec)))) {
     payload.glbName = files.glb;
     payload.glbFolder = "gwd";
     if (!(await gwdHeadOk(`public/gtm/${files.glb}`))) {
@@ -918,7 +936,7 @@ export function gwdViewerTagAttrs(spec, opts = {}) {
 }
 
 export function gwdLightSlug(item, spec = gwdLightFromCombo(item)) {
-  return String(item?.alias || spec.file || "gwd-light")
+  return String(item?.alias || spec.file || spec.play || "gwd-light")
     .replace(/\.glb$/i, "")
     .replace(/[^\w.-]+/g, "-")
     .replace(/-+/g, "-")
@@ -982,15 +1000,21 @@ function gwdLightInner(item, spec, viewerHtml, opts = {}) {
 
 export function gwdLightAdHtml(item, spec = gwdLightFromCombo(item)) {
   const format = formatById(item?.ad);
+  const scene = gwdIsSceneSpec(spec);
   const glbName = gwdLightGlbName(spec);
-  const viewer = `<div class="ad-stage"><model-viewer id="view" src="${glbName}" camera-controls autoplay animation-name="climax" interaction-prompt="none" ${gwdViewerTagAttrs(spec)}></model-viewer></div>`;
+  const viewer = scene
+    ? gwdSceneMarkup(spec.play)
+    : `<div class="ad-stage"><model-viewer id="view" src="${glbName}" camera-controls autoplay animation-name="climax" interaction-prompt="none" ${gwdViewerTagAttrs(spec)}></model-viewer></div>`;
+  const headScript = scene
+    ? gwdPlay2dScript(spec, false, "play-2d.js")
+    : `<script type="module" src="model-viewer.min.js" crossorigin></script>`;
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="ad.size" content="width=${format.w},height=${format.h}" />
-  <title>${item.alias || spec.file || "GWD ligero"}</title>
+  <title>${item.alias || spec.file || spec.play || "GWD ligero"}</title>
   <link rel="stylesheet" href="ad-play.css" />
   <style>
     html, body { width: 100%; height: 100%; margin: 0; }
@@ -998,7 +1022,7 @@ export function gwdLightAdHtml(item, spec = gwdLightFromCombo(item)) {
     body.player-embed .ad-container canvas.ad-gwd-canvas,
     body.player-embed .ad-container #webgl-canvas { display: block; }
   </style>
-  <script type="module" src="model-viewer.min.js" crossorigin></script>
+  ${headScript}
 </head>
 <body class="player-embed gwd-unit">
 ${gwdLightInner(item, spec, viewer).trim()}
@@ -1029,7 +1053,7 @@ export function gwdWorkspaceJson(spec) {
   })}\n`;
 }
 
-function gwdBannerPageCss(format) {
+function gwdBannerPageCss(format, scene = false) {
   return `        html,
         body {
             width: 100%;
@@ -1065,17 +1089,34 @@ function gwdBannerPageCss(format) {
             height: ${format.h}px;
         }
 
-        gwd-3d-model-viewer,
+        ${scene ? `.ad-container,
+        .ad-container * {
+            transform-style: flat;
+        }` : `gwd-3d-model-viewer,
         .ad-container,
         .ad-container * {
             transform-style: flat;
-        }`;
+        }`}`;
 }
 
 export function gwdInsertGuide(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok || spec.kind === "scene") return "";
-  const glbUrl = gwdPublishedGlbUrl(spec);
+  if (!spec?.ok) return "";
   const iframeUrl = gwdServeUrl(`public/iframe/${gwdLightSlug(item, spec)}.html`);
+  const scene = gwdIsSceneSpec(spec);
+  if (scene) {
+    const canvas = isCanvas2DPlay(spec.play);
+    return `Nuevo proyecto GWD · Banner 3.0 · ${spec.w}×${spec.h} · clímax 2D ${spec.play} (sin GLB)
+
+Kit en public/gwd (shell${canvas ? " + play-2d" : ""}). Snippet e iframe en public/iframe.
+Iframe: ${iframeUrl}
+
+1. File → New. Banner. Tamaño ${spec.w} × ${spec.h} px. No arrastres 3D Model Viewer.
+2. Code view: pegá el snippet (también está en public/iframe).
+3. ${canvas ? "El canvas 2D carga play-2d.js del kit." : "La escena es CSS (gota / capas), sin canvas 2D."}
+4. Botón “Publicar en public/” si falta el HTML.
+5. Guardá en Code view. Preview. Origen: ${gwdServeOrigin()}.`;
+  }
+  const glbUrl = gwdPublishedGlbUrl(spec);
   return `Nuevo proyecto GWD · Banner 3.0 · ${spec.w}×${spec.h} · handoff ${spec.handoff}
 
 Kit en public/gwd (clip horneado + shell). Foto y mesh nativo en public/gtm. Snippet en public/iframe.
@@ -1089,13 +1130,22 @@ Iframe: ${iframeUrl}
 }
 
 export function gwdPasteSnippet(item, spec = gwdLightFromCombo(item)) {
-  if (!spec?.ok || spec.kind === "scene") return "";
+  if (!spec?.ok) return "";
   const format = formatById(item?.ad);
-  const glb = gwdPublishedGlbUrl(spec);
-  const viewer = `<gwd-3d-model-viewer id="gwd-model" src="${glb}" autoplay animation-name="climax" ${gwdViewerTagAttrs(spec)}></gwd-3d-model-viewer>`;
-  const inner = gwdLightInner(item, spec, `<div class="ad-stage">${viewer}</div>`, {
+  const scene = gwdIsSceneSpec(spec);
+  const glb = scene ? "" : gwdPublishedGlbUrl(spec);
+  const viewer = scene
+    ? gwdSceneMarkup(spec.play)
+    : `<gwd-3d-model-viewer id="gwd-model" src="${glb}" autoplay animation-name="climax" ${gwdViewerTagAttrs(spec)}></gwd-3d-model-viewer>`;
+  const inner = gwdLightInner(item, spec, scene ? viewer : `<div class="ad-stage">${viewer}</div>`, {
     imgHref: gwdSnippetImgHref(spec),
   }).trim().replace(/^/gm, "                ");
+  const mvCss = scene ? "" : `    <link href="gwd3dmodelviewer_style.css" rel="stylesheet" data-version="2" data-exports-type="gwd-3d-model-viewer">
+`;
+  const mvScripts = scene
+    ? `    ${gwdPlay2dScript(spec, false)}`
+    : `    <script data-source="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js" data-exports-type="gwd-3d-model-viewer" type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
+    <script data-source="gwd3dmodelviewer_min.js" data-version="2" data-exports-type="gwd-3d-model-viewer" src="gwd3dmodelviewer_min.js"></script>`;
   return `<!DOCTYPE html>
 <html class="gwd-unit">
 
@@ -1109,8 +1159,7 @@ export function gwdPasteSnippet(item, spec = gwdLightFromCombo(item)) {
     <link href="gwdpage_style.css" rel="stylesheet" data-version="13" data-exports-type="gwd-page">
     <link href="gwdpagedeck_style.css" rel="stylesheet" data-version="14" data-exports-type="gwd-pagedeck">
     <link href="gwdgooglead_style.css" rel="stylesheet" data-version="9" data-exports-type="gwd-google-ad">
-    <link href="gwd3dmodelviewer_style.css" rel="stylesheet" data-version="2" data-exports-type="gwd-3d-model-viewer">
-    <link href="${gwdKitUrl("ad-play.css")}" rel="stylesheet">
+${mvCss}    <link href="${gwdKitUrl("ad-play.css")}" rel="stylesheet">
     <style id="gwd-lightbox-style">
         .gwd-lightbox {
             overflow: hidden;
@@ -1134,15 +1183,14 @@ export function gwdPasteSnippet(item, spec = gwdLightFromCombo(item)) {
         }
     </style>
     <style>
-${gwdBannerPageCss(format)}
+${gwdBannerPageCss(format, scene)}
     </style>
     <script data-source="gwd_webcomponents_v1_min.js" data-version="2" data-exports-type="gwd_webcomponents_v1" src="gwd_webcomponents_v1_min.js"></script>
     <script data-source="gwdpage_min.js" data-version="13" data-exports-type="gwd-page" src="gwdpage_min.js"></script>
     <script data-source="gwdpagedeck_min.js" data-version="14" data-exports-type="gwd-pagedeck" src="gwdpagedeck_min.js"></script>
     <script data-source="https://s0.2mdn.net/ads/studio/Enabler.js" data-exports-type="gwd-google-ad" src="https://s0.2mdn.net/ads/studio/Enabler.js"></script>
     <script data-source="gwdgooglead_min.js" data-version="9" data-exports-type="gwd-google-ad" src="gwdgooglead_min.js"></script>
-    <script data-source="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js" data-exports-type="gwd-3d-model-viewer" type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
-    <script data-source="gwd3dmodelviewer_min.js" data-version="2" data-exports-type="gwd-3d-model-viewer" src="gwd3dmodelviewer_min.js"></script>
+${mvScripts}
 </head>
 
 <body class="player-embed gwd-unit">
@@ -1195,6 +1243,9 @@ export function gwdViewerSnippet(spec, item) {
 
 function fetchSource(path) {
   if (path === "gwd-shell.js") return "gwd/shell.js";
+  if (path === "play-2d.js") return "play-2d.js";
+  if (path === "ad-catalog.js") return "ad-catalog.js";
+  if (path === "player-origin.js") return "player-origin.js";
   return path;
 }
 
@@ -1222,12 +1273,13 @@ function clickDownload(name, data, type) {
 
 export async function gwdDownloadPart(item, kind) {
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok) throw new Error("Elegí un clímax exportable (2D o prop con GLB).");
   if (kind === "snippet") {
     clickDownload(`${gwdLightSlug(item, spec)}-gwd-snippet.html`, gwdPasteSnippet(item, spec), "text/html");
     return;
   }
   if (kind === "glb") {
+    if (!gwdNeedsMesh(spec)) throw new Error("Ese clímax no tiene GLB.");
     clickDownload(gwdLightGlbName(spec), await bakeClimaxForGwd(spec, item.propAct || "drop"), "model/gltf-binary");
     return;
   }
@@ -1239,6 +1291,11 @@ export async function gwdDownloadPart(item, kind) {
       { name: "LEEME.txt", data: gwdInsertGuide(item, spec) },
       { name: "env-neutral.hdr", data: await fetchBytes("assets/3d/env-neutral.hdr") },
     ];
+    if (isCanvas2DPlay(spec.play)) {
+      files.push({ name: "play-2d.js", data: await fetchBytes("play-2d.js") });
+      files.push({ name: "ad-catalog.js", data: await fetchBytes("ad-catalog.js") });
+      files.push({ name: "player-origin.js", data: await fetchBytes("player-origin.js") });
+    }
     if (spec.img) files.push({ name: spec.img, data: await fetchBytes(adImageSrc(spec.img)) });
     clickDownload(`${gwdLightSlug(item, spec)}-gwd-resto.zip`, zipStore(files), "application/zip");
     return;
@@ -1270,22 +1327,29 @@ async function bakeClimaxForGwd(spec, action) {
 
 export async function gwdLightExportZip(item) {
   const spec = gwdLightFromCombo(item);
-  if (!spec.ok || spec.kind === "scene") throw new Error("Ese clímax no tiene GLB.");
+  if (!spec.ok) throw new Error("Elegí un clímax exportable (2D o prop con GLB).");
   const slug = gwdLightSlug(item, spec);
-  const glbName = gwdLightGlbName(spec);
   const imgName = spec.img;
+  const scene = gwdIsSceneSpec(spec);
   const files = [
     { name: `${slug}.html`, data: gwdAuthorHtml(item, spec) },
     { name: "gwd_workspace.json", data: gwdWorkspaceJson(spec) },
     { name: `${slug}_groups_archive`, data: await fetchBytes("gwd-runtime/groups_archive.html") },
     { name: "gwd_webcomponents_v1_min.js", data: await fetchBytes("gwd-runtime/gwd_webcomponents_v1_min.js") },
-    { name: "gwd3dmodelviewer_min.js", data: await fetchBytes("gwd-runtime/gwd3dmodelviewer_min.js") },
-    { name: "gwd3dmodelviewer_style.css", data: await fetchBytes("gwd-runtime/gwd3dmodelviewer_style.css") },
     { name: "ad-play.css", data: await fetchBytes("ad-play.css") },
     { name: "gwd-shell.js", data: await fetchBytes("gwd-shell.js") },
     { name: "env-neutral.hdr", data: await fetchBytes("assets/3d/env-neutral.hdr") },
-    { name: glbName, data: await bakeClimaxForGwd(spec, item.propAct || "drop") },
   ];
+  if (!scene) {
+    files.push({ name: "gwd3dmodelviewer_min.js", data: await fetchBytes("gwd-runtime/gwd3dmodelviewer_min.js") });
+    files.push({ name: "gwd3dmodelviewer_style.css", data: await fetchBytes("gwd-runtime/gwd3dmodelviewer_style.css") });
+    files.push({ name: gwdLightGlbName(spec), data: await bakeClimaxForGwd(spec, item.propAct || "drop") });
+  }
+  if (isCanvas2DPlay(spec.play)) {
+    files.push({ name: "play-2d.js", data: await fetchBytes("play-2d.js") });
+    files.push({ name: "ad-catalog.js", data: await fetchBytes("ad-catalog.js") });
+    files.push({ name: "player-origin.js", data: await fetchBytes("player-origin.js") });
+  }
   if (imgName) {
     files.push({ name: imgName, data: await fetchBytes(adImageSrc(imgName)) });
   }

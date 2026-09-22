@@ -5,16 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="ad.size" content="width=300,height=250" />
   <title>GWD ligero · Ad</title>
-  <link rel="stylesheet" href="ad-play.css?v=gwd8" />
+  <link rel="stylesheet" href="ad-play.css?v=gwd26" />
   <style>
     html, body { width: 100%; height: 100%; margin: 0; }
     body.player-embed .ad-container canvas { display: none; }
+    body.player-embed .ad-container canvas.ad-gwd-canvas,
+    body.player-embed .ad-container #webgl-canvas { display: block; }
     .miss {
       margin: 0; padding: 1rem; color: #d8d0c4;
       font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center;
     }
   </style>
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/1.6.0/model-viewer.min.js"></script>
+  <script type="module" src="./gwd/vendor/model-viewer.min.js" crossorigin></script>
+  <script type="module" src="./play-2d.js" crossorigin></script>
 </head>
 <body class="player-embed gwd-unit">
   <div id="mount"></div>
@@ -22,8 +25,9 @@
   <script type="module">
     import { adImageSrc, formatById } from "./ad-catalog.js?v=cam23";
     import { askParentCombo, comboPlayExtras, playRouteParams, resolvePlayCombo } from "./play-route.js?v=8";
-    import { applyGwdModelView, gwdLightFromCombo, gwdPlayMarkup, gwdPublishedGlbUrl, gwdViewerTagAttrs } from "./gwd-light.js";
-    import { bakeClimaxFromUrl } from "./gwd-bake.js";
+    import { applyGwdModelView, applyGwdStageLayers, gwdLightFromCombo, gwdPlayMarkup, gwdPublishedGlbUrl, gwdViewerTagAttrs } from "./gwd/light.js?v=gwd42";
+    import { bakeClimaxFromUrl } from "./gwd/bake.js";
+    import { gwdSceneMarkup } from "./gwd/gaps/scene.js";
 
     const route = playRouteParams();
     const mount = document.getElementById("mount");
@@ -37,17 +41,20 @@
       const format = formatById(item.ad);
       document.querySelector('meta[name="ad.size"]')?.setAttribute("content", `width=${format.w},height=${format.h}`);
       const spec = gwdLightFromCombo(item);
-      const glb = spec.ok ? gwdPublishedGlbUrl(spec) : "";
-      const attrs = spec.ok ? gwdViewerTagAttrs(spec) : "";
+      const scene = spec.kind === "scene";
+      const glb = !scene && spec.ok ? gwdPublishedGlbUrl(spec) : "";
+      const attrs = !scene && spec.ok ? gwdViewerTagAttrs(spec) : "";
       mount.innerHTML = gwdPlayMarkup(item, spec, {
         extras: comboPlayExtras(item),
         imgHref: spec.img ? adImageSrc(spec.img) : "",
-        viewerHtml: spec.ok
-          ? `<div class="ad-stage"><model-viewer id="view" src="${glb}" camera-controls autoplay animation-name="climax" interaction-prompt="none" loading="eager" reveal="auto" ${attrs}></model-viewer></div>`
-          : "",
+        viewerHtml: scene
+          ? gwdSceneMarkup(spec.play)
+          : spec.ok
+            ? `<div class="ad-stage"><model-viewer id="view" src="${glb}" camera-controls autoplay animation-name="climax" interaction-prompt="none" loading="eager" reveal="auto" ${attrs}></model-viewer></div>`
+            : "",
       });
       const view = mount.querySelector("model-viewer");
-      if (view && spec.ok) {
+      if (view && spec.ok && !scene) {
         applyGwdModelView(view, spec);
         view.addEventListener("error", async () => {
           if (view.dataset.gwdBaked === "1") return;
@@ -61,8 +68,17 @@
           }
         }, { once: true });
       }
+      window.addEventListener("message", (ev) => {
+        if (ev.origin !== location.origin) return;
+        if (ev.data?.type !== "gwd-live" || !ev.data.item) return;
+        const live = gwdLightFromCombo(ev.data.item);
+        const box = mount.querySelector(".ad-container");
+        const view = mount.querySelector("model-viewer");
+        if (view) applyGwdModelView(view, live);
+        if (box) applyGwdStageLayers(box, live);
+      });
       const shell = document.createElement("script");
-      shell.src = "./gwd-shell.js";
+      shell.src = "./gwd/shell.js";
       document.body.append(shell);
     }
   </script>

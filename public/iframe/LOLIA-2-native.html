@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="ad.size" content="width=336,height=280" />
+  <title>LOLIA #2</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #99c1f1; }
+    html { --play-stage: #99c1f1; }
+    #gwd-slot { width: 100%; height: 100%; background: #99c1f1; }
+    body.gwd-ad .ad-label, body.gwd-ad .ad-hint { display: none; }
+    .player-miss { margin: 0; padding: 1rem; color: #d8d0c4; font: 650 0.8rem/1.4 ui-sans-serif, system-ui, sans-serif; text-align: center; }
+  </style>
+</head>
+<body class="player-embed gwd-ad">
+  <div id="gwd-slot"></div>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs@7.54.3/babylon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babylonjs-loaders@7.54.3/babylonjs.loaders.min.js"></script>
+  <script src="https://camel-doc-postage-collaborative.trycloudflare.com/public/player/babylon-ads-player.js?v=prop54"></script>
+  <script>
+    (async function () {
+      var api = window.BabylonAdsPlayer;
+      var host = document.getElementById("gwd-slot");
+      if (!api || !api.mountPlay) {
+        host.innerHTML = "<p class=\"player-miss\">Falta el player en public/player.</p>";
+        return;
+      }
+      var item = {"id":"gmu1fktqrq4bh","play":"prop","propAct":"turn","ad":"large","in":"none","hand":"wipe","hms":"2400","hnb":"5","hst":"120","hhd":"700","hin":"420","hbt":"4","htm":"0","htxt":"","hempty":"1","pal":{"fog":"#99c1f1"},"ph":{"style":"photo","img":"06c3f1740cb11aeee0680546165359af.jpg","fit":"cover","fx":"50","fy":"50","fz":"100","fm":"#111111","bg":"#1f6ec1","paper":"#f5f5dc","ink":"#fcdd69","accent":"#191a1c"},"pcam":"2.4","pch":"0","pcv":"0","pcm":"orbit","ppx":"0","ppy":"0","psx":"0.72","psy":"0.72","psz":"0.72","plight":"none","plint":"1","pfloor":"0","pflat":"1","pcog":"1","plcol":"#99c1f1","pldist":"3.3","plpos":"frente","plhrot":"0","plvrot":"0","prh":"140","prv":"-5","studio":{"preset":"highkey","world":1.05,"key":1.2,"fill":1.2,"rim":0,"exposure":1.24,"worldCol":"#f5f2ed","keyCol":"#fffaf2","fillCol":"#f3f7ff","rimCol":"#e8eeff","extras":[{"id":"xmtow9fogkue","color":"#26a269","intensity":16,"place":"frente"}]},"alias":"LOLIA #2","off":false,"pin":true,"pmesh":{"name":"Floral_Hawaiian_Shirt_On_Hanger.glb","extras":[],"assetId":"folder:Floral_Hawaiian_Shirt_On_Hanger.glb"}};
+      var origin = "https://camel-doc-postage-collaborative.trycloudflare.com" || location.origin;
+      var meshUrl = "https://camel-doc-postage-collaborative.trycloudflare.com/public/gtm/Floral_Hawaiian_Shirt_On_Hanger.glb";
+      api.setPlayerOrigin(origin);
+      var ok = await api.mountPlay(host, { item: item, playId: item.id, profileId: "gmu1fktqn5xte", slotId: "gwd-ad", origin: origin, meshUrl: meshUrl || undefined });
+      if (!ok) {
+        host.innerHTML = "<p class=\"player-miss\">Ese clímax no está en el perfil.</p>";
+        return;
+      }
+      var box = host.querySelector(".ad-container");
+      if (box && api.startAd) await api.startAd(box);
+    })();
+  </script>
+</body>
+</html>

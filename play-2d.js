@@ -1,4 +1,5 @@
 import { resolvePalette } from "./ad-catalog.js";
+import { playDrawMs, playSimMs, resetPlayClock, stepPlayClock } from "./play-clock.js";
 
 export const PLAY_2D_IDS = ["horizon", "sundown", "storm", "aurora", "erupt", "migrate", "breaker", "calve"];
 
@@ -35,6 +36,22 @@ export const PLAY_2D_MS = {
 export function isCanvas2DPlay(play) {
   return PLAY_2D_IDS.includes(String(play || ""));
 }
+
+export function playElapsed(unit) {
+  if (!unit) return 0;
+  if (Number.isFinite(unit.gifElapsed)) {
+    stepPlayClock(unit, { seekMs: unit.gifElapsed });
+    return unit.gifElapsed;
+  }
+  if (!unit.visible) {
+    resetPlayClock(unit);
+    return 0;
+  }
+  stepPlayClock(unit, { hold: Boolean(unit.paused || unit.frozen) });
+  return playDrawMs(unit);
+}
+
+export { playSimMs };
 
 export function play2dBodyMs(play) {
   const ms = PLAY_2D_MS;
@@ -78,6 +95,7 @@ function hostPalette(host, playId = host?.dataset.play) {
 }
 
 function bindSkip(container, skip) {
+  if (container?.dataset.loopPassive === "1") return;
   container.addEventListener("click", skip);
   container.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") skip();
@@ -184,12 +202,12 @@ function attachHorizon2D(container, unit, api) {
       paintSunset(ctx, bw, bh, 0, view, false, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
+    const sim = playSimMs(unit);
     const delay = PLAY_2D_MS.horizonDelayMs;
     const rise = PLAY_2D_MS.horizonRiseMs;
     const hold = PLAY_2D_MS.horizonHoldMs;
-    if (elapsed >= delay + rise + hold) reveal();
+    if (sim >= delay + rise + hold) reveal();
     let u = 0;
     if (elapsed > delay) u = dawnEase((elapsed - delay) / rise);
     if (unit.climax || elapsed >= delay + rise) u = 1;
@@ -223,12 +241,12 @@ function attachSundown2D(container, unit, api) {
       paintSunset(ctx, bw, bh, 0, view, true, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
+    const sim = playSimMs(unit);
     const delay = PLAY_2D_MS.horizonDelayMs;
     const drop = PLAY_2D_MS.horizonRiseMs;
     const hold = PLAY_2D_MS.horizonHoldMs;
-    if (elapsed >= delay + drop + hold) reveal();
+    if (sim >= delay + drop + hold) reveal();
     let u = 0;
     if (elapsed > delay) u = duskEase((elapsed - delay) / drop);
     if (unit.climax || elapsed >= delay + drop) u = 1;
@@ -273,10 +291,9 @@ function attachStorm2D(container, unit, api) {
       paintStorm(ctx, bw, bh, { flash: 0, bolt: 0 }, view, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
     const beat = stormBeat(elapsed);
-    if (beat.done) reveal();
+    if (stormBeat(playSimMs(unit)).done) reveal();
     paintStorm(ctx, bw, bh, unit.climax ? { flash: 0.04, bolt: 0 } : beat, view, hostPalette(container));
   };
 }
@@ -381,12 +398,12 @@ function attachAurora2D(container, unit, api) {
       paintAurora(ctx, bw, bh, 0, view, 0, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
+    const sim = playSimMs(unit);
     const delay = PLAY_2D_MS.auroraDelayMs;
     const rise = PLAY_2D_MS.auroraRiseMs;
     const hold = PLAY_2D_MS.auroraHoldMs;
-    if (elapsed >= delay + rise + hold) reveal();
+    if (sim >= delay + rise + hold) reveal();
     let u = 0;
     if (elapsed > delay) {
       const k = Math.min(1, Math.max(0, (elapsed - delay) / rise));
@@ -529,10 +546,9 @@ function attachErupt2D(container, unit, api) {
       paintEruption(ctx, bw, bh, { glow: 0, burst: 0, plume: 0, fade: 1 }, view, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
     const beat = eruptBeat(elapsed);
-    if (beat.done) reveal();
+    if (eruptBeat(playSimMs(unit)).done) reveal();
     paintEruption(ctx, bw, bh, unit.climax ? { glow: 0.06, burst: 0, plume: 0, fade: 1 } : beat, view, hostPalette(container));
   };
 }
@@ -637,12 +653,12 @@ function attachMigrate2D(container, unit, api) {
       paintMigrate(ctx, bw, bh, 0, view, 0, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
+    const sim = playSimMs(unit);
     const delay = PLAY_2D_MS.migrateDelayMs;
     const fly = PLAY_2D_MS.migrateFlyMs;
     const rest = PLAY_2D_MS.migrateRestMs;
-    if (elapsed >= delay + fly + rest) reveal();
+    if (sim >= delay + fly + rest) reveal();
     let u = 0;
     if (elapsed > delay) u = Math.min(1, (elapsed - delay) / fly);
     let t = 0;
@@ -759,10 +775,9 @@ function attachBreaker2D(container, unit, api) {
       paintBreaker(ctx, bw, bh, { amp: 0, foam: 0 }, view, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
     const beat = breakerBeat(elapsed);
-    if (beat.done) reveal();
+    if (breakerBeat(playSimMs(unit)).done) reveal();
     paintBreaker(ctx, bw, bh, unit.climax ? { amp: 0, foam: 0 } : beat, view, hostPalette(container));
   };
 }
@@ -888,10 +903,9 @@ function attachCalve2D(container, unit, api) {
       paintCalve(ctx, bw, bh, { peel: 0, fall: 0, splash: 0 }, view, hostPalette(container));
       return;
     }
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = performance.now() - unit.journeyAt;
+    const elapsed = playElapsed(unit);
     const beat = calveBeat(elapsed);
-    if (beat.done) reveal();
+    if (calveBeat(playSimMs(unit)).done) reveal();
     paintCalve(ctx, bw, bh, unit.climax ? { peel: 1, fall: 1, splash: 0 } : beat, view, hostPalette(container));
   };
 }
@@ -928,6 +942,11 @@ export function bootPlay2D(container, opts = {}) {
   };
   const ok = attachPlay2D(container, unit, {
     onReveal() {
+      if (opts.loop) {
+        unit.climax = false;
+        unit.journeyAt = 0;
+        return;
+      }
       if (unit.climax) return;
       unit.climax = true;
       opts.onReveal?.();
@@ -940,8 +959,10 @@ export function bootPlay2D(container, opts = {}) {
   if (!ok) return false;
   const dpr = Number(opts.dpr) > 0 ? Number(opts.dpr) : 2.5;
   let ctx = null;
+  let raf = 0;
+  let stopped = false;
   const tick = () => {
-    if (!container.isConnected) return;
+    if (stopped || !container.isConnected) return;
     const w = canvas.clientWidth | 0;
     const h = canvas.clientHeight | 0;
     if (w >= 2 && h >= 2) {
@@ -955,10 +976,13 @@ export function bootPlay2D(container, opts = {}) {
       if (!ctx) ctx = canvas.getContext("2d", { alpha: false });
       unit.paint2d?.(ctx, bw, bh);
     }
-    requestAnimationFrame(tick);
+    raf = requestAnimationFrame(tick);
   };
-  requestAnimationFrame(tick);
-  return true;
+  raf = requestAnimationFrame(tick);
+  return () => {
+    stopped = true;
+    cancelAnimationFrame(raf);
+  };
 }
 
 if (typeof window !== "undefined") {

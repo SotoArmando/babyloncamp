@@ -226,7 +226,7 @@ export function gwdNativePublicAdHtml(item, spec, origin, profileId = "") {
   if (!item?.id) return "";
   const format = spec?.w && spec?.h ? spec : formatById(item?.ad);
   const base = String(origin || "").replace(/\/+$/, "");
-  const player = `${base}/public/player/babylon-ads-player.js?v=prop51`;
+  const player = `${base}/public/player/babylon-ads-player.js?v=tiny2`;
   const baked = bakeComboJson(item);
   const profile = JSON.stringify(String(profileId || ""));
   const serve = JSON.stringify(base);

@@ -1,10 +1,13 @@
 import { loadBanner, applyWaveToDom, startShapePlayer, wavePathD, STORAGE_KEY } from "./ad4-banner.js";
-import { playById, resolvePalette, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam18";
+import { playById, resolvePalette, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, propTrailById, propTrailMs, propTrailJoinById, propTrailInById, propTrailFlyEnd, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailSpd, normalizePropTrailPop, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam49";
 import { attachPlay2D, PLAY_2D_MS } from "./play-2d.js";
+import { beginPlayFrame, playDrawMs, playSimMs, resetPlayClock, stepPlayClock } from "./play-clock.js";
 import { attachStudioLighting, parseStudioState } from "./studio-lights.js";
 import { writeClockLook, paintHostClock } from "./ad-clock.js";
 import { listFolderAssets, loadAssetFilesForMesh } from "./ad-assets.js";
-import { propActionMs, propPose } from "./prop-climax.js";
+import { loadComboPropFiles } from "./ad-profile.js?v=cam26";
+import { propActionMs, propPose, isDriveAction } from "./prop-climax.js?v=drive7";
+import { attachPropTrail } from "./prop-trail.js?v=ink31";
 import { runHandoff } from "./handoff-run.js";
 
 export const CONFIG = {
@@ -58,7 +61,7 @@ export function applyAnimCost(values = {}) {
   CONFIG.waterSubdivisions = Math.round(clampNum(values.waterSubdivisions, 40, 320, CONFIG.waterSubdivisions));
   CONFIG.mirrorSize = Math.round(clampNum(values.mirrorSize, 256, 2048, CONFIG.mirrorSize));
   CONFIG.mirrorBlur = Math.round(clampNum(values.mirrorBlur, 0, 24, CONFIG.mirrorBlur));
-  CONFIG.blitDpr = Math.round(clampNum(values.blitDpr, 1, 3, CONFIG.blitDpr) * 4) / 4;
+  CONFIG.blitDpr = Math.round(clampNum(values.blitDpr, 0.1, 3, CONFIG.blitDpr) * 20) / 20;
   CONFIG.fpsVisible = Math.round(clampNum(values.fpsVisible, 0, 60, CONFIG.fpsVisible));
   CONFIG.dropSegments = Math.round(clampNum(values.dropSegments, 6, 48, CONFIG.dropSegments));
   CONFIG.skySegments = Math.round(clampNum(values.skySegments, 8, 48, CONFIG.skySegments));
@@ -77,6 +80,30 @@ export function applyAnimCost(values = {}) {
 
 export function getDrawFps() {
   return engine ? Math.round(engine.getFps()) : 0;
+}
+
+let lastDrawAt = 0;
+let drawWatch = null;
+
+function noteDrawFrame(unit, now) {
+  if (typeof drawWatch !== "function") return;
+  const dt = lastDrawAt ? now - lastDrawAt : 0;
+  lastDrawAt = now;
+  drawWatch({
+    t: now,
+    dt: dt > 8000 ? 0 : dt,
+    fps: engine ? Math.round(engine.getFps()) : 0,
+    warm: Boolean(unit?.warming),
+  });
+}
+
+export function watchDrawFrames(fn) {
+  drawWatch = typeof fn === "function" ? fn : null;
+  if (!drawWatch) lastDrawAt = 0;
+}
+
+export function resetDrawFrames() {
+  lastDrawAt = 0;
 }
 
 const ads = new Map();
@@ -155,6 +182,14 @@ function usePropSource(src) {
   syncLegacyProp(src);
 }
 
+export function currentPropTag() {
+  return propCurrent;
+}
+
+export function restorePropTag(tag) {
+  usePropSource(getPropSource(tag));
+}
+
 export function getPropModel() {
   const src = currentPropSource();
   return {
@@ -216,29 +251,57 @@ export function comboPropTag(item) {
   return item.pmesh.assetId ? `asset:${item.pmesh.assetId}` : `idb:${item.id}:${item.pmesh.name}`;
 }
 
-export async function prepareComboMesh(item, { warmup = true } = {}) {
+export async function prepareComboMesh(item, { warmup = true, activate = true } = {}) {
   const tag = comboPropTag(item);
-  if (!item?.pmesh?.assetId) return "";
+  if (!tag) return "";
   let src = getPropSource(tag);
-  if (!src) {
-    const catalog = await listFolderAssets();
-    const asset = catalog.find((entry) => entry.id === item.pmesh.assetId);
-    const files = asset ? await loadAssetFilesForMesh(asset, catalog) : [];
+  if (!src?.file) {
+    let files = [];
+    if (item.pmesh?.assetId) {
+      const catalog = await listFolderAssets();
+      const asset = catalog.find((entry) => entry.id === item.pmesh.assetId);
+      files = asset ? await loadAssetFilesForMesh(asset, catalog) : [];
+    }
+    if (!files.length && item.id) {
+      try { files = await loadComboPropFiles(item.id); } catch { files = []; }
+    }
     if (!files.length) return "";
     src = sourceFromFiles(tag, files);
+    if (!src.file) return "";
     propSources.set(tag, src);
     await preparePropSourceFor(src);
   } else {
     await src.prepared.ready;
   }
-  usePropSource(src);
+  if (activate) usePropSource(src);
   if (warmup) await warmupPropGpu(tag);
+  return tag;
+}
+
+export async function loadComboPropInto(scene, parent, item) {
+  const tag = await prepareComboMesh(item, { warmup: false, activate: false });
+  if (!tag) return null;
+  const src = getPropSource(tag);
+  if (!src?.file) return null;
+  return loadPropImport(scene, parent, null, src);
+}
+
+export async function registerPropFiles(tag, files) {
+  if (!tag || !files?.length) return "";
+  let src = propSources.get(tag);
+  if (!src) {
+    src = sourceFromFiles(tag, files);
+    propSources.set(tag, src);
+  }
+  await preparePropSourceFor(src);
   return tag;
 }
 const AD4_BANNER = loadBanner();
 const AD4_FX = { burst: 0 };
 let sharedLoop = null;
 let engine = null;
+let liveScene = null;
+let presenting = null;
 let BABYLON = null;
 let observer = null;
 let stopShapes = null;
@@ -253,9 +316,10 @@ function disposePropWarm() {
 }
 
 async function compileMeshMaterials(root) {
+  const meshes = root?.meshes || root?.getChildMeshes?.() || [];
   const jobs = [];
-  for (const mesh of root.getChildMeshes?.() || []) {
-    if (!mesh.getTotalVertices?.()) continue;
+  for (const mesh of meshes) {
+    if (!mesh?.getTotalVertices?.()) continue;
     const mats = mesh.material?.subMaterials || (mesh.material ? [mesh.material] : []);
     for (const mat of mats) {
       if (!mat?.forceCompilationAsync) continue;
@@ -313,7 +377,7 @@ export function syncAdSize(container) {
     frame.style.height = `${height}px`;
   }
   if (container.clientHeight < 2) container.style.height = `${height}px`;
-  const canvas = container.querySelector("canvas");
+  const canvas = container.querySelector("canvas:not(.ad-trail-2d):not(.ad-clock-layer)") || container.querySelector("canvas");
   if (canvas && canvas.clientHeight < 2) {
     canvas.style.width = "100%";
     canvas.style.height = `${height}px`;
@@ -419,6 +483,7 @@ function startHandoff(container, unit) {
 }
 
 function finishClimax(container, unit) {
+  if (Number.isFinite(unit.gifElapsed)) return;
   if (unit.climax) return;
   unit.climax = true;
   container.classList.add("is-climax");
@@ -450,6 +515,12 @@ function attachTimedClimax(container, scene, ms) {
   };
   bindSkip(container, reveal);
   scene.onBeforeRenderObservable.add(() => {
+    if (presenting && presenting !== unit) return;
+    if (unit.warming) return;
+    if (Number.isFinite(unit.gifElapsed)) {
+      if (!unit.warming) seekAdPlay(container, unit, unit.gifElapsed);
+      return;
+    }
     if (unit.frozen || unit.paused) return;
     if (!unit.visible) {
       resetPlay(container, unit);
@@ -463,8 +534,7 @@ function attachTimedClimax(container, scene, ms) {
         return;
       }
     }
-    if (!unit.clockStarted) unit.clockStarted = performance.now();
-    if (performance.now() - unit.clockStarted >= ms) reveal();
+    if (playSimMs(unit) >= ms) reveal();
   });
 }
 
@@ -489,13 +559,18 @@ function attachPreEnter(container, scene) {
   };
   bindSkip(container, enterAd);
   scene.onBeforeRenderObservable.add(() => {
+    if (presenting && presenting !== unit) return;
+    if (unit.warming) return;
+    if (Number.isFinite(unit.gifElapsed)) {
+      if (!unit.warming) seekAdPlay(container, unit, unit.gifElapsed);
+      return;
+    }
     if (unit.frozen || unit.paused) return;
     if (!unit.visible) {
       resetPlay(container, unit);
       return;
     }
-    if (!unit.clockStarted) unit.clockStarted = performance.now();
-    if (performance.now() - unit.clockStarted >= CONFIG.preEnterMs) enterAd();
+    if (playSimMs(unit) >= CONFIG.preEnterMs) enterAd();
   });
 }
 
@@ -518,10 +593,244 @@ function span(t, a, b) {
   return Math.min(1, Math.max(0, (t - a) / (b - a)));
 }
 
+function handOptsFrom(container) {
+  return {
+    play: container?.dataset.play,
+    ptrail: container?.dataset.propTrail,
+    propTrail: container?.dataset.propTrail,
+    pvel: container?.dataset.propTrailSpd,
+    propTrailSpd: container?.dataset.propTrailSpd,
+    hms: container?.dataset.handoffMs,
+    hnb: container?.dataset.handoffBands,
+    hst: container?.dataset.handoffStagger,
+    hhd: container?.dataset.handoffHold,
+    hin: container?.dataset.handoffIn,
+    hbt: container?.dataset.handoffBeats,
+    htm: container?.dataset.handoffTempo,
+  };
+}
+
+function climaxStartMs(container) {
+  const play = container?.dataset.play;
+  const opts = handOptsFrom(container);
+  const total = playDurationMs(play, container?.dataset.propAct, container?.dataset.handoff, opts);
+  const reveal = CONFIG.adRevealMs + handoffRuntimeMs(container?.dataset.handoff, opts);
+  return Math.max(0, total - reveal);
+}
+
+function applyHandoffSeek(container, elapsed) {
+  const kind = handoffById(container.dataset.handoff).id;
+  if (kind === "none" || elapsed < 0) return;
+  applyHandoffSettings(container);
+  container.classList.add("is-handoff");
+  const opts = handOptsFrom(container);
+  if (kind === "pulse") {
+    const beat = resolveHandoffTempo(opts.play, opts.htm);
+    const flashes = Number(opts.hbt) || 4;
+    if (elapsed >= flashes * beat) container.classList.add("is-handoff-hold");
+    if (elapsed >= flashes * beat + 720 + 520) container.classList.add("is-handoff-done");
+    return;
+  }
+  if (kind === "veil") {
+    const veil = veilHandoffTiming(opts);
+    if (elapsed >= veil.inMs + veil.hold) container.classList.add("is-handoff-hold");
+    if (elapsed >= veil.total) container.classList.add("is-handoff-done");
+    return;
+  }
+  if (elapsed >= handoffRuntimeMs(kind, opts)) container.classList.add("is-handoff-done");
+}
+
+function seekAdPlay(container, unit, t) {
+  if (!container || !unit) return 0;
+  const play = container.dataset.play;
+  const start = climaxStartMs(container);
+  const kind = handoffById(container.dataset.handoff).id;
+  const handMs = handoffRuntimeMs(kind, handOptsFrom(container));
+  container.classList.remove("is-climax", "is-pre-exit", "is-ad-in", "is-handoff", "is-handoff-hold", "is-handoff-done");
+  unit.climax = false;
+  unit.adIn = false;
+  if (t < start) return start;
+  if (play === "pre-enter") {
+    container.classList.add("is-pre-exit");
+    applyHandoffSeek(container, t - start);
+    if (t >= start + Math.max(CONFIG.preExitMs, handMs)) {
+      unit.adIn = true;
+      container.classList.add("is-ad-in");
+    }
+  } else {
+    unit.climax = true;
+    container.classList.add("is-climax");
+    applyHandoffSeek(container, t - start);
+  }
+  void container.offsetWidth;
+  const local = Math.max(0, t - start);
+  try {
+    for (const anim of container.getAnimations({ subtree: true })) {
+      anim.pause();
+      anim.currentTime = local;
+    }
+  } catch { /* Web Animations may be unavailable */ }
+  return start;
+}
+
+function cssVisible(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  return cs.display !== "none" && cs.visibility !== "hidden" && Number(cs.opacity) > 0.03;
+}
+
+function mapBox(el, host, sx, sy) {
+  const r = el.getBoundingClientRect();
+  return {
+    x: (r.left - host.left) * sx,
+    y: (r.top - host.top) * sy,
+    w: Math.max(0, r.width * sx),
+    h: Math.max(0, r.height * sy),
+  };
+}
+
+function parseFitAxis(value, fallback = 50) {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) ? n / 100 : fallback / 100;
+}
+
+function drawFittedShot(ctx, img, box, cs) {
+  if (!img?.naturalWidth || box.w < 1 || box.h < 1) return;
+  const fit = String(cs.objectFit || "cover").toLowerCase();
+  const bits = String(cs.objectPosition || "50% 50%").split(/\s+/);
+  const px = parseFitAxis(bits[0], 50);
+  const py = parseFitAxis(bits[1] || bits[0], 50);
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  const ir = nw / nh;
+  const br = box.w / box.h;
+  let dw = box.w;
+  let dh = box.h;
+  let dx = box.x;
+  let dy = box.y;
+  if (fit === "contain") {
+    if (ir > br) {
+      dh = box.w / ir;
+      dy = box.y + (box.h - dh) * py;
+    } else {
+      dw = box.h * ir;
+      dx = box.x + (box.w - dw) * px;
+    }
+  } else if (fit !== "fill" && fit !== "none") {
+    if (ir > br) {
+      dw = box.h * ir;
+      dx = box.x + (box.w - dw) * px;
+    } else {
+      dh = box.w / ir;
+      dy = box.y + (box.h - dh) * py;
+    }
+  }
+  let zoom = 1;
+  try {
+    const m = new DOMMatrix(cs.transform);
+    zoom = Math.hypot(m.a, m.b) || 1;
+  } catch { zoom = 1; }
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x, box.y, box.w, box.h);
+  ctx.clip();
+  if (Math.abs(zoom - 1) > 0.001) {
+    const ox = box.x + box.w * px;
+    const oy = box.y + box.h * py;
+    ctx.translate(ox, oy);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-ox, -oy);
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+function paintDomBox(ctx, el, host, sx, sy) {
+  if (!cssVisible(el)) return;
+  const cs = getComputedStyle(el);
+  const box = mapBox(el, host, sx, sy);
+  if (box.w < 1 || box.h < 1) return;
+  ctx.save();
+  ctx.globalAlpha *= Number(cs.opacity) || 1;
+  const bg = cs.backgroundColor || "";
+  if (bg && !bg.includes("0, 0, 0, 0") && bg !== "transparent") {
+    ctx.fillStyle = bg;
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+  }
+  ctx.restore();
+}
+
+function drawAdOverlays(ctx, container, w, h) {
+  if (!container) return;
+  const host = container.getBoundingClientRect();
+  if (host.width < 2 || host.height < 2) return;
+  const sx = w / host.width;
+  const sy = h / host.height;
+  const creative = container.querySelector(".ad-creative");
+  if (creative && cssVisible(creative)) {
+    paintDomBox(ctx, creative, host, sx, sy);
+    const ph = creative.querySelector(".ad-ph");
+    if (ph) paintDomBox(ctx, ph, host, sx, sy);
+    const art = creative.querySelector(".ad-ph-art");
+    const shot = creative.querySelector(".ad-ph-shot");
+    if (shot?.naturalWidth) {
+      const target = art || ph || shot;
+      const cs = getComputedStyle(shot);
+      const box = mapBox(target, host, sx, sy);
+      ctx.save();
+      ctx.globalAlpha *= Number(getComputedStyle(creative).opacity) || 1;
+      drawFittedShot(ctx, shot, box, cs);
+      ctx.restore();
+    } else {
+      const size = creative.querySelector(".ad-ph-size");
+      if (size && cssVisible(size)) {
+        const cs = getComputedStyle(size);
+        const box = mapBox(size, host, sx, sy);
+        ctx.save();
+        ctx.globalAlpha *= Number(cs.opacity) || 1;
+        ctx.fillStyle = cs.color || "#111";
+        ctx.font = cs.font;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(size.textContent.trim(), box.x + box.w / 2, box.y + box.h / 2, box.w - 8);
+        ctx.restore();
+      }
+    }
+  }
+  const trail = container.querySelector("canvas.ad-trail-2d");
+  if (trail && cssVisible(trail) && trail.width > 1) {
+    const cs = getComputedStyle(trail);
+    ctx.save();
+    ctx.globalAlpha = Number(cs.opacity) || 1;
+    ctx.drawImage(trail, 0, 0, w, h);
+    ctx.restore();
+  }
+  const handoff = container.querySelector(".ad-handoff");
+  if (handoff && cssVisible(handoff)) {
+    paintDomBox(ctx, handoff, host, sx, sy);
+    handoff.querySelectorAll(".ad-handoff-band").forEach((band) => paintDomBox(ctx, band, host, sx, sy));
+    const claim = handoff.querySelector(".ad-handoff-claim");
+    if (claim && cssVisible(claim)) {
+      const cs = getComputedStyle(claim);
+      const box = mapBox(claim, host, sx, sy);
+      ctx.save();
+      ctx.globalAlpha *= Number(cs.opacity) || 1;
+      ctx.fillStyle = cs.color || "#111";
+      ctx.font = cs.font;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(claim.textContent.trim(), box.x + box.w / 2, box.y + box.h / 2, box.w - 8);
+      ctx.restore();
+    }
+  }
+}
+
 export function playDurationMs(play, propAct, hand, handOpts) {
   const reveal = CONFIG.adRevealMs + handoffRuntimeMs(hand, { ...handOpts, play });
   if (play === "pre-enter") return CONFIG.preEnterMs + CONFIG.preExitMs + reveal;
-  if (play === "prop") return propActionMs(propAct) + reveal;
+  if (play === "prop") {
+    return propTrailMs(handOpts?.ptrail ?? handOpts?.propTrail, handOpts?.pvel ?? handOpts?.propTrailSpd) + propActionMs(propAct) + reveal;
+  }
   if (play === "horizon" || play === "sundown") {
     return CONFIG.horizonDelayMs + CONFIG.horizonRiseMs + CONFIG.horizonHoldMs + reveal;
   }
@@ -549,6 +858,15 @@ function mixPose(a, b, u) {
     if (typeof b[key] === "number") out[key] = lerp(a[key] ?? b[key], b[key], u);
   }
   return out;
+}
+
+function setTreeVisibility(node, vis) {
+  const v = Math.min(1, Math.max(0, vis));
+  if (!node || node._propVis === v) return;
+  node._propVis = v;
+  if (typeof node.visibility === "number") node.visibility = v;
+  const meshes = node.getChildMeshes ? node.getChildMeshes() : [];
+  for (const mesh of meshes) mesh.visibility = v;
 }
 
 function mix3(a, b, t) {
@@ -612,6 +930,22 @@ function waterHeight(x, z, clock, time, hit) {
 function propCamRadius(host, view) {
   const r = Number(normalizePropCam(host?.dataset.propCam));
   return view.tall ? r * 1.12 : view.wide ? r * 0.85 : r;
+}
+
+export function fitStillCamera(camera, node) {
+  if (!camera || !node) return false;
+  node.computeWorldMatrix(true);
+  const { min, max } = node.getHierarchyBoundingVectors(true);
+  const sx = max.x - min.x;
+  const sy = max.y - min.y;
+  const sz = max.z - min.z;
+  const longest = Math.max(sx, sy, sz, 0.12);
+  camera.target.set((min.x + max.x) * 0.5, (min.y + max.y) * 0.5, (min.z + max.z) * 0.5);
+  camera.alpha = CAM_HOME;
+  camera.beta = 1.12;
+  camera.fov = 0.52;
+  camera.radius = (longest * 0.58) / Math.max(0.08, Math.tan(camera.fov * 0.5));
+  return true;
 }
 
 function propBoxSize(host) {
@@ -1037,6 +1371,7 @@ function buildPropScene(scene) {
   const size = 0.72;
   const half = size * 0.5;
   const root = new BABYLON.TransformNode("propRoot", scene);
+  const fx = attachPropTrail(BABYLON, scene);
   const box = BABYLON.MeshBuilder.CreateBox("prop", { size }, scene);
   box.parent = root;
   const ball = BABYLON.MeshBuilder.CreateSphere("propBall", { diameter: size * 0.92, segments: 18 }, scene);
@@ -1150,9 +1485,12 @@ function buildPropScene(scene) {
   const unit0 = ads.get(id);
   const propSrc = propSourceFor(host);
   if (unit0) {
+    unit0.trailFx = fx;
     unit0.propTag = host?.dataset?.propTag || propSrc?.tag || "";
     unit0.waitProp = Boolean(propSrc?.file);
     unit0.propReady = !propSrc?.file;
+    unit0.propMesh = !propSrc?.file;
+    unit0.propError = false;
   }
   let logicAcc = 0;
   let logicT = 0;
@@ -1160,7 +1498,15 @@ function buildPropScene(scene) {
   let logicAction = "";
   let posePrev = null;
   let poseCurr = null;
-  loadPropImport(scene, root, shadows, propSrc).then((loaded) => {
+  let introPrev = 0;
+  let introCurr = 0;
+  let drawAlpha = 1;
+  let trailCfg = "";
+  let trailClassOn = null;
+  let trailJoin = "burst";
+  let trailIn = "pop";
+  let trailPop = 1;
+  const propLoad = loadPropImport(scene, root, shadows, propSrc).then(async (loaded) => {
     if (loaded) {
       if (scene.isDisposed) {
         loaded.wrap.dispose();
@@ -1170,20 +1516,26 @@ function buildPropScene(scene) {
       customFit = loaded.fitScale;
       customHalf = loaded.half;
       if (loaded.center) customCenter.copyFrom(loaded.center);
+      try { await compileMeshMaterials(loaded.wrap); } catch { /* compile optional */ }
     }
     const unit = ads.get(id);
     if (unit) {
+      unit.propMesh = Boolean(loaded);
+      unit.propError = Boolean(propSrc?.file) && !loaded;
       unit.propReady = true;
-      unit.journeyAt = 0;
     }
   });
+  if (unit0) unit0.propLoad = propLoad;
   setTimeout(() => {
     const unit = ads.get(id);
     if (unit?.waitProp && !unit.propReady) unit.propReady = true;
   }, 12000);
   scene.onBeforeRenderObservable.add(() => {
+    if (presenting && presenting.container?.id !== id) return;
     const view = journeyView(scene);
     const action = host?.dataset.propAct || "drop";
+    const trailKind = propTrailById(host?.dataset.propTrail).id;
+    const trailMs = trailKind === "none" ? 0 : propTrailMs(trailKind, host?.dataset.propTrailSpd) / 1000;
     const torch = action === "torch" || action === "torch-front";
     const sphere = action === "ball";
     const useCustom = Boolean(custom);
@@ -1203,7 +1555,10 @@ function buildPropScene(scene) {
       keepFloorNeutral(studioRig.fill);
       keepFloorNeutral(studioRig.rim);
       for (const extra of studioRig.extras || []) keepFloorNeutral(extra);
-      scene.clearColor = new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1);
+      scene.clearColor.r = fogC.r;
+      scene.clearColor.g = fogC.g;
+      scene.clearColor.b = fogC.b;
+      scene.clearColor.a = 1;
       const skyMesh = studioRig.env?.skybox;
       const sky = studioRig.env?.skyboxMaterial;
       if (skyMesh) skyMesh.setEnabled(!flatOn);
@@ -1233,14 +1588,9 @@ function buildPropScene(scene) {
     aimRim.intensity = aimMode === "multi" ? 8.5 * aimPunch : 0;
     aimFloor.intensity = aimOn && floorOn ? 1.7 * aimPunch * floorAim : 0;
     aimPool.setEnabled(aimOn && floorOn);
-    box.setEnabled(!useCustom && !sphere);
-    ball.setEnabled(!useCustom && sphere);
-    custom?.setEnabled(useCustom);
     ground.setEnabled(floorOn);
     blob.setEnabled(floorOn && CONFIG.propContact === 1);
     stand.setEnabled(floorOn && action === "turn");
-    trophy.setEnabled(action === "star");
-    cone.setEnabled(torch);
     pool.setEnabled(torch && floorOn);
     const floorC = hexToColor4(pal.floor);
     const standC = hexToColor4(pal.stand);
@@ -1268,14 +1618,18 @@ function buildPropScene(scene) {
     beam.diffuse.set(beamC.r, beamC.g, beamC.b);
     if (!studioRig) {
       scene.fogColor.set(fogC.r, fogC.g, fogC.b);
-      scene.clearColor = flatOn || (!torch && !aimOn)
-        ? new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1)
-        : torch
-          ? new BABYLON.Color4(fogC.r * 0.35, fogC.g * 0.35, fogC.b * 0.4, 1)
-          : new BABYLON.Color4(fogC.r * 0.55, fogC.g * 0.55, fogC.b * 0.58, 1);
+      const k = flatOn || (!torch && !aimOn) ? 1 : torch ? 0.35 : 0.55;
+      const kb = torch && !(flatOn || (!torch && !aimOn)) ? 0.4 : k;
+      scene.clearColor.r = fogC.r * k;
+      scene.clearColor.g = fogC.g * k;
+      scene.clearColor.b = fogC.b * kb;
+      scene.clearColor.a = 1;
     } else if (flatOn) {
       scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
-      scene.clearColor = new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1);
+      scene.clearColor.r = fogC.r;
+      scene.clearColor.g = fogC.g;
+      scene.clearColor.b = fogC.b;
+      scene.clearColor.a = 1;
     }
     const unit = ads.get(id);
     const hold = Boolean(unit?.paused || unit?.frozen);
@@ -1284,11 +1638,20 @@ function buildPropScene(scene) {
       logicAcc = 0;
       logicT = 0;
       logicNow = 0;
+      unit.propIntroT = trailMs > 0 ? 0 : 1;
       posePrev = null;
       poseCurr = null;
+      introPrev = 0;
+      introCurr = trailMs > 0 ? 0 : 1;
+      resetPlayClock(unit);
+      fx.reset();
       unit.propT = 0;
+      unit.trailSettled = false;
       unit.journeyAt = 0;
+      unit.trailAt = 0;
+      unit.propInAt = 0;
     }
+    let introT = unit && Number.isFinite(unit.propIntroT) ? unit.propIntroT : 0;
     const ms = propActionMs(action) / 1000;
     const dim = propBoxSize(host);
     box.scaling.set(dim.x / size, dim.y / size, dim.z / size);
@@ -1309,72 +1672,184 @@ function buildPropScene(scene) {
       }
     }
     const poseHalf = useCustom ? customHalf * (dim.y / size) : dim.y * 0.5;
-    const step = 1 / CONFIG.logicHz;
-    const meshHold = Boolean(unit?.waitProp && !unit.propReady);
-    const ready = (Boolean(unit?.visible) || hold) && !meshHold;
-    if (!ready) {
-      logicAcc = 0;
-      logicT = 0;
-      logicNow = 0;
-      posePrev = null;
-      poseCurr = null;
-      if (unit) {
-        unit.journeyAt = 0;
-        unit.propT = 0;
+    if (trailKind === "none") {
+      if (trailCfg !== "none") {
+        fx.use("none");
+        trailCfg = "none";
+        trailJoin = "burst";
+        trailIn = "pop";
+        trailPop = 1;
       }
     } else {
-      const now = performance.now();
-      if (!logicNow) logicNow = now;
-      if (hold) {
-        logicNow = now;
-        if (!poseCurr) {
-          poseCurr = propPose(action, logicT, poseHalf);
-          posePrev = poseCurr;
-        }
-      } else {
-        let dt = (now - logicNow) / 1000;
-        logicNow = now;
-        if (dt > 0.25) dt = 0.25;
-        if (action !== logicAction) {
-          logicAction = action;
-          logicAcc = 0;
-          logicT = 0;
-          posePrev = null;
-          poseCurr = null;
-        }
-        logicAcc += dt;
-        let steps = 0;
-        if (!poseCurr) {
-          poseCurr = propPose(action, 0, poseHalf);
-          posePrev = poseCurr;
-        }
-        while (logicAcc >= step && steps < CONFIG.logicMaxSteps) {
-          posePrev = poseCurr;
-          logicT = Math.min(1, logicT + step / ms);
-          poseCurr = propPose(action, logicT, poseHalf);
-          logicAcc -= step;
-          steps += 1;
-        }
-        if (logicAcc > step * CONFIG.logicMaxSteps) logicAcc = 0;
-      }
-      if (unit) {
-        unit.propT = logicT;
-        if (!unit.journeyAt) unit.journeyAt = now;
+      const trail2d = host?.dataset.propTrail2d === "1";
+      const trailCol = normalizePropTrail2dCol(host?.dataset.propTrail2dCol);
+      const trailCon = Number(normalizePropTrail2dCon(host?.dataset.propTrail2dCon));
+      const trailMark = Number(normalizePropTrailMark(host?.dataset.propTrailMark));
+      const trailSpread = Number(normalizePropTrailSpread(host?.dataset.propTrailSpread));
+      trailPop = Number(normalizePropTrailPop(host?.dataset.propTrailPop));
+      trailJoin = propTrailJoinById(host?.dataset.propTrailJoin).id;
+      trailIn = propTrailInById(host?.dataset.propTrailIn).id;
+      const nextCfg = [
+        trailKind, trail2d, trailCol, trailCon, trailMark, trailSpread,
+        trailPop, trailJoin, trailIn, trailMs,
+        host?.dataset.propTrailGlow, host?.dataset.propTrailTail,
+      ].join("|");
+      if (nextCfg !== trailCfg) {
+        trailCfg = nextCfg;
+        fx.use(
+          trailKind,
+          hexToColor4(trailCol),
+          trail2d,
+          trailCon,
+          trailMark,
+          trailSpread,
+          trailJoin,
+          hexToColor4(normalizePropTrailGlow(host?.dataset.propTrailGlow, trailCol)),
+          hexToColor4(normalizePropTrailTail(host?.dataset.propTrailTail, trailCol)),
+          trailMs * 1000,
+          trailPop
+        );
       }
     }
-    const alpha = !ready || !poseCurr || logicT >= 1 ? 1 : logicAcc / step;
-    const p = mixPose(posePrev, poseCurr || propPose(action, 0, poseHalf), alpha);
+    const trailSpan = trailMs > 0 ? trailMs * 1000 : 0;
+    const actSpan = Math.max(1, ms * 1000);
+    const meshHold = Boolean(unit?.waitProp && !unit.propReady);
+    const gif = Number.isFinite(unit?.gifElapsed);
+    const ready = (gif || Boolean(unit?.visible) || hold) && !meshHold;
+    const dimBox = useCustom ? { x: dim.x, y: poseHalf * 2, z: dim.z } : dim;
+    const poseAt = (elapsedMs) => {
+      const intro = trailSpan > 0 ? Math.min(1, elapsedMs / trailSpan) : 1;
+      const rest = Math.max(0, elapsedMs - trailSpan);
+      const t = Math.min(1, rest / actSpan);
+      const pose = propPose(action, t, poseHalf);
+      const floor = supportY(pose, sphere, dimBox) + 0.012;
+      pose.y = Math.max(pose.y, floor);
+      return { intro, t, pose };
+    };
+    const takeStep = (elapsedMs) => {
+      const next = poseAt(elapsedMs);
+      posePrev = poseCurr;
+      poseCurr = next.pose;
+      introPrev = introCurr;
+      introCurr = next.intro;
+      logicT = next.t;
+    };
+    if (!ready) {
+      resetPlayClock(unit);
+      logicT = 0;
+      introPrev = introCurr = trailSpan > 0 ? 0 : 1;
+      posePrev = poseCurr = null;
+      drawAlpha = 1;
+      if (unit) {
+        unit.propT = 0;
+        unit.trailAt = 0;
+        unit.propInAt = 0;
+      }
+    } else {
+      if (action !== logicAction) {
+        logicAction = action;
+        resetPlayClock(unit);
+        posePrev = poseCurr = null;
+        fx.reset();
+        if (unit) unit.trailSettled = false;
+      }
+      if (!poseCurr) {
+        const seed = poseAt(0);
+        posePrev = poseCurr = seed.pose;
+        introPrev = introCurr = seed.intro;
+        logicT = 0;
+      }
+      const clock = stepPlayClock(unit, {
+        hold: hold && !gif,
+        seekMs: gif ? unit.gifElapsed : null,
+        onStep: takeStep,
+      });
+      drawAlpha = clock?.held || gif ? 1 : (clock?.alpha || 0);
+    }
+    introT = lerp(introPrev, introCurr, drawAlpha);
+    if (unit) {
+      unit.propT = logicT;
+      unit.propIntroT = introCurr;
+    }
+    const p = mixPose(posePrev, poseCurr || propPose(action, 0, poseHalf), drawAlpha);
     const spinH = Number(normalizePropSpin(host?.dataset.propRhrot)) * Math.PI / 180;
     const spinV = Number(normalizePropSpin(host?.dataset.propRvrot)) * Math.PI / 180;
     p.ry += spinH;
     p.rx += spinV;
-    const floor = supportY(p, sphere, useCustom
-      ? { x: dim.x, y: poseHalf * 2, z: dim.z }
-      : dim) + 0.012;
-    p.y = Math.max(p.y, floor);
-    root.position.set(p.x, p.y, p.z);
-    root.rotation.set(p.rx, p.ry, p.rz);
-    root.scaling.set(p.sx, p.sy, p.sz);
+    if (isDriveAction(action)) {
+      const vis = propCamRadius(host, view) * (view.wide ? 0.5 : view.tall ? 0.22 : 0.4);
+      const k = vis / 1;
+      p.x *= k;
+      p.z *= k;
+    }
+    const introDone = trailMs <= 0 || introT >= 1;
+    const fly = introDone
+      ? { x: p.x, y: p.y, z: p.z }
+      : fx.tick(introT, { x: p.x, y: p.y, z: p.z });
+    if (introDone) {
+      if (trailMs > 0 && unit && !unit.trailSettled) {
+        fx.tick(1, { x: p.x, y: p.y, z: p.z });
+        unit.trailSettled = true;
+      }
+    } else if (unit) {
+      unit.trailSettled = false;
+    }
+    const flyEnd = propTrailFlyEnd(trailPop);
+    const fadeSlide = trailIn === "fade" || trailIn === "slide";
+    let landT = trailMs <= 0 || introT <= flyEnd ? (introDone ? 1 : 0) : Math.min(1, (introT - flyEnd) / (1 - flyEnd));
+    let joinPop = trailMs > 0 && landT < 1 && landT > 0;
+    if (fadeSlide && trailMs <= 0 && ready && unit) {
+      landT = Math.min(1, playDrawMs(unit) / 520);
+      joinPop = landT < 1;
+    }
+    let jx = 1;
+    let jy = 1;
+    let jz = 1;
+    let jry = 0;
+    let jyOff = 0;
+    let jxOff = 0;
+    let jVis = 1;
+    const hit = Math.min(1.45, 0.72 + trailPop * 0.28);
+    if (joinPop) {
+      const t = 1 - (1 - landT) ** (2.2 + trailPop * 0.6);
+      if (trailIn === "fade") {
+        jVis = t;
+      } else if (trailIn === "slide") {
+        jVis = Math.min(1, landT / 0.22);
+        jxOff = (1 - t) * 0.52;
+      } else if (trailIn === "pop") {
+        const punch = landT < 0.32 ? 0.95 + (landT / 0.32) * 0.12 * hit : 1.07 - (landT - 0.32) / 0.68 * 0.07 * hit;
+        jx = jy = jz = punch;
+      } else if (trailIn === "twist") {
+        const swell = landT < 0.42 ? 0.96 + t * 0.06 * hit : 1.02 - (landT - 0.42) / 0.58 * 0.02 * hit;
+        jx = jy = jz = swell;
+        jry = (1 - t) * 0.52 * hit;
+      } else if (trailIn === "rise") {
+        const swell = landT < 0.4 ? 0.97 + t * 0.05 * hit : 1.02 - (landT - 0.4) / 0.6 * 0.02 * hit;
+        jx = jy = jz = swell;
+        jyOff = (1 - t) * 0.16 * hit;
+      } else if (trailIn !== "plain") {
+        const swell = landT < 0.42 ? 0.94 + t * 0.1 * hit : 1.04 - (landT - 0.42) / 0.58 * 0.04 * hit;
+        jx = jy = jz = swell;
+        jry = (1 - t) * 0.12 * hit;
+      }
+    }
+    root.position.set(fly.x + jxOff, fly.y + jyOff, fly.z);
+    root.rotation.set(p.rx, p.ry + jry, p.rz);
+    root.scaling.set(p.sx * jx, p.sy * jy, p.sz * jz);
+    const showProp = introDone || (fadeSlide ? landT > 0 : landT >= 0.08);
+    setTreeVisibility(root, showProp ? jVis : 1);
+    const trailOn = trailMs > 0 && landT < 0.55;
+    if (trailOn !== trailClassOn) {
+      trailClassOn = trailOn;
+      host.classList.toggle("is-trail", trailOn);
+    }
+    box.setEnabled(!useCustom && !sphere && showProp);
+    ball.setEnabled(!useCustom && sphere && showProp);
+    custom?.setEnabled(useCustom && showProp);
+    trophy.setEnabled(action === "star" && showProp);
+    cone.setEnabled(torch && showProp);
+    blob.setEnabled(floorOn && CONFIG.propContact === 1 && showProp);
     if (aimOn) {
       aimTarget.set(p.x, Math.max(0.22, p.y), p.z);
       if (aimMode === "spot") {
@@ -1397,7 +1872,15 @@ function buildPropScene(scene) {
     const lift = Math.max(0, p.y - floor);
     blob.position.x = p.x;
     blob.position.z = p.z;
-    blob.scaling.setAll((sphere ? 0.48 : 0.7) + lift * 1.05);
+    const blobS = (sphere ? 0.48 : 0.7) + lift * 1.05;
+    if (isDriveAction(action) && logicT < 0.84) {
+      const spd = logicT < 0.4 ? 1 : 1 - easeOut((logicT - 0.4) / 0.44);
+      blob.rotation.y = p.ry;
+      blob.scaling.set(blobS * (1 + spd * 1.35), blobS, blobS * (1 - spd * 0.42));
+    } else {
+      blob.rotation.y = 0;
+      blob.scaling.setAll(blobS);
+    }
     blobMat.alpha = 0.4 / (1 + lift * 2.6);
     if (torch) {
       const reach = 1.55;
@@ -1414,28 +1897,34 @@ function buildPropScene(scene) {
       trophy.rotation.set(0.32, p.starSpin, 0.08);
       trophy.scaling.set(appear * 0.78, appear, appear * 0.78);
     }
-    camera.radius = propCamRadius(host, view) * (1 - p.punch) * (p.camR || 1);
-    const camPan = normalizePropCamMode(host?.dataset.propCamMode) === "pan";
-    const camH = camPan ? 0 : Number(normalizePropCamH(host?.dataset.propCamH)) * Math.PI / 180;
-    const camV = camPan ? 0 : Number(normalizePropCamV(host?.dataset.propCamV)) * Math.PI / 180;
-    camera.alpha = CAM_HOME + p.camA + camH;
-    const beta0 = (view.wide ? 1.22 : 1.12) + p.punch * 0.4 - ((p.camR || 1) - 1) * 0.7;
-    camera.beta = Math.min(Math.PI - 0.12, Math.max(0.12, beta0 + camV));
-    camera.fov = view.tall ? 0.48 : view.wide ? 0.4 : 0.52;
-    const lookX = p.x * 0.35;
-    const lookY = (action === "star" || action === "cheer" || action === "space")
-      ? 0.14 + p.y * 0.55
-      : Math.min(0.55, p.y * 0.45 + 0.22);
-    if (camPan) {
-      const px = Number(normalizePropCamPan(host?.dataset.propCamPx));
-      const py = Number(normalizePropCamPan(host?.dataset.propCamPy));
-      camera.target.x = lookX - Math.cos(camera.alpha) * px;
-      camera.target.y = lookY + py;
-      camera.target.z = Math.sin(camera.alpha) * px;
+    if (unit?.stillFit && useCustom && custom) {
+      fitStillCamera(camera, custom);
     } else {
-      camera.target.x = lookX;
-      camera.target.y = lookY;
-      camera.target.z = 0;
+      camera.radius = propCamRadius(host, view) * (1 - p.punch) * (p.camR || 1);
+      const camPan = normalizePropCamMode(host?.dataset.propCamMode) === "pan";
+      const camH = camPan ? 0 : Number(normalizePropCamH(host?.dataset.propCamH)) * Math.PI / 180;
+      const camV = camPan ? 0 : Number(normalizePropCamV(host?.dataset.propCamV)) * Math.PI / 180;
+      camera.alpha = CAM_HOME + p.camA + camH;
+      const beta0 = (view.wide ? 1.22 : 1.12) + p.punch * 0.4 - ((p.camR || 1) - 1) * 0.7 + (isDriveAction(action) ? 0.16 : 0);
+      camera.beta = Math.min(Math.PI - 0.12, Math.max(0.12, beta0 + camV));
+      camera.fov = view.tall ? 0.48 : view.wide ? 0.4 : 0.52;
+      const lookX = (introDone ? p.x : fly.x) * (isDriveAction(action) ? 0 : 0.35);
+      const lookY = (action === "star" || action === "cheer" || action === "space")
+        ? 0.14 + (introDone ? p.y : fly.y) * 0.55
+        : isDriveAction(action)
+          ? Math.min(0.38, (introDone ? p.y : fly.y) * 0.32 + 0.1)
+          : Math.min(0.55, (introDone ? p.y : fly.y) * 0.45 + 0.22);
+      if (camPan) {
+        const px = Number(normalizePropCamPan(host?.dataset.propCamPx));
+        const py = Number(normalizePropCamPan(host?.dataset.propCamPy));
+        camera.target.x = lookX - Math.cos(camera.alpha) * px;
+        camera.target.y = lookY + py;
+        camera.target.z = Math.sin(camera.alpha) * px;
+      } else {
+        camera.target.x = lookX;
+        camera.target.y = lookY;
+        camera.target.z = 0;
+      }
     }
   });
 }
@@ -1530,6 +2019,7 @@ function buildJourneyScene(scene) {
 
   let unitPalStamp = host?.dataset.pal;
   scene.onBeforeRenderObservable.add(() => {
+    if (presenting && presenting.container?.id !== id) return;
     const pal = hostPalette(host, play);
     if (unitPalStamp !== host?.dataset.pal) {
       unitPalStamp = host?.dataset.pal;
@@ -1547,8 +2037,9 @@ function buildJourneyScene(scene) {
     const hitY = 0.06;
     const unit = ads.get(id);
     const hold = Boolean(unit?.paused || unit?.frozen);
-    if (!unit?.visible && !hold) {
-      if (unit) unit.journeyAt = 0;
+    const gif = Number.isFinite(unit?.gifElapsed);
+    if (!gif && !unit?.visible && !hold) {
+      resetPlayClock(unit);
       drop.position.set(0, startY, 0);
       drop.scaling.setAll(1);
       drop.visibility = 1;
@@ -1556,13 +2047,15 @@ function buildJourneyScene(scene) {
       deform(0, 0, 0);
       return;
     }
-    if (hold) return;
-    if (!unit.journeyAt) unit.journeyAt = performance.now();
-    const elapsed = (performance.now() - unit.journeyAt) / 1000;
     const span = play === "pre-enter" ? CONFIG.preEnterMs : CONFIG.climaxMs;
-    const t = Math.min(1.15, (performance.now() - unit.journeyAt) / span);
+    stepPlayClock(unit, { hold: hold && !gif, seekMs: gif ? unit.gifElapsed : null });
+    const drawMs = playDrawMs(unit);
+    const simMs = playSimMs(unit);
+    const elapsed = drawMs / 1000;
+    const t = Math.min(1.15, drawMs / span);
+    const simT = simMs / span;
     const fall = Math.min(1, t / 0.4);
-    const didHit = t >= 0.4;
+    const didHit = simT >= 0.4;
     drop.position.set(0, lerp(startY, hitY, fall * fall * fall), 0);
     drop.scaling.setAll(1);
     drop.visibility = 1;
@@ -1856,6 +2349,12 @@ function visibleAdCount() {
   return n;
 }
 
+function adElapsed(unit, key) {
+  if (Number.isFinite(unit?.gifElapsed)) return unit.gifElapsed;
+  if (!unit[key]) unit[key] = performance.now();
+  return performance.now() - unit[key];
+}
+
 let pageShown = true;
 
 export function setPageShown(on) {
@@ -1872,42 +2371,128 @@ function isAdPlayable(container, intersecting) {
   return true;
 }
 
+function parkEngineCanvas() {
+  const gl = engine?.getRenderingCanvas?.();
+  if (!gl) return;
+  gl.setAttribute("aria-hidden", "true");
+  Object.assign(gl.style, {
+    position: "fixed",
+    left: "-4000px",
+    top: "0",
+    width: "300px",
+    height: "250px",
+    pointerEvents: "none",
+  });
+  if (gl.parentElement !== document.body) document.body.appendChild(gl);
+}
+
+function releaseEngineCanvas(unit) {
+  const gl = engine?.getRenderingCanvas?.();
+  if (unit?.slotCanvas) {
+    unit.slotCanvas.style.display = "";
+    if (unit.display === gl) unit.display = unit.slotCanvas;
+    if (unit.scene?.metadata) unit.scene.metadata.displayCanvas = unit.slotCanvas;
+    unit.slotCanvas = null;
+  }
+  if (!gl) return;
+  parkEngineCanvas();
+}
+
+function bindEngineCanvas(unit, placeholder) {
+  const gl = engine?.getRenderingCanvas?.();
+  if (!gl || !unit || !placeholder) return;
+  const others = [...ads.values()].filter((entry) => entry !== unit && entry.scene && !entry.dead);
+  if (others.length) {
+    releaseEngineCanvas(unit);
+    for (const entry of others) releaseEngineCanvas(entry);
+    return;
+  }
+  if (placeholder === gl) {
+    unit.display = gl;
+    if (unit.scene?.metadata) unit.scene.metadata.displayCanvas = gl;
+    return;
+  }
+  unit.slotCanvas = placeholder;
+  gl.className = placeholder.className || "";
+  gl.removeAttribute("aria-hidden");
+  Object.assign(gl.style, {
+    position: "absolute",
+    inset: "0",
+    left: "0",
+    top: "0",
+    width: "100%",
+    height: "100%",
+    pointerEvents: "auto",
+  });
+  placeholder.style.display = "none";
+  placeholder.parentElement?.insertBefore(gl, placeholder);
+  unit.display = gl;
+  if (unit.scene?.metadata) unit.scene.metadata.displayCanvas = gl;
+}
+
 function blitAdUnit(unit, now, gl, force = false) {
+  beginPlayFrame(now);
   if (!unit?.display) return false;
   if (!force && (!unit.visible || unit.frozen)) return false;
   const dest = unit.display;
-  const w = dest.clientWidth | 0;
-  const h = dest.clientHeight | 0;
+  const frame = unit.container?.closest(".ad-frame") || unit.container;
+  const slot = unit.container?.closest(".ad-slot") || unit.container;
+  const docked = dest === gl;
+  let w = docked ? (frame?.clientWidth | 0) : (dest.clientWidth | 0);
+  let h = docked ? (frame?.clientHeight | 0) : (dest.clientHeight | 0);
+  if (w < 2 || h < 2) {
+    w = dest.clientWidth | 0;
+    h = dest.clientHeight | 0;
+  }
+  if (w < 2 || h < 2) {
+    w = Math.max(2, Math.round(Number.parseFloat(slot?.style.getPropertyValue("--ad-w")) || Number.parseFloat(getComputedStyle(slot || dest).getPropertyValue("--ad-w")) || dest.width || 300));
+    h = Math.max(2, Math.round(Number.parseFloat(slot?.style.getPropertyValue("--ad-h")) || Number.parseFloat(getComputedStyle(slot || dest).getPropertyValue("--ad-h")) || dest.height || 250));
+  }
   if (w < 2 || h < 2) return false;
   if (!force && CONFIG.fpsVisible > 0 && now - unit.lastFrame < 1000 / CONFIG.fpsVisible) return false;
   unit.lastFrame = now;
   const dpr = CONFIG.blitDpr;
   const bw = Math.max(2, Math.round(w * dpr));
   const bh = Math.max(2, Math.round(h * dpr));
+  if (unit.paint2d && !unit.scene) {
+    if (dest.width !== bw || dest.height !== bh) {
+      dest.width = bw;
+      dest.height = bh;
+      unit.ctx = null;
+    }
+    if (!unit.ctx) unit.ctx = dest.getContext("2d", { alpha: false });
+    unit.paint2d(unit.ctx, bw, bh);
+    return true;
+  }
+  if (!unit.scene || !gl) return false;
+  if (gl.width !== bw || gl.height !== bh) {
+    if (!docked) {
+      gl.style.width = `${w}px`;
+      gl.style.height = `${h}px`;
+    }
+    engine.setSize(bw, bh);
+  }
+  if (docked) {
+    gl.style.width = "100%";
+    gl.style.height = "100%";
+  }
+  presentPlayUnit(unit);
+  unit.scene.render();
+  noteDrawFrame(unit, now);
+  if (dest === gl) return true;
   if (dest.width !== bw || dest.height !== bh) {
     dest.width = bw;
     dest.height = bh;
     unit.ctx = null;
   }
   if (!unit.ctx) unit.ctx = dest.getContext("2d", { alpha: false });
-  if (unit.paint2d) {
-    unit.paint2d(unit.ctx, bw, bh);
-    return true;
-  }
-  if (!unit.scene || !gl) return false;
-  if (gl.width !== bw || gl.height !== bh) {
-    gl.style.width = `${w}px`;
-    gl.style.height = `${h}px`;
-    engine.setSize(bw, bh);
-  }
-  unit.scene.render();
   unit.ctx.drawImage(gl, 0, 0, gl.width || bw, gl.height || bh, 0, 0, bw, bh);
+  unit.trailFx?.composite?.(unit.ctx);
   return true;
 }
 
 export function nudgeAds() {
-  if (!engine) return false;
-  const gl = engine.getRenderingCanvas();
+  const gl = engine?.getRenderingCanvas?.() || null;
   const now = performance.now();
   let any = false;
   for (const unit of ads.values()) {
@@ -1919,33 +2504,240 @@ export function nudgeAds() {
   return any;
 }
 
+function liveAdUnit() {
+  for (const unit of ads.values()) {
+    if (!unit.dead && unit.display && (unit.scene || unit.paint2d)) return unit;
+  }
+  return null;
+}
+
+function captureSize(sw, sh, scale = 2) {
+  const cap = 1400;
+  let w = Math.max(2, Math.round(sw * scale));
+  let h = Math.max(2, Math.round(sh * scale));
+  const k = Math.min(1, cap / Math.max(w, h));
+  if (k < 1) {
+    w = Math.max(2, Math.round(w * k));
+    h = Math.max(2, Math.round(h * k));
+  }
+  return { w, h };
+}
+
+function frameSpread(data) {
+  let min = 255;
+  let max = 0;
+  const step = Math.max(4, Math.floor(data.length / 6000) * 4);
+  for (let i = 0; i < data.length; i += step) {
+    const y = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    if (y < min) min = y;
+    if (y > max) max = y;
+  }
+  return max - min;
+}
+
+function fitEngineCanvas(w, h) {
+  const gl = engine?.getRenderingCanvas?.();
+  if (!gl) return null;
+  if (gl.width !== w || gl.height !== h) {
+    gl.style.width = `${w}px`;
+    gl.style.height = `${h}px`;
+    engine.setSize(w, h);
+  }
+  return gl;
+}
+
+function adUnitFromRoot(root) {
+  const host = root?.querySelector?.(".ad-container") || root;
+  return (host?.id && ads.get(host.id)) || null;
+}
+
+function stillToUrl(ctx) {
+  return ctx.canvas.toDataURL("image/jpeg", 0.86);
+}
+
+function stillClockMs(atMs) {
+  if (Array.isArray(atMs) && atMs.length) {
+    return atMs.map((n) => Math.max(0, Number(n) || 0));
+  }
+  return [Math.max(0, Number(atMs) || 0)];
+}
+
+function waitTick() {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, 32);
+    requestAnimationFrame(() => {
+      window.clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+function waitFrames(n = 2) {
+  let hop = Promise.resolve();
+  for (let i = 0; i < n; i += 1) hop = hop.then(() => waitTick());
+  return hop;
+}
+
+async function waitDraws(n) {
+  let left = Math.max(0, n | 0);
+  let mark = lastDrawAt;
+  const deadline = performance.now() + 900;
+  while (left > 0 && performance.now() < deadline) {
+    await waitTick();
+    if (lastDrawAt === mark) continue;
+    mark = lastDrawAt;
+    left -= 1;
+  }
+}
+
+function paintStillFrame(unit, w, h, scratch, overlays) {
+  const ctx = scratch.getContext("2d", { alpha: false, willReadFrequently: true });
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, 0, w, h);
+  if (unit.paint2d) {
+    unit.paint2d(ctx, w, h);
+  } else {
+    if (!unit.scene || !engine) throw new Error("No hay escena para exportar.");
+    const gl = fitEngineCanvas(w, h);
+    if (!gl || !unit.scene.activeCamera) throw new Error("Babylon no puede exportar el cuadro.");
+    const dest = unit.display;
+    if (dest) {
+      dest.style.width = `${w}px`;
+      dest.style.height = `${h}px`;
+    }
+    blitAdUnit(unit, performance.now(), gl, true);
+    if (dest?.width > 1 && dest.height > 1) ctx.drawImage(dest, 0, 0, dest.width, dest.height, 0, 0, w, h);
+    else ctx.drawImage(gl, 0, 0, gl.width, gl.height, 0, 0, w, h);
+  }
+  if (overlays) drawAdOverlays(ctx, unit.container, w, h);
+  const rgba = ctx.getImageData(0, 0, w, h).data;
+  return { spread: frameSpread(rgba), url: stillToUrl(ctx) };
+}
+
+function stillPropReady(unit) {
+  if (!unit?.booted) return false;
+  if (unit.paint2d) return true;
+  if (!unit.scene) return false;
+  if (!unit.waitProp) return true;
+  if (unit.propMesh) return true;
+  if (unit.propError) return true;
+  return false;
+}
+
+export async function grabAdStill({ root, atMs = 0, scale, overlays = false, frameMesh = false } = {}) {
+  const unit = adUnitFromRoot(root);
+  if (!unit?.display) throw new Error("No hay clímax para exportar.");
+  const waitUntil = performance.now() + 45000;
+  unit.visible = true;
+  unit.frozen = false;
+  unit.paused = false;
+  unit.stillFit = Boolean(frameMesh);
+  while (performance.now() < waitUntil) {
+    if (stillPropReady(unit)) break;
+    await waitTick();
+  }
+  if (!unit.scene && !unit.paint2d) throw new Error("El clímax no terminó de cargar.");
+  if (unit.waitProp && unit.propError) throw new Error("No se pudo cargar el modelo 3D.");
+  if (unit.waitProp && !unit.propMesh) throw new Error("El modelo 3D sigue cargando.");
+  await waitFrames(3);
+  const slotEl = unit.container?.closest(".ad-slot");
+  const sw = Number.parseFloat(slotEl?.style.getPropertyValue("--ad-w")) || unit.display.clientWidth || unit.display.width || 300;
+  const sh = Number.parseFloat(slotEl?.style.getPropertyValue("--ad-h")) || unit.display.clientHeight || unit.display.height || 250;
+  const { w, h } = captureSize(sw, sh, Number.isFinite(Number(scale)) ? Number(scale) : CONFIG.blitDpr);
+  const times = stillClockMs(atMs);
+  const scratch = document.createElement("canvas");
+  scratch.width = w;
+  scratch.height = h;
+  sharedLoop?.stopLoop();
+  let best = null;
+  try {
+    unit.visible = true;
+    unit.frozen = false;
+    unit.paused = false;
+    const mid = times[Math.min(times.length - 1, Math.max(0, Math.floor(times.length / 2)))] || 0;
+    unit.gifElapsed = mid;
+    seekAdPlay(unit.container, unit, mid);
+    for (let i = 0; i < 12; i += 1) {
+      await waitTick();
+      try {
+        const warm = paintStillFrame(unit, w, h, scratch, overlays);
+        if (!best || warm.spread > best.spread) best = warm;
+        if (warm.spread >= 16) break;
+      } catch {
+        /* shaders may still compile */
+      }
+    }
+    for (const t of times) {
+      unit.gifElapsed = t;
+      seekAdPlay(unit.container, unit, t);
+      await waitFrames(2);
+      try {
+        const frame = paintStillFrame(unit, w, h, scratch, overlays);
+        if (!best || frame.spread > best.spread) best = frame;
+      } catch (err) {
+        if (!best) best = { spread: 0, err };
+      }
+    }
+  } finally {
+    unit.gifElapsed = undefined;
+    unit.stillFit = false;
+    if (visibleAdCount()) sharedLoop?.startLoop();
+  }
+  if (!best?.url || best.spread < 4) {
+    throw (best?.err instanceof Error ? best.err : new Error("sin cuadro"));
+  }
+  return best.url;
+}
+
 function attachSharedLoop() {
-  const gl = engine.getRenderingCanvas();
-  let running = false;
   const tick = () => {
     if (document.hidden || !visibleAdCount()) {
       running = false;
-      engine.stopRenderLoop();
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      try { engine?.stopRenderLoop(); } catch { /* engine may be gone */ }
       return;
     }
     const now = performance.now();
+    const gl = engine?.getRenderingCanvas?.() || null;
     for (const unit of ads.values()) {
       holdPausedClocks(unit, now);
       blitAdUnit(unit, now, gl, false);
     }
+    if (running && !engine) raf = requestAnimationFrame(tick);
   };
+  let running = false;
+  let raf = 0;
   return {
     startLoop() {
       if (running || document.hidden || !visibleAdCount()) return;
       running = true;
-      engine.runRenderLoop(tick);
+      if (engine) engine.runRenderLoop(tick);
+      else raf = requestAnimationFrame(tick);
     },
     stopLoop() {
       if (!running) return;
       running = false;
-      engine.stopRenderLoop();
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      try { engine?.stopRenderLoop(); } catch { /* engine may be gone */ }
     },
   };
+}
+
+let loopWatching = false;
+
+function ensureSharedLoop() {
+  if (!sharedLoop) sharedLoop = attachSharedLoop();
+  if (!loopWatching) {
+    loopWatching = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) sharedLoop?.stopLoop();
+      else sharedLoop?.startLoop();
+    });
+  }
+  return sharedLoop;
 }
 
 export function setAdVisible(container, intersecting) {
@@ -1956,7 +2748,7 @@ export function setAdVisible(container, intersecting) {
   const was = unit.visible;
   unit.visible = on;
   if (on && !was) unit.lastFrame = 0;
-  if (on) sharedLoop?.startLoop();
+  if (on) ensureSharedLoop().startLoop();
   else if (!visibleAdCount()) sharedLoop?.stopLoop();
 }
 
@@ -2029,15 +2821,20 @@ export function restAds() {
 export function rewindAds() {
   let any = false;
   for (const unit of ads.values()) {
-    if (!unit.scene) return false;
+    if (!unit.scene && !unit.paint2d) continue;
     unit.frozen = false;
     unit.paused = false;
     unit.pauseClock = 0;
     unit.container.classList.remove("is-paused");
     unit.lastFrame = 0;
     resetPlay(unit.container, unit);
-    if (unit.container.dataset.play === "prop") unit.propRewind = true;
     unit.propT = 0;
+    unit.propIntroT = propTrailMs(unit.container.dataset.propTrail, unit.container.dataset.propTrailSpd) > 0 ? 0 : 1;
+    unit.trailAt = 0;
+    unit.trailSettled = false;
+    unit.propInAt = 0;
+    unit.trailFx?.reset();
+    if (unit.container.dataset.play === "prop") unit.propRewind = true;
     unit.clockStarted = 0;
     setAdVisible(unit.container, true);
     any = true;
@@ -2054,57 +2851,115 @@ export async function preloadEngine() {
   await ensureEngine();
 }
 
+function liveWarmUnit(root) {
+  const host = root?.querySelector?.(".ad-container") || (root?.classList?.contains("ad-container") ? root : null);
+  if (host?.id && ads.get(host.id)?.scene) return ads.get(host.id);
+  for (const unit of ads.values()) {
+    if (!unit.dead && unit.scene) return unit;
+  }
+  return null;
+}
+
+function armPropRewind(unit) {
+  const host = unit?.container;
+  const trailMs = host ? propTrailMs(host.dataset.propTrail, host.dataset.propTrailSpd) : 0;
+  unit.gifElapsed = undefined;
+  unit.propRewind = true;
+  unit.propT = 0;
+  unit.propIntroT = trailMs > 0 ? 0 : 1;
+  unit.trailAt = 0;
+  unit.trailSettled = false;
+  unit.propInAt = 0;
+  unit.clockStarted = 0;
+  unit.journeyAt = 0;
+  unit.playFresh = 0;
+  unit.lastFrame = 0;
+  if (host) resetPlay(host, unit);
+}
+
+async function renderWarmPose(unit, gl, t, repeats, deadline) {
+  unit.gifElapsed = t;
+  for (let i = 0; i < repeats; i += 1) {
+    if (!unit.scene || unit.dead || performance.now() > deadline) return;
+    unit.lastFrame = 0;
+    blitAdUnit(unit, performance.now(), gl, true);
+    await waitTick();
+  }
+}
+
+async function renderWarmLive(unit, gl, maxMs) {
+  unit.gifElapsed = undefined;
+  armPropRewind(unit);
+  if (!unit.scene || unit.dead) return;
+  unit.lastFrame = 0;
+  blitAdUnit(unit, performance.now(), gl, true);
+  const t0 = performance.now();
+  const gaps = [];
+  let prev = performance.now();
+  while (performance.now() - t0 < maxMs) {
+    if (!unit.scene || unit.dead) return;
+    await waitTick();
+    unit.lastFrame = 0;
+    const now = performance.now();
+    blitAdUnit(unit, now, gl, true);
+    gaps.push(now - prev);
+    prev = now;
+    const tail = gaps.slice(-8);
+    if (gaps.length >= 12 && tail.length === 8 && tail.every((n) => n < 22)) break;
+  }
+}
+
+async function warmupLiveUnit(unit) {
+  if (!unit?.scene || unit.gpuWarm) return;
+  const waitUntil = performance.now() + 12000;
+  while (performance.now() < waitUntil) {
+    if (stillPropReady(unit) || unit.paint2d) break;
+    await waitTick();
+  }
+  if (!unit.scene || unit.dead) return;
+  if (unit.scene.whenReadyAsync) {
+    await Promise.race([
+      unit.scene.whenReadyAsync(),
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ]);
+  }
+  if (!unit.scene || unit.dead) return;
+  const host = unit.container;
+  const trailMs = propTrailMs(host?.dataset.propTrail, host?.dataset.propTrailSpd);
+  const actMs = propActionMs(host?.dataset.propAct || "drop");
+  const span = trailMs + actMs;
+  host?.classList.add("is-warming");
+  unit.warming = true;
+  unit.visible = true;
+  unit.frozen = false;
+  unit.paused = false;
+  sharedLoop?.stopLoop();
+  syncAdSize(host);
+  const gl = engine?.getRenderingCanvas?.() || null;
+  try {
+    const deadline = performance.now() + 1200;
+    const marks = [0, 0.35, 0.7, 1];
+    for (const u of marks) {
+      if (!unit.scene || unit.dead || performance.now() > deadline) break;
+      await renderWarmPose(unit, gl, Math.round(span * u), 1, deadline);
+    }
+    if (unit.scene && !unit.dead && performance.now() < deadline) await renderWarmLive(unit, gl, 280);
+    unit.gpuWarm = true;
+  } finally {
+    if (unit.scene && !unit.dead) armPropRewind(unit);
+    unit.warming = true;
+    unit.paused = false;
+    unit.frozen = false;
+    unit.visible = true;
+    host?.classList.add("is-warming");
+  }
+}
+
 export async function warmupPropGpu(tag = propCurrent) {
   await ensureEngine();
   const src = getPropSource(tag) || currentPropSource();
   if (!src?.file) return;
-  const key = filesCacheKey(src.files);
-  if (src.warmed === key) return;
-  const token = ++src.warmToken;
   await preparePropSourceFor(src);
-  if (token !== src.warmToken) return;
-  const scene = new BABYLON.Scene(engine);
-  scene.autoClear = true;
-  const camera = new BABYLON.ArcRotateCamera(
-    "warmCam",
-    CAM_HOME,
-    1.12,
-    4.1,
-    new BABYLON.Vector3(0, 0.38, 0),
-    scene
-  );
-  camera.minZ = 0.05;
-  camera.fov = 0.52;
-  camera.inputs.clear();
-  attachStudioLighting(BABYLON, scene, camera, { ssao: false, skyboxSize: 48 });
-  const root = new BABYLON.TransformNode("warmRoot", scene);
-  try {
-    const loaded = await loadPropImport(scene, root, null, src);
-    if (token !== src.warmToken) {
-      scene.dispose();
-      return;
-    }
-    if (loaded?.wrap) {
-      if (scene.whenReadyAsync) {
-        await Promise.race([
-          scene.whenReadyAsync(),
-          new Promise((resolve) => setTimeout(resolve, 8000)),
-        ]);
-      }
-      if (token !== src.warmToken) {
-        scene.dispose();
-        return;
-      }
-      await compileMeshMaterials(loaded.wrap);
-      for (let i = 0; i < 3; i += 1) scene.render();
-    }
-    scene.dispose();
-    if (token !== src.warmToken) return;
-    src.warmed = key;
-  } catch (err) {
-    scene.dispose();
-    console.warn("No se pudo precalentar el modelo 3D", err);
-  }
 }
 
 async function ensureEngine() {
@@ -2124,16 +2979,17 @@ async function ensureEngine() {
   engine = new BABYLON.Engine(gl, true, {
     antialias: true,
     adaptToDeviceRatio: false,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: false,
     stencil: false,
     powerPreference: "high-performance",
   });
   engine.setHardwareScalingLevel(1);
+  liveScene = new BABYLON.Scene(engine);
+  liveScene.autoClear = true;
+  liveScene.detachControl();
+  if (sharedLoop) sharedLoop.stopLoop();
   sharedLoop = attachSharedLoop();
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) sharedLoop.stopLoop();
-    else sharedLoop.startLoop();
-  });
+  if (visibleAdCount()) sharedLoop.startLoop();
 }
 
 let propBootChain = Promise.resolve();
@@ -2149,9 +3005,140 @@ function adUnitAlive(unit) {
   return Boolean(unit) && !unit.dead && ads.get(unit.container?.id) === unit;
 }
 
+function sceneCensus(scene) {
+  return {
+    meshes: new Set(scene.meshes),
+    lights: new Set(scene.lights),
+    cameras: new Set(scene.cameras),
+    transformNodes: new Set(scene.transformNodes),
+    particleSystems: new Set(scene.particleSystems || []),
+    observers: new Set((scene.onBeforeRenderObservable.observers || []).filter(Boolean)),
+  };
+}
+
+function claimPlayContent(scene, census) {
+  const root = new BABYLON.TransformNode("playRoot", scene);
+  const created = (list, set) => (list || []).filter((node) => node && node !== root && !set.has(node));
+  const nodes = created(scene.transformNodes, census.transformNodes);
+  const meshes = created(scene.meshes, census.meshes);
+  const lights = created(scene.lights, census.lights);
+  const cameras = created(scene.cameras, census.cameras);
+  const particles = created(scene.particleSystems, census.particleSystems);
+  for (const node of nodes) {
+    if (!node.parent) node.parent = root;
+  }
+  for (const mesh of meshes) {
+    if (!mesh.parent) mesh.parent = root;
+  }
+  for (const light of lights) {
+    if (!light.parent) light.parent = root;
+  }
+  const observers = (scene.onBeforeRenderObservable.observers || []).filter((obs) => obs && !census.observers.has(obs));
+  return { root, lights, cameras, particles, observers };
+}
+
+function releasePlayContent(content) {
+  if (!content) return;
+  for (const obs of content.observers || []) {
+    try { obs.remove(); } catch { /* already removed */ }
+  }
+  for (const ps of content.particles || []) {
+    try { ps.dispose(); } catch { /* already disposed */ }
+  }
+  for (const cam of content.cameras || []) {
+    try { cam.dispose(); } catch { /* already disposed */ }
+  }
+  const meshes = content.root?.getChildMeshes?.() || [];
+  for (const mesh of meshes) {
+    try { mesh.dispose(false, true); } catch { /* already disposed */ }
+  }
+  try { content.root?.dispose(); } catch { /* already disposed */ }
+}
+
+function presentPlayUnit(unit) {
+  presenting = unit || null;
+  const scene = unit?.scene;
+  if (!scene) return;
+  if (unit.sceneMeta) scene.metadata = unit.sceneMeta;
+  for (const other of ads.values()) {
+    const content = other.content;
+    if (!content?.root) continue;
+    const on = other === unit;
+    content.root.setEnabled(on);
+    for (const light of content.lights || []) light.setEnabled(on);
+  }
+  const cam = unit.content?.cameras?.[0];
+  if (cam) scene.activeCamera = cam;
+}
+
+function buildCanvasPlay(scene, unit) {
+  const w = Math.max(2, Math.round(scene.metadata?.w || 300));
+  const h = Math.max(2, Math.round(scene.metadata?.h || 250));
+  const aspect = w / Math.max(1, h);
+  const cam = new BABYLON.FreeCamera("cam2d", new BABYLON.Vector3(0, 0, -1), scene);
+  cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+  cam.orthoTop = 1;
+  cam.orthoBottom = -1;
+  cam.orthoLeft = -aspect;
+  cam.orthoRight = aspect;
+  cam.minZ = 0.01;
+  const plane = BABYLON.MeshBuilder.CreatePlane("play2d", { width: aspect * 2, height: 2 }, scene);
+  const tex = new BABYLON.DynamicTexture("play2dTex", { width: w, height: h }, scene, false);
+  const mat = new BABYLON.StandardMaterial("play2dMat", scene);
+  mat.disableLighting = true;
+  mat.backFaceCulling = false;
+  mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+  mat.emissiveTexture = tex;
+  mat.diffuseTexture = tex;
+  plane.material = mat;
+  const playId = scene.metadata?.containerId;
+  scene.onBeforeRenderObservable.add(() => {
+    if (presenting && presenting.container?.id !== playId) return;
+    const ctx = tex.getContext();
+    unit.paint2d?.(ctx, w, h);
+    tex.update();
+  });
+}
+
+async function warmLiveScene(unit) {
+  if (!unit?.scene && !unit?.paint2d) return;
+  syncAdSize(unit.container);
+  const gl = engine?.getRenderingCanvas?.() || null;
+  unit.paused = true;
+  for (let i = 0; i < 3; i += 1) {
+    if (!adUnitAlive(unit)) return;
+    unit.lastFrame = 0;
+    blitAdUnit(unit, performance.now(), gl, true);
+    await waitTick();
+  }
+  if (!adUnitAlive(unit)) return;
+  if (unit.container?.dataset.play === "prop") armPropRewind(unit);
+  else if (unit.container) {
+    resetPlay(unit.container, unit);
+    resetPlayClock(unit);
+    unit.clockStarted = 0;
+    unit.journeyAt = 0;
+  }
+  unit.lastFrame = 0;
+  blitAdUnit(unit, performance.now(), gl, true);
+}
+
 async function bootAdUnit(container) {
   const unit = ads.get(container.id);
-  if (!unit || unit.booted || unit.booting || unit.frozen || unit.dead) return;
+  if (!unit || unit.frozen || unit.dead) return;
+  if (unit.bootTask) return unit.bootTask;
+  unit.warming = true;
+  unit.paused = true;
+  container.classList.add("is-warming");
+  unit.bootTask = runBootAdUnit(container, unit);
+  try {
+    await unit.bootTask;
+  } finally {
+    if (!unit.booted) unit.bootTask = null;
+  }
+}
+
+async function runBootAdUnit(container, unit) {
   unit.booting = true;
   const canvas = unit.display;
   const token = propBootToken;
@@ -2165,40 +3152,60 @@ async function bootAdUnit(container) {
     });
     const start3d = async () => {
       if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) return;
-      const scene = new BABYLON.Scene(engine);
-      if (!adUnitAlive(unit)) {
-        scene.dispose();
-        return;
-      }
-      scene.metadata = { displayCanvas: canvas, w: sized.width, h: sized.height, containerId: container.id, host: container };
+      const scene = liveScene;
+      if (!scene || !adUnitAlive(unit)) return;
+      const census = sceneCensus(scene);
+      const meta = { displayCanvas: canvas, w: sized.width, h: sized.height, containerId: container.id, host: container };
+      scene.metadata = meta;
       unit.scene = scene;
-      if (container.dataset.play === "prop") buildPropScene(scene);
+      unit.sceneMeta = meta;
+      bindEngineCanvas(unit, canvas);
+      if (attach2d) buildCanvasPlay(scene, unit);
+      else if (container.dataset.play === "prop") buildPropScene(scene);
       else buildJourneyScene(scene);
-      attachPlay(container, scene);
-    };
-    if (!attach2d) {
-      if (container.dataset.play === "prop") await enqueuePropBoot(start3d);
-      else await start3d();
-    }
-    if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) {
-      if (unit.scene && unit.dead) {
-        unit.scene.dispose();
+      if (!attach2d) attachPlay(container, scene);
+      unit.content = claimPlayContent(scene, census);
+      if (!adUnitAlive(unit)) {
+        releasePlayContent(unit.content);
+        unit.content = null;
         unit.scene = null;
       }
+    };
+    await ensureEngine();
+    await enqueuePropBoot(start3d);
+    if (token !== propBootToken || !container.isConnected || !adUnitAlive(unit)) {
+      releasePlayContent(unit.content);
+      unit.content = null;
+      unit.scene = null;
       return;
     }
+    if (unit.propLoad) {
+      try { await unit.propLoad; } catch { /* mesh failure is flagged on the unit */ }
+    }
+    if (!adUnitAlive(unit)) return;
+    if (unit.scene?.whenReadyAsync) {
+      await Promise.race([
+        unit.scene.whenReadyAsync(),
+        new Promise((resolve) => setTimeout(resolve, 8000)),
+      ]);
+    }
+    if (!adUnitAlive(unit)) return;
+    try { await warmLiveScene(unit); } catch { /* reveal even if a warm frame fails */ }
     if (container.querySelector(".ad-wave")) applyWaveToDom(container, AD4_BANNER);
     const shapeSvg = container.querySelector(".ad-2d");
     if (shapeSvg) {
       stopShapes = startShapePlayer(shapeSvg, () => AD4_BANNER, () => null, () => isVisible(container.id));
     }
     unit.booted = true;
-    if (unit.visible) sharedLoop?.startLoop();
   } catch (err) {
     console.error("No se pudo iniciar", container.id, err);
     container.classList.add("is-error");
   } finally {
     unit.booting = false;
+    unit.warming = false;
+    unit.paused = false;
+    container.classList.remove("is-warming");
+    if (unit.booted && unit.visible && !unit.dead) ensureSharedLoop().startLoop();
   }
 }
 
@@ -2214,6 +3221,7 @@ function teardownAdUnit(unit) {
   unit.frozen = true;
   unit.visible = false;
   unit.booted = false;
+  unit.bootTask = null;
   if (unit.exitTimer) {
     clearTimeout(unit.exitTimer);
     unit.exitTimer = 0;
@@ -2224,7 +3232,9 @@ function teardownAdUnit(unit) {
   }
   const container = unit.container;
   if (container) observer?.unobserve(container);
-  unit.scene?.dispose();
+  releaseEngineCanvas(unit);
+  releasePlayContent(unit.content);
+  unit.content = null;
   unit.scene = null;
   if (container?.id) ads.delete(container.id);
 }
@@ -2259,12 +3269,12 @@ export function disposeAds(id) {
   releasePlayerIfEmpty();
 }
 
-export async function bootContainers(root = document) {
-  await ensureEngine();
+export async function bootContainers(root = document, opts = {}) {
   const nodes = [...root.querySelectorAll(".ad-container")];
+  await ensureEngine();
   for (const container of nodes) {
     if (ads.has(container.id)) continue;
-    const canvas = container.querySelector("canvas");
+    const canvas = container.querySelector("canvas:not(.ad-trail-2d):not(.ad-clock-layer)") || container.querySelector("canvas");
     ads.set(container.id, {
       scene: null,
       visible: false,
@@ -2277,6 +3287,7 @@ export async function bootContainers(root = document) {
       booting: false,
     });
   }
+  if (opts.watch === false) return;
   if (!observer) {
     observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
@@ -2292,11 +3303,61 @@ export async function bootContainers(root = document) {
   }
 }
 
-export async function startAd(container) {
+export async function startAd(container, opts = {}) {
   if (!container) return;
+  if (opts.hold) {
+    container.classList.add("is-warming");
+    const unit = ads.get(container.id);
+    if (unit) {
+      unit.warming = true;
+      unit.paused = true;
+    }
+  }
   await bootAdUnit(container);
+  const unit = ads.get(container.id);
+  if (opts.hold) {
+    container.classList.add("is-warming");
+    if (unit) {
+      unit.warming = true;
+      unit.visible = true;
+      unit.frozen = false;
+      unit.paused = false;
+    }
+    sharedLoop?.stopLoop();
+    syncAdSize(container);
+    return;
+  }
   setAdVisible(container, true);
   syncAdSize(container);
+}
+
+export async function beginAdPlay(container) {
+  if (!container) return;
+  const unit = ads.get(container.id);
+  syncAdSize(container);
+  if (unit) {
+    unit.visible = true;
+    unit.paused = false;
+    unit.frozen = false;
+    unit.warming = true;
+    unit.playFresh = 0;
+    unit.lastFrame = 0;
+    armPropRewind(unit);
+  }
+  container.classList.add("is-warming");
+  setAdVisible(container, true);
+  await waitDraws(2);
+  if (unit && !unit.dead) armPropRewind(unit);
+  container.style.opacity = "0.012";
+  await waitDraws(1);
+  if (unit && !unit.dead) {
+    unit.warming = false;
+    unit.playFresh = 8;
+    unit.lastFrame = 0;
+  }
+  resetDrawFrames();
+  container.style.opacity = "";
+  container.classList.remove("is-warming");
 }
 
 window.addEventListener("storage", (ev) => {

@@ -1,0 +1,45 @@
+---
+description: Galería nativa es la fuente. GWD es adaptador y galería aparte. Archivos nuevos van a su capa.
+globs: gallery.html,gallery-gwd.html,ad-catalog.js,ad-player.js,ad-profile.js,prop-climax.js,studio-lights.js,play-route.js,gwd/**/*.js,gwd*.js,gwd*.html,ad-play.css,handoff-run.js
+alwaysApply: false
+---
+
+# Galería nativa + galería GWD
+
+La galería Babylon es el clímax. GWD no se superpone: es adaptador + una galería propia. Soluciones aditivas: no se borra ni se ensucia una para meter la siguiente.
+
+```
+gallery.html  +  ad-player + prop-climax + catalog     ← alto nivel
+        │  mismo combo JSON (solo lectura)
+        ▼
+gallery-gwd.html  +  gwd/play + gwd/light + gwd/shell  ← bajo nivel
+```
+
+`gallery.html` reproduce con `adMarkup` → `bootContainers` → `startAd`. Sin `if (gwd)`. El enlace a Galería GWD es navegación, no un visor mezclado.
+
+`gallery-gwd.html` es la galería nueva: misma UI/combos, monta `mountGwdPlay`. Ahí vive la compatibilidad.
+
+## Dónde va un archivo nuevo
+
+Alto nivel (propiedad de galería/clímax): `ad-catalog.js`, `ad-player.js`, `prop-climax.js`, `studio-lights.js`, `gallery.html`, `data/*.json`. Nombre sin `gwd-`.
+
+Bajo nivel (compatibilidad / galería GWD): `gwd/` (`spec.js`, `markup.js`, `play.js`, `shell.js`, `bake.js`, `gaps.js`, `hosts/`, `gaps/*.js`). Páginas: `gallery-gwd.html`, `gwd-light.html`. Hueco nuevo: `gwd/gaps/<id>.js`. Host nuevo: `gwd/hosts/<id>.js` que envuelve el inner; no otro pack. Artefactos: `public/gwd/`, `public/gtm/`, `public/iframe/` (regenerar, no editar). Los `gwd-*.js` de la raíz reexportan; no pongas lógica ahí.
+
+Prohibido: `gwd/` importado por `ad-player.js` o por el play de `gallery.html`.
+
+## Alto nivel — propiedad nueva
+
+1. Combo + `normalize*` con default.
+2. UI en `gallery.html`.
+3. Lectura en el player nativo.
+4. Parar. No tocar GWD en este paso.
+
+## Bajo nivel — que GWD siga a la galería
+
+1. Fila en `gwd/gaps.js`.
+2. Canal en `gwd/gaps/<id>.js` (`apply`) + mapa en `gwdLightFromCombo` (`data-*`, CSS, o pin en `gwd/shell.js`).
+3. Probar en `gallery-gwd.html`. Si GWD no puede, el clímax nativo no se degrada.
+
+## Aditivo
+
+Nueva propiedad = función/default nueva. Nueva compatibilidad = canal en el adaptador. Nuevo host = envuelve inner. No `if (gwd)` en `ad-player.js`. No editar `public/iframe/*` a mano. El shell no es dueño de las propiedades. El shell no se convierte a ES module.

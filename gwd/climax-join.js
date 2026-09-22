@@ -1,4 +1,4 @@
-import { propPose } from "./prop-climax.js";
+import { propPose } from "../prop-climax.js";
 
 export function freezeClimaxViewer(mv) {
   if (!mv) return;
