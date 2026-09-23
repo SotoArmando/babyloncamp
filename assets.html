@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Assets 3D</title>
-  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <link rel="stylesheet" href="app-nav.css?v=nav10" />
   <script type="importmap">
   {
     "imports": {
@@ -496,6 +496,7 @@
           <button type="button" data-light="rimshot">Contra</button>
           <button type="button" data-light="estudio">Estudio</button>
         </div>
+        <label>Universal <input data-ch="env" type="range" min="0" max="3" step="0.02" value="0.85" /><output data-out="env">0.85</output></label>
         <label class="has-col">Ambiente <input data-scol="worldCol" type="color" value="#ede8e0" aria-label="Color ambiente" /><input data-ch="world" type="range" min="0" max="3" step="0.02" value="0.7" /><output data-out="world">0.70</output></label>
         <label class="has-col">Key <input data-scol="keyCol" type="color" value="#fff7eb" aria-label="Color key" /><input data-ch="key" type="range" min="0" max="3" step="0.02" value="0.55" /><output data-out="key">0.55</output></label>
         <label class="has-col">Fill <input data-scol="fillCol" type="color" value="#ebf2ff" aria-label="Color fill" /><input data-ch="fill" type="range" min="0" max="3" step="0.02" value="0.42" /><output data-out="fill">0.42</output></label>
@@ -521,8 +522,8 @@
       loadAssetThumbs,
       saveAssetThumb,
     } from "./ad-assets.js?v=thumb6";
-    import { createAssetStudio, bakeAssetThumb, ASSET_THUMB_PRESET } from "./asset-studio.js?v=thumb6";
-    import { STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY } from "./studio-lights.js?v=thumb6";
+    import { createAssetStudio, bakeAssetThumb, ASSET_THUMB_PRESET } from "./asset-studio.js?v=thumb9";
+    import { STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY } from "./studio-lights.js?v=uni3";
 
     const grid = document.getElementById("a-grid");
     const search = document.getElementById("a-search");
@@ -731,7 +732,7 @@
       lightPresets.querySelectorAll("[data-light]").forEach((btn) => {
         btn.classList.toggle("is-on", btn.dataset.light === state.preset);
       });
-      for (const name of ["world", "key", "fill", "rim", "exposure"]) {
+      for (const name of ["env", "world", "key", "fill", "rim", "exposure"]) {
         const input = lightsPanel.querySelector(`[data-ch="${name}"]`);
         const out = lightsPanel.querySelector(`[data-out="${name}"]`);
         if (input) input.value = String(state[name]);
@@ -850,6 +851,6 @@
       return refresh();
     });
   </script>
-  <script src="app-nav.js?v=nav2"></script>
+  <script src="app-nav.js?v=nav11"></script>
 </body>
 </html>

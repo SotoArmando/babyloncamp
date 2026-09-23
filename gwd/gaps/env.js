@@ -54,7 +54,7 @@ export function studioEnvRecipe(item, spec = {}) {
   return {
     w: rgb(hex(st.worldCol || spec.worldCol, p.worldCol)),
     wi: Math.round(world * 1000) / 1000,
-    ei: Math.round(num(p.env, 0.85) * 1000) / 1000,
+    ei: Math.round(clamp(st.env ?? spec.env, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, p.env) * 1000) / 1000,
     l: [
       light(p.keyDir, hex(st.keyCol || spec.keyCol, p.keyCol), key * 2.4, 0.16),
       light(p.fillDir, hex(st.fillCol || spec.fillCol, p.fillCol), fill * 1.5, 0.34),

@@ -138,6 +138,7 @@ export function defaultStudioState() {
     key: p.key,
     fill: p.fill,
     rim: p.rim,
+    env: p.env,
     exposure: p.exposure,
     worldCol: STUDIO_CHANNEL_COLORS.world,
     keyCol: STUDIO_CHANNEL_COLORS.key,
@@ -222,6 +223,7 @@ export function studioStateFromPreset(id, keep) {
     key: p.key,
     fill: p.fill,
     rim: p.rim,
+    env: p.env,
     exposure: p.exposure,
     worldCol: p.worldCol,
     keyCol: p.keyCol,
@@ -247,6 +249,7 @@ export function normalizeStudioState(raw) {
     key: clamp(src.key, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.key),
     fill: clamp(src.fill, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.fill),
     rim: clamp(src.rim, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.rim),
+    env: clamp(src.env, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, fromPreset.env),
     exposure: clamp(src.exposure, STUDIO_EXPOSURE_MIN, STUDIO_EXPOSURE_MAX, fromPreset.exposure),
     worldCol: leftoverCatalogTint ? fromPreset.worldCol : normStudioHex(src.worldCol, fromPreset.worldCol || base.worldCol),
     keyCol: leftoverCatalogTint ? fromPreset.keyCol : normStudioHex(src.keyCol, fromPreset.keyCol || base.keyCol),
@@ -264,6 +267,7 @@ export function serializeStudioState(raw) {
     k: s.key,
     f: s.fill,
     r: s.rim,
+    u: s.env,
     e: s.exposure,
     wc: s.worldCol,
     kc: s.keyCol,
@@ -285,6 +289,7 @@ export function parseStudioState(raw) {
       key: packed.k ?? packed.key,
       fill: packed.f ?? packed.fill,
       rim: packed.r ?? packed.rim,
+      env: packed.u ?? packed.env,
       exposure: packed.e ?? packed.exposure,
       worldCol: packed.wc || packed.worldCol,
       keyCol: packed.kc || packed.keyCol,
@@ -321,6 +326,29 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
   rim.position = new B.Vector3(-1.2, 2.8, -4.4);
   rim.diffuse = new B.Color3(0.85, 0.9, 1);
 
+  const keyBaseDir = key.direction.clone();
+  const fillBaseDir = fill.direction.clone();
+  const rimBaseDir = rim.direction.clone();
+  const keyBasePos = key.position.clone();
+  const fillBasePos = fill.position.clone();
+  const rimBasePos = rim.position.clone();
+  const spun = new B.Vector3();
+  const spinAboutView = (base, out) => {
+    const yaw = (camera?.alpha ?? Math.PI / 2) - Math.PI / 2;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    spun.set(base.x * c - base.z * s, base.y, base.x * s + base.z * c);
+    out.copyFrom(spun);
+  };
+  const followView = () => {
+    spinAboutView(keyBaseDir, key.direction);
+    spinAboutView(fillBaseDir, fill.direction);
+    spinAboutView(rimBaseDir, rim.direction);
+    spinAboutView(keyBasePos, key.position);
+    spinAboutView(fillBasePos, fill.position);
+    spinAboutView(rimBasePos, rim.position);
+  };
+
   let env = null;
   if (opts.environment !== false) {
     env = scene.createDefaultEnvironment({
@@ -334,7 +362,7 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
   if (opts.ssao !== false && camera) {
     try {
       const ssao = new B.SSAO2RenderingPipeline("ssao", scene, 1);
-      ssao.totalStrength = 0.28;
+      ssao.totalStrength = 0.08;
       ssao.radius = 0.8;
       ssao.expensiveBlur = true;
       ssao.samples = 8;
@@ -371,9 +399,9 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
 
   const applyState = () => {
     world.intensity = state.world;
-    key.intensity = state.key;
-    fill.intensity = state.fill;
-    rim.intensity = state.rim;
+    key.intensity = state.key * 5;
+    fill.intensity = state.fill * 4;
+    rim.intensity = state.rim * 6;
     const [wr, wg, wb] = hexToRgb01(state.worldCol, STUDIO_CHANNEL_COLORS.world);
     world.diffuse = new B.Color3(wr, wg, wb);
     world.groundColor = new B.Color3(wr * 0.74, wg * 0.73, wb * 0.72);
@@ -384,6 +412,7 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
     paintLight(key, state.keyCol, STUDIO_CHANNEL_COLORS.key);
     paintLight(fill, state.fillCol, STUDIO_CHANNEL_COLORS.fill);
     paintLight(rim, state.rimCol, STUDIO_CHANNEL_COLORS.rim);
+    scene.environmentIntensity = state.env;
     if (scene.imageProcessingConfiguration) {
       scene.imageProcessingConfiguration.exposure = state.exposure;
     }
@@ -410,15 +439,16 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
     state.key = p.key;
     state.fill = p.fill;
     state.rim = p.rim;
+    state.env = p.env;
     state.exposure = p.exposure;
     state.worldCol = p.worldCol;
     state.keyCol = p.keyCol;
     state.fillCol = p.fillCol;
     state.rimCol = p.rimCol;
-    key.direction = new B.Vector3(...p.keyDir);
-    fill.direction = new B.Vector3(...p.fillDir);
-    rim.direction = new B.Vector3(...p.rimDir);
-    scene.environmentIntensity = p.env;
+    keyBaseDir.set(p.keyDir[0], p.keyDir[1], p.keyDir[2]);
+    fillBaseDir.set(p.fillDir[0], p.fillDir[1], p.fillDir[2]);
+    rimBaseDir.set(p.rimDir[0], p.rimDir[1], p.rimDir[2]);
+    followView();
     applyState();
     return snapshot();
   };
@@ -435,6 +465,7 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
     if (name === "key") state.key = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.key);
     if (name === "fill") state.fill = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.fill);
     if (name === "rim") state.rim = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.rim);
+    if (name === "env") state.env = clamp(v, STUDIO_CHANNEL_MIN, STUDIO_CHANNEL_MAX, state.env);
     if (name === "exposure") state.exposure = clamp(v, STUDIO_EXPOSURE_MIN, STUDIO_EXPOSURE_MAX, state.exposure);
     applyState();
     return snapshot();
@@ -447,6 +478,7 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
     state.key = next.key;
     state.fill = next.fill;
     state.rim = next.rim;
+    state.env = next.env;
     state.exposure = next.exposure;
     state.worldCol = next.worldCol;
     state.keyCol = next.keyCol;
@@ -471,6 +503,7 @@ export function attachStudioLighting(B, scene, camera, opts = {}) {
 
   applyPreset((opts.initial && opts.initial.preset) || "catalog");
   if (opts.initial) applyConfig(opts.initial);
+  scene.onBeforeRenderObservable.add(followView);
 
   return {
     world,

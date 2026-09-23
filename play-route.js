@@ -1,7 +1,7 @@
 import { adMarkup, adPlaceFromPlay, formatById, handoffById, resolveAdPlace } from "./ad-catalog.js?v=cam23";
-import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=cam26";
+import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=trail1";
 import { serializeStudioState } from "./studio-lights.js";
-import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop50";
+import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop137";
 import { setPlayerOrigin, getPlayerOrigin } from "./player-origin.js";
 
 export { setPlayerOrigin, getPlayerOrigin };
@@ -118,6 +118,19 @@ export function comboPlayExtras(item, phRaw) {
     pal: item.pal,
     ph: livePlaceFrom(item, phRaw !== undefined ? phRaw : item.ph),
     propAct: item.propAct,
+    propTrail: item.ptrail,
+    propTrail2d: item.p2d,
+    propTrail2dCol: item.p2dcol,
+    propTrailGlow: item.pglo,
+    propTrailTail: item.ptl,
+    propTrail2dCon: item.p2dcon,
+    propTrailMark: item.pmk,
+    propTrailSpread: item.psp,
+    propTrailSpd: item.pvel,
+    propTrailPop: item.ppop,
+    propTrailJoin: item.pjoin,
+    propTrailIn: item.ptin || (typeof item.pin === "string" ? item.pin : ""),
+    propTrailChar: item.pchar,
     propCam: item.pcam,
     propCamH: item.pch,
     propCamV: item.pcv,
@@ -183,11 +196,11 @@ export function profileName(profileId, store = loadGalleryStore()) {
   return profileById(profileId, store)?.name || "Galería";
 }
 
-export async function mountPlay(host, { profileId, playId, slotId, origin } = {}) {
+export async function mountPlay(host, { profileId, playId, slotId, origin, item: given } = {}) {
   if (!host) return null;
   if (origin != null) setPlayerOrigin(origin);
-  const id = slotId || `ad-${playId}`;
-  const item = await resolvePlayCombo(playId, profileId);
+  const id = slotId || `ad-${playId || given?.id || "ad"}`;
+  const item = given ? makeCombo(given) : await resolvePlayCombo(playId, profileId);
   if (!item) return null;
   const propTag = await prepareComboMesh(item);
   const format = formatById(item.ad);

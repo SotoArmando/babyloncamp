@@ -21,9 +21,14 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
+export function isDriveAction(action) {
+  return action === "drive" || action === "drive-plain";
+}
+
 export function propActionMs(action) {
   if (action === "space") return 7600;
   if (action === "star" || action === "cheer") return 5800;
+  if (action === "drive" || action === "drive-plain") return 3000;
   if (action === "turn") return 4400;
   if (action === "torch" || action === "torch-front") return 4000;
   if (action === "ball") return 4000;
@@ -160,6 +165,28 @@ export function propPose(action, t, half) {
     p.rx = 0.14;
     p.ry = spin * Math.PI * 2 + settle * 0.08;
     p.camA = easeInOut(t) * 0.42;
+    return p;
+  }
+  if (action === "drive" || action === "drive-plain") {
+    let along = 0;
+    if (t < 0.4) along = span(t, 0, 0.4) * 0.84;
+    else if (t < 0.84) along = 0.84 + easeOut(span(t, 0.4, 0.84)) * 0.16;
+    else along = 1;
+    const x0 = -1;
+    const z0 = 1.18;
+    p.x = lerp(x0, 0, along);
+    p.z = lerp(z0, 0, along);
+    p.y = half;
+    p.ry = Math.atan2(-x0, -z0);
+    p.camA = 0;
+    p.camR = 1;
+    p.punch = 0;
+    if (action === "drive") {
+      p.camR = lerp(1.1, 1, along);
+      if (t >= 0.38 && t < 0.86) {
+        p.rx = -0.08 * Math.sin(span(t, 0.38, 0.86) * Math.PI);
+      }
+    }
     return p;
   }
   if (action === "star" || action === "cheer" || action === "space") {

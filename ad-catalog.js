@@ -271,6 +271,19 @@ export function playById(id) {
   return PLAY_MODES.find((item) => item.id === id) || PLAY_MODES[0];
 }
 
+export const PLAY_FAMILIES = [
+  { id: "agua", label: "Agua", plays: ["climax", "pre-enter", "breaker"] },
+  { id: "cielo", label: "Cielo", plays: ["horizon", "sundown", "storm", "aurora"] },
+  { id: "tierra", label: "Tierra", plays: ["erupt", "migrate"] },
+  { id: "hielo", label: "Hielo", plays: ["calve"] },
+  { id: "objeto", label: "Objeto", plays: ["prop"] },
+];
+
+export function familyByPlay(play) {
+  const id = playById(play).id;
+  return PLAY_FAMILIES.find((item) => item.plays.includes(id)) || PLAY_FAMILIES[0];
+}
+
 export const PROP_ACTIONS = [
   { id: "drop", label: "Cae al suelo", blurb: "Cae, pega y se queda." },
   { id: "toy", label: "Juguete", blurb: "Da unos saltitos y se para." },
@@ -278,6 +291,8 @@ export const PROP_ACTIONS = [
   { id: "torch-front", label: "Linterna frente", blurb: "El mismo barrido, pero el haz mira al espectador." },
   { id: "ball", label: "Pelota", blurb: "Rebota de verdad y se agota." },
   { id: "turn", label: "Escaparate", blurb: "Una vuelta lenta, como en un display." },
+  { id: "drive", label: "Vehículo", blurb: "Viene de frente, se ve pasar y cabecea al frenar." },
+  { id: "drive-plain", label: "Vehículo · Sin pirueta", blurb: "El mismo cruce y el mismo freno, sin cabeceo al parar." },
   { id: "star", label: "Estrella", blurb: "Salta, da vueltas rápidas en el aire y posa, como al tomar una estrella." },
   { id: "cheer", label: "Victoria", blurb: "El mismo salto y las mismas vueltas, sin la estrella." },
   { id: "space", label: "Espacio", blurb: "Salta y da vueltas, pero no cae: el giro se apaga como en ingravidez." },
@@ -285,6 +300,152 @@ export const PROP_ACTIONS = [
 
 export function propActionById(id) {
   return PROP_ACTIONS.find((item) => item.id === id) || PROP_ACTIONS[0];
+}
+
+export const PROP_TRAILS = [
+  { id: "none", label: "Ninguna", blurb: "El objeto entra sin estela.", thumb: "", group: "trazo" },
+  { id: "particles", label: "Partículas", blurb: "Un trazo de varita. Las chispas brotan y se desvanecen.", thumb: "assets/trails/particles.jpg", group: "trazo" },
+  { id: "tube", label: "Tubo", blurb: "Una cinta luminosa en un solo trazo.", thumb: "assets/trails/tube.jpg", group: "trazo" },
+  { id: "line", label: "Línea", blurb: "Un trazo fino que precede al objeto.", thumb: "assets/trails/line.jpg", group: "trazo" },
+  { id: "hearts", label: "Corazones", blurb: "Un trazo de varita. Los corazones brotan y se desvanecen.", thumb: "assets/trails/hearts.jpg", group: "trazo" },
+  { id: "petals", label: "Pétalos", blurb: "Un trazo de varita. Los pétalos brotan y se desvanecen.", thumb: "assets/trails/petals.jpg", group: "trazo" },
+  { id: "star", label: "Estrellas", blurb: "Un trazo de varita. Las estrellas brotan y se desvanecen.", thumb: "assets/trails/star.jpg", group: "trazo" },
+  { id: "custom", label: "Personalizado", blurb: "Un trazo de varita. El texto que elijas, como wow, brota y se desvanece.", thumb: "", group: "trazo" },
+  { id: "gota", label: "Gota", blurb: "Una gota cae con temblor, pega y deja el objeto.", thumb: "assets/trails/particles.jpg", group: "naturaleza" },
+  { id: "brisa", label: "Brisa", blurb: "Varias curvas sueltas, como viento que arrastra motas.", thumb: "assets/trails/line.jpg", group: "naturaleza" },
+  { id: "liana", label: "Liana", blurb: "Un trazo grueso que se tuerce, más hilos finos.", thumb: "assets/trails/tube.jpg", group: "naturaleza" },
+  { id: "niebla", label: "Niebla", blurb: "Volutas irregulares que se deshacen al llegar.", thumb: "assets/trails/particles.jpg", group: "naturaleza" },
+  { id: "chispa", label: "Chispas", blurb: "Un trazo de varita. Las chispas brotan y se desvanecen.", thumb: "assets/trails/star.jpg", group: "naturaleza" },
+];
+
+export function propTrailById(id) {
+  if (id === "line2d") return PROP_TRAILS.find((item) => item.id === "line") || PROP_TRAILS[0];
+  return PROP_TRAILS.find((item) => item.id === id) || PROP_TRAILS[0];
+}
+
+export function normalizePropTrail2d(value, trailId) {
+  if (trailId === "line2d") return "1";
+  if (value === true || value === 1 || value === "1" || value === "on") return "1";
+  return "0";
+}
+
+export const DEFAULT_PROP_TRAIL_2D_COL = "#f4fbff";
+export const DEFAULT_PROP_TRAIL_GLOW = "#ffffff";
+export const DEFAULT_PROP_TRAIL_TAIL = "#5b7ea8";
+
+function mixTrailHex(a, b, t) {
+  const ha = normHex(a, DEFAULT_PROP_TRAIL_2D_COL).slice(1);
+  const hb = normHex(b, DEFAULT_PROP_TRAIL_GLOW).slice(1);
+  const ch = (hex, i) => parseInt(hex.slice(i, i + 2), 16) || 0;
+  const k = Math.max(0, Math.min(1, Number(t) || 0));
+  const n = (x, y) => Math.max(0, Math.min(255, Math.round(x + (y - x) * k))).toString(16).padStart(2, "0");
+  return `#${n(ch(ha, 0), ch(hb, 0))}${n(ch(ha, 2), ch(hb, 2))}${n(ch(ha, 4), ch(hb, 4))}`;
+}
+
+export function derivePropTrailGlow(col) {
+  return mixTrailHex(normalizePropTrail2dCol(col), DEFAULT_PROP_TRAIL_GLOW, 0.42);
+}
+
+export function derivePropTrailTail(col) {
+  return mixTrailHex(normalizePropTrail2dCol(col), "#1c3348", 0.48);
+}
+
+export function normalizePropTrail2dCol(value) {
+  if (value == null || value === "" || value === "auto") return DEFAULT_PROP_TRAIL_2D_COL;
+  return normHex(value, DEFAULT_PROP_TRAIL_2D_COL);
+}
+
+export function normalizePropTrailGlow(value, col) {
+  if (value == null || value === "" || value === "auto") return derivePropTrailGlow(col);
+  return normHex(value, derivePropTrailGlow(col));
+}
+
+export function normalizePropTrailTail(value, col) {
+  if (value == null || value === "" || value === "auto") return derivePropTrailTail(col);
+  return normHex(value, derivePropTrailTail(col));
+}
+
+export function normalizePropTrail2dCon(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "1.3";
+  return String(Math.min(2.2, Math.max(0.5, Math.round(n * 20) / 20)));
+}
+
+export const DEFAULT_PROP_TRAIL_MARK = "1";
+export const DEFAULT_PROP_TRAIL_SPREAD = "1";
+export const DEFAULT_PROP_TRAIL_SPD = "1";
+export const DEFAULT_PROP_TRAIL_POP = "1";
+
+function normalizeTrailGain(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return String(Math.min(2.6, Math.max(0.6, Math.round(n * 20) / 20)));
+}
+
+export function normalizePropTrailMark(value) {
+  return normalizeTrailGain(value, DEFAULT_PROP_TRAIL_MARK);
+}
+
+export function normalizePropTrailSpread(value) {
+  return normalizeTrailGain(value, DEFAULT_PROP_TRAIL_SPREAD);
+}
+
+export function normalizePropTrailSpd(value) {
+  return normalizeTrailGain(value, DEFAULT_PROP_TRAIL_SPD);
+}
+
+export function normalizePropTrailPop(value) {
+  return normalizeTrailGain(value, DEFAULT_PROP_TRAIL_POP);
+}
+
+export function normalizePropTrailChar(value) {
+  const text = String(value ?? "").trim().replace(/\s+/g, " ");
+  if (!text) return "✦";
+  const parts = typeof Intl !== "undefined" && Intl.Segmenter
+    ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].map((part) => part.segment)
+    : [...text];
+  return parts.slice(0, 16).join("") || "✦";
+}
+
+export function propTrailFlyEnd(pop) {
+  const p = Number(normalizePropTrailPop(pop));
+  return Math.min(0.92, Math.max(0.8, 0.83 + (p - 1) * 0.035));
+}
+
+export const PROP_TRAIL_JOINS = [
+  { id: "burst", label: "Explosión", blurb: "La estela estalla en el punto y deja el objeto." },
+  { id: "morph", label: "Polimorfismo", blurb: "Las marcas se contraen y se vuelven el objeto." },
+];
+
+export function propTrailJoinById(id) {
+  return PROP_TRAIL_JOINS.find((item) => item.id === id) || PROP_TRAIL_JOINS[0];
+}
+
+export const PROP_TRAIL_INS = [
+  { id: "settle", label: "Asiento", blurb: "El objeto llega casi a tamaño real y se acomoda." },
+  { id: "pop", label: "Toque", blurb: "Un pulso corto, como un golpe suave." },
+  { id: "twist", label: "Giro", blurb: "Gira un poco al aparecer y se detiene." },
+  { id: "rise", label: "Subida", blurb: "Sube al sitio desde un poco más abajo." },
+  { id: "fade", label: "Fade in", blurb: "Aparece a tamaño real, solo se revela. Sin escala." },
+  { id: "slide", label: "Slide in", blurb: "Entra de lado a tamaño real y se queda." },
+  { id: "plain", label: "Directa", blurb: "Aparece sin gesto 3D; solo el remate de la estela." },
+];
+
+export function propTrailInById(id) {
+  return PROP_TRAIL_INS.find((item) => item.id === id) || PROP_TRAIL_INS[0];
+}
+
+export function propTrailMs(id, speed) {
+  const key = propTrailById(id).id;
+  if (key === "none") return 0;
+  const glyph = key === "hearts" || key === "petals" || key === "star" || key === "particles" || key === "chispa" || key === "custom";
+  let base = 1500;
+  if (glyph) base = 1400;
+  else if (key === "niebla" || key === "liana" || key === "brisa") base = 1600;
+  else if (key === "gota") base = 1400;
+  const spd = Number(normalizePropTrailSpd(speed));
+  const ms = Math.round(base / spd);
+  return glyph ? Math.max(240, ms) : Math.max(420, ms);
 }
 
 export const PROP_AIM_LIGHTS = [
@@ -531,7 +692,7 @@ export const PLAY_PALETTES = {
     { id: "under", label: "Bajo el agua", def: "#2a7c8c" },
   ],
   prop: [
-    { id: "floor", label: "Suelo", def: "#29292b" },
+    { id: "floor", label: "Suelo", def: "#ffffff" },
     { id: "stand", label: "Escaparate", def: "#3a3a3e" },
     { id: "object", label: "Objeto", def: "#dbc7a8" },
     { id: "ball", label: "Pelota", def: "#d1472e" },
@@ -540,6 +701,22 @@ export const PLAY_PALETTES = {
     { id: "fog", label: "Fondo", def: "#121315" },
   ],
 };
+
+export const PROP_BG_STYLES = [
+  { id: "solid", label: "Sólido" },
+  { id: "sunset", label: "Cielo y atardecer", sun: 1, stops: ["#1b4f8f", "#7eb6e2", "#f6d7a4", "#e36b3a"] },
+  { id: "day", label: "Cielo claro", sun: 0, stops: ["#2a6cb8", "#8ecbf2", "#e7f3fb", "#d5e4f2"] },
+  { id: "night", label: "Noche", sun: 0, stops: ["#070914", "#182038", "#2c3358", "#141824"] },
+  { id: "manual", label: "Manual", manual: true },
+];
+
+export function propBgStyleById(id) {
+  return PROP_BG_STYLES.find((item) => item.id === id) || PROP_BG_STYLES[0];
+}
+
+export function propBgShape(id) {
+  return id === "radial" ? "radial" : "linear";
+}
 
 export function playPaletteKey(playId) {
   if (playId === "pre-enter" || playId === "climax") return "water";
@@ -585,6 +762,12 @@ export function resolvePalette(playId, raw) {
   }
   const out = {};
   for (const field of fields) out[field.id] = normHex(parsed[field.id], field.def);
+  if (playPaletteKey(playId) === "prop") {
+    out.fogGrad = propBgStyleById(parsed.fogGrad).id;
+    out.fogShape = propBgShape(parsed.fogShape);
+    out.fogFrom = normHex(parsed.fogFrom, "#2a6cb8");
+    out.fogTo = normHex(parsed.fogTo, "#e7f3fb");
+  }
   return out;
 }
 
@@ -908,6 +1091,7 @@ export function adMarkup(format, adId = "lab-ad", inId = "fade-up", playId = "cl
   const ph = resolveAdPlace(extras.ph);
   const phId = matchAdPlaceId(ph) || "custom";
   const propAct = propActionById(extras.propAct);
+  const propTrail = propTrailById(extras.propTrail ?? extras.ptrail);
   const propCam = extras.propCam ?? "4.1";
   const propCamH = extras.propCamH ?? extras.pch ?? "0";
   const propCamV = extras.propCamV ?? extras.pcv ?? "0";
@@ -922,6 +1106,19 @@ export function adMarkup(format, adId = "lab-ad", inId = "fade-up", playId = "cl
   const propFloor = extras.propFloor ?? extras.pfloor ?? "1";
   const propCog = extras.propCog ?? extras.pcog ?? "1";
   const propFlat = extras.propFlat ?? extras.pflat ?? "0";
+  const propTrail2d = normalizePropTrail2d(extras.propTrail2d ?? extras.p2d, extras.propTrail ?? extras.ptrail);
+  const propTrail2dCol = normalizePropTrail2dCol(extras.propTrail2dCol ?? extras.p2dcol);
+  const propTrailGlow = normalizePropTrailGlow(extras.propTrailGlow ?? extras.pglo, propTrail2dCol);
+  const propTrailTail = normalizePropTrailTail(extras.propTrailTail ?? extras.ptl, propTrail2dCol);
+  const propTrail2dCon = normalizePropTrail2dCon(extras.propTrail2dCon ?? extras.p2dcon);
+  const propTrailMark = normalizePropTrailMark(extras.propTrailMark ?? extras.pmk);
+  const propTrailSpread = normalizePropTrailSpread(extras.propTrailSpread ?? extras.psp);
+  const propTrailSpd = normalizePropTrailSpd(extras.propTrailSpd ?? extras.pvel);
+  const propTrailPop = normalizePropTrailPop(extras.propTrailPop ?? extras.ppop);
+  const propTrailJoin = propTrailJoinById(extras.propTrailJoin ?? extras.pjoin).id;
+  const propTrailIn = propTrailInById(extras.propTrailIn ?? extras.pin).id;
+  const propTrailChar = normalizePropTrailChar(extras.propTrailChar ?? extras.pchar)
+    .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   const propLcol = extras.propLcol ?? extras.plcol ?? DEFAULT_PROP_LCOL;
   const propLdist = extras.propLdist ?? extras.pldist ?? DEFAULT_PROP_LDIST;
   const propLpos = extras.propLpos ?? extras.plpos ?? "frente";
@@ -937,7 +1134,7 @@ export function adMarkup(format, adId = "lab-ad", inId = "fade-up", playId = "cl
     ? ` data-studio-lights="${String(studioLights).replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`
     : "";
   const propAttrs = play.id === "prop"
-    ? ` data-prop-act="${propAct.id}" data-prop-cam="${propCam}" data-prop-cam-h="${propCamH}" data-prop-cam-v="${propCamV}" data-prop-cam-mode="${propCamMode}" data-prop-cam-px="${propCamPx}" data-prop-cam-py="${propCamPy}" data-prop-cog="${propCog}" data-prop-sx="${propSx}" data-prop-sy="${propSy}" data-prop-sz="${propSz}" data-prop-light="${propLight}" data-prop-lint="${propLint}" data-prop-floor="${propFloor}" data-prop-flat="${propFlat}" data-prop-lcol="${propLcol}" data-prop-ldist="${propLdist}" data-prop-lpos="${propLpos}" data-prop-lhrot="${propLhrot}" data-prop-lvrot="${propLvrot}" data-prop-rhrot="${propRhrot}" data-prop-rvrot="${propRvrot}"${studioAttr}`
+    ? ` data-prop-act="${propAct.id}" data-prop-trail="${propTrail.id}" data-prop-trail-2d="${propTrail2d}" data-prop-trail-2d-col="${propTrail2dCol}" data-prop-trail-glow="${propTrailGlow}" data-prop-trail-tail="${propTrailTail}" data-prop-trail-2d-con="${propTrail2dCon}" data-prop-trail-mark="${propTrailMark}" data-prop-trail-spread="${propTrailSpread}" data-prop-trail-spd="${propTrailSpd}" data-prop-trail-pop="${propTrailPop}" data-prop-trail-join="${propTrailJoin}" data-prop-trail-in="${propTrailIn}" data-prop-trail-char="${propTrailChar}" data-prop-cam="${propCam}" data-prop-cam-h="${propCamH}" data-prop-cam-v="${propCamV}" data-prop-cam-mode="${propCamMode}" data-prop-cam-px="${propCamPx}" data-prop-cam-py="${propCamPy}" data-prop-cog="${propCog}" data-prop-sx="${propSx}" data-prop-sy="${propSy}" data-prop-sz="${propSz}" data-prop-light="${propLight}" data-prop-lint="${propLint}" data-prop-floor="${propFloor}" data-prop-flat="${propFlat}" data-prop-lcol="${propLcol}" data-prop-ldist="${propLdist}" data-prop-lpos="${propLpos}" data-prop-lhrot="${propLhrot}" data-prop-lvrot="${propLvrot}" data-prop-rhrot="${propRhrot}" data-prop-rvrot="${propRvrot}"${studioAttr}`
     : "";
   const handoff = handoffById(extras.handoff ?? extras.hand).id;
   const handSet = handoffSettingsFrom(extras);

@@ -1,0 +1,83 @@
+.kicker{
+  margin:0 0 8px; font-size:.78rem; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.lede{margin:12px 0 0; color:var(--ink-2); font-size:.98rem}
+.headIn{text-align:left; align-self:stretch}
+.barRow{display:flex; align-items:flex-start; gap:14px}
+.back{
+  flex:0 0 auto; margin-top:6px;
+  font-weight:600; font-size:.86rem; letter-spacing:-.012em;
+  color:var(--ink-2); text-decoration:none;
+}
+.back:hover{color:var(--ink)}
+.barRow .chips{flex:1; min-width:0; margin:0}
+.barRow .chips:first-child{margin-top:0}
+
+.dossier{
+  display:grid; grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr);
+  gap:clamp(22px,3vw,40px); align-items:start;
+  padding-top:clamp(22px,3vw,36px); text-align:left;
+}
+.dossier h2{
+  margin:0 0 12px; font-size:.78rem; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.dossierMain h2:not(:first-child){margin-top:clamp(28px,4vw,42px)}
+
+.stages,.revs{list-style:none; margin:0; padding:0}
+.stage{
+  display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px;
+  padding:0 0 18px;
+}
+.stageMark{
+  width:14px; height:14px; margin-top:4px; border-radius:50%;
+  border:1.5px solid rgba(26,25,22,.28); background:transparent;
+  box-shadow:0 18px 0 -7px rgba(26,25,22,.16);
+}
+.stage:last-child .stageMark{box-shadow:none}
+.stage.is-done .stageMark{background:#2F9C63; border-color:#2F9C63; box-shadow:0 18px 0 -7px rgba(47,156,99,.45)}
+.stage.is-now .stageMark{background:var(--paper-hi); border-color:var(--ink); box-shadow:0 0 0 4px rgba(26,25,22,.08), 0 18px 0 -7px rgba(26,25,22,.16)}
+.stage:last-child.is-done .stageMark,.stage:last-child.is-now .stageMark{box-shadow:0 0 0 4px rgba(47,156,99,.16)}
+.stage:last-child.is-now .stageMark{box-shadow:0 0 0 4px rgba(26,25,22,.08)}
+.stageName{margin:0; font-weight:600; letter-spacing:-.02em; font-size:1.02rem}
+.stageText{margin:3px 0 0; color:var(--ink-2); font-size:.9rem}
+.stage.is-wait .stageName,.stage.is-wait .stageText{color:var(--ink-3)}
+
+.rev{
+  display:grid; gap:2px; padding:12px 0;
+  border-top:1px solid rgba(26,25,22,.08);
+}
+.rev:first-child{border-top:0; padding-top:0}
+.revWhen{font-size:.72rem; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-3)}
+.revWhat{margin:0; letter-spacing:-.012em}
+
+.side{display:flex; flex-direction:column; gap:14px}
+.card{
+  background:var(--paper-hi); border:1px solid rgba(26,25,22,.06);
+  border-radius:18px; box-shadow:var(--sd); padding:16px 16px 14px;
+}
+.card h2{margin-bottom:8px}
+.origin{margin:0; font-weight:600; letter-spacing:-.02em; font-size:1.05rem}
+.originName{margin:6px 0 0; color:var(--ink-2); font-size:.9rem}
+.sources{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px}
+.source{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  padding:8px 10px; border-radius:12px; background:rgba(26,25,22,.03);
+}
+.source.is-on{background:rgba(47,156,99,.1)}
+.source b{font-weight:600; letter-spacing:-.015em}
+.source span{font-size:.75rem; color:var(--ink-3)}
+.source.is-on span{color:#1f7a48; font-weight:600}
+.hint{margin:0 0 12px; color:var(--ink-2); font-size:.9rem}
+.sideActs{display:flex; flex-direction:column; align-items:stretch; gap:8px}
+.sideActs .btn{width:100%; text-align:left; padding:12px 14px; border-radius:14px}
+.note{
+  margin:0; min-height:1.4em; color:var(--ink-2); font-size:.9rem;
+}
+.note:empty{display:none}
+
+@media (max-width:860px){
+  .dossier{grid-template-columns:1fr}
+  .side{position:static}
+}

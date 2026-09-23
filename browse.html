@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscar · Clímax</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav10" />
+  <link rel="stylesheet" href="ad-play.css?v=play2" />
+  <link rel="stylesheet" href="browse.css?v=browse23" />
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+  </header>
+
+  <div id="wash"></div>
+
+  <main id="stage">
+    <section class="view" id="vBrowse">
+      <div class="headIn">
+        <h1 class="display">¿Qué anuncio buscas?</h1>
+      </div>
+
+      <div class="browseBar" id="browseBar">
+        <div class="barIn">
+          <label class="search" for="searchInput">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+            <input id="searchInput" type="text" autocomplete="off" spellcheck="false" enterkeyhint="search"
+                   placeholder="Busca un clímax o un caso" aria-label="Buscar clímax">
+            <button class="sClear" id="searchClear" type="button" hidden aria-label="Borrar búsqueda">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </label>
+        </div>
+      </div>
+
+      <div class="wallIn">
+        <div class="chips" id="indChips" role="group" aria-label="Industria"></div>
+        <div class="chips" id="casoChips" role="group" aria-label="Clímax"></div>
+        <div class="chips coverChips" id="coverChips" role="group" aria-label="Portada"></div>
+        <div class="chips colsChips" id="colsChips" role="group" aria-label="Columnas"></div>
+        <label class="blitRow" for="browseBlit">
+          <span>Resolución <output id="browseBlitVal">0.8×</output></span>
+          <input id="browseBlit" type="range" min="0.1" max="1.5" step="0.05" value="0.8" aria-label="Resolución de las capturas" />
+        </label>
+        <p class="wallCount" id="wallCount"></p>
+        <div class="wall" id="pinGrid"></div>
+        <div class="wallEmpty" id="wallEmpty" hidden>
+          <p class="wallEmptyMsg">Nada por aquí todavía.</p>
+          <button class="btn" id="wallReset" type="button">Ver todos</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab btn primary" id="createBtn" type="button">Crear Creativo</button>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Crear Creativo">
+      <button class="xclose" id="modalClose" type="button" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="stillDlg" id="stillDlg" hidden>
+    <div class="stillCard" role="status" aria-live="polite" aria-labelledby="stillDlgTitle">
+      <h2 id="stillDlgTitle">Capturas del clímax</h2>
+      <p class="stillStatus" id="stillStatus">Cargando…</p>
+      <div class="stillBar" aria-hidden="true"><i id="stillBarFill"></i></div>
+      <ul class="stillErrs" id="stillErrs" hidden></ul>
+      <button class="btn quiet" id="stillDlgClose" type="button">Ocultar</button>
+    </div>
+  </div>
+
+  <script src="app-nav.js?v=nav11"></script>
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
+      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module" src="browse.js?v=browse31"></script>
+</body>
+</html>

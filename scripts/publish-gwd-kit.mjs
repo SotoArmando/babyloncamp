@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,9 +9,13 @@ export function publishGwdKit() {
   mkdirSync(dest, { recursive: true });
   mkdirSync(join(root, "public", "gtm"), { recursive: true });
   mkdirSync(join(root, "public", "iframe"), { recursive: true });
-  copyFileSync(join(root, "ad-play.css"), join(dest, "ad-play.css"));
-  copyFileSync(join(root, "gwd-shell.js"), join(dest, "gwd-shell.js"));
-  copyFileSync(join(root, "assets/3d/env-neutral.hdr"), join(dest, "env-neutral.hdr"));
+  const copyKit = (src, file) => {
+    if (!existsSync(src)) return;
+    copyFileSync(src, join(dest, file));
+  };
+  copyKit(join(root, "ad-play.css"), "ad-play.css");
+  copyKit(join(root, "gwd-shell.js"), "gwd-shell.js");
+  copyKit(join(root, "assets/3d/env-neutral.hdr"), "env-neutral.hdr");
 }
 
 publishGwdKit();

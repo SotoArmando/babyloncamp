@@ -1,4 +1,4 @@
-import { attachStudioLighting } from "./studio-lights.js?v=thumb6";
+import { attachStudioLighting } from "./studio-lights.js?v=uni3";
 
 export const ASSET_THUMB_PRESET = "estudio";
 

@@ -7,6 +7,8 @@ import { publishGwdKit } from "./publish-gwd-kit.mjs";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const port = Number(process.env.PORT) || 8765;
+const stillDir = join(root, "assets", "browse-stills");
+let stillQueue = Promise.resolve();
 const publicRoot = join(root, "public");
 const mime = {
   ".css": "text/css; charset=utf-8",
@@ -180,6 +182,34 @@ async function publish(body) {
   return { ok: true, written };
 }
 
+async function writeStill(body) {
+  const id = safeName(body.id);
+  const key = safeName(body.key);
+  const match = String(body.jpeg || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!id || !key || !match) throw new Error("captura inválida");
+  const bytes = Buffer.from(match[1].replace(/\s/g, ""), "base64");
+  if (bytes.length < 32 || bytes.length > 2 * 1024 * 1024) throw new Error("captura inválida");
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Error("captura inválida");
+  await mkdir(stillDir, { recursive: true });
+  const file = `${id}.jpg`;
+  await writeFile(join(stillDir, file), bytes);
+  const manifestPath = join(stillDir, "manifest.json");
+  let list = {};
+  if (existsSync(manifestPath)) {
+    try { list = JSON.parse(readFileSync(manifestPath, "utf8")); } catch { list = {}; }
+  }
+  if (!list || typeof list !== "object" || Array.isArray(list)) list = {};
+  list[id] = { key, file };
+  await writeFile(manifestPath, JSON.stringify(list));
+  return { ok: true, file };
+}
+
+function saveBrowseStill(body) {
+  const run = stillQueue.then(() => writeStill(body));
+  stillQueue = run.then(() => {}, () => {});
+  return run;
+}
+
 function serveStatic(req, res, method) {
   const url = new URL(req.url, "http://127.0.0.1");
   let full = diskFile(url.pathname);
@@ -251,6 +281,12 @@ createServer(async (req, res) => {
       const raw = await readBody(req);
       const body = JSON.parse(String(raw || "{}"));
       sendJson(res, 200, await publish(body));
+      return;
+    }
+    if (url.pathname === "/api/browse-still" && method === "POST") {
+      const raw = await readBody(req);
+      const body = JSON.parse(String(raw || "{}"));
+      sendJson(res, 200, await saveBrowseStill(body));
       return;
     }
     if (method === "GET" || method === "HEAD") {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Galería · Plays guardados</title>
-  <link rel="stylesheet" href="app-nav.css?v=nav3" />
+  <link rel="stylesheet" href="app-nav.css?v=nav10" />
   <style>
     :root {
       --bg: #f4f6f8;
@@ -1482,6 +1482,33 @@
     .ph-style:hover,
     .ph-style:focus-visible { outline: 1px solid var(--neon); }
     .ph-style.is-on { outline: 2px solid var(--neon); background: #fff; }
+    .prop-trails { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .prop-trails .ph-thumb {
+      height: 52px;
+      background-size: cover;
+      background-position: center;
+      font-size: 1.35rem;
+      line-height: 1;
+      overflow: hidden;
+    }
+    .prop-trails [data-trail="custom"] .ph-thumb {
+      font-size: 0.78rem;
+      letter-spacing: -0.03em;
+    }
+    .prop-trail-char input {
+      width: 6.2rem;
+      height: 1.7rem;
+      text-align: center;
+      font-size: 0.95rem;
+    }
+    .prop-trail-lab {
+      margin: 0.65rem 0 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #5c6b7a;
+    }
     .ph-thumb {
       display: grid;
       place-items: center;
@@ -1561,6 +1588,37 @@
     }
     #play-colors + .prop-file-clear {
       margin-top: 0.7rem;
+    }
+    .pal-grads {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem;
+      margin: 0.15rem 0 0.45rem;
+    }
+    .pal-grad-swatch {
+      display: block;
+      height: 28px;
+      margin-bottom: 0.22rem;
+      border-radius: 5px;
+    }
+    .pal-grad-shape {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem;
+      margin: -0.1rem 0 0.45rem;
+    }
+    .pal-grad-shape .ph-style {
+      padding: 0.4rem 0.45rem;
+      font-size: 0.68rem;
+      font-weight: 650;
+    }
+    .pal-manual {
+      display: grid;
+      gap: 0.35rem;
+      margin: 0 0 0.45rem;
+    }
+    .ph-colors label.is-held {
+      opacity: 0.45;
     }
 
     .stage {
@@ -2586,6 +2644,10 @@
       <h3>Luces de estudio</h3>
       <div class="ph-styles" id="studio-presets"></div>
       <label class="prop-lint">
+        <span>Universal <output id="studio-env-val">0.85</output></span>
+        <input id="studio-env" data-ch="env" type="range" min="0" max="3" step="0.02" value="0.85" />
+      </label>
+      <label class="prop-lint">
         <span>Luz ambiente <output id="studio-world-val">0.70</output><input id="studio-world-col" data-scol="worldCol" type="color" value="#ede8e0" aria-label="Color de la luz ambiente" /></span>
         <input id="studio-world" data-ch="world" type="range" min="0" max="3" step="0.02" value="0.7" />
       </label>
@@ -2605,6 +2667,61 @@
         <span>Exposición <output id="studio-exposure-val">1.02</output></span>
         <input id="studio-exposure" data-ch="exposure" type="range" min="0.2" max="3" step="0.02" value="1.02" />
       </label>
+      <h3>Estela de entrada</h3>
+      <p class="hand-blurb" id="prop-trail-blurb">El objeto entra sin estela.</p>
+      <p class="prop-trail-lab">Trazo</p>
+      <div class="ph-styles prop-trails" id="prop-trails"></div>
+      <label class="ph-fit-mat prop-trail-char" id="prop-trail-char-row" hidden>
+        <span>Icono</span>
+        <input id="sel-prop-trail-char" type="text" maxlength="16" value="✦" spellcheck="false" autocomplete="off" placeholder="wow" aria-label="Texto del icono" />
+      </label>
+      <p class="prop-trail-lab">Naturaleza</p>
+      <div class="ph-styles prop-trails" id="prop-trails-nature"></div>
+      <div id="prop-trail-tune">
+        <label class="prop-lint">
+          <span>Marca <output id="prop-trail-mark-val">1</output></span>
+          <input id="sel-prop-trail-mark" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <label class="prop-lint">
+          <span>Esparcir <output id="prop-trail-spread-val">1</output></span>
+          <input id="sel-prop-trail-spread" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <label class="prop-lint">
+          <span>Velocidad <output id="prop-trail-spd-val">1</output>×</span>
+          <input id="sel-prop-trail-spd" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <p class="prop-trail-lab">Colores de la estela</p>
+        <label class="ph-fit-mat">
+          <span>Color</span>
+          <input id="sel-prop-trail-2d-col" type="color" value="#f4fbff" aria-label="Color de la estela" />
+        </label>
+        <label class="ph-fit-mat">
+          <span>Destello</span>
+          <input id="sel-prop-trail-glow" type="color" value="#ffffff" aria-label="Destello de la estela" />
+        </label>
+        <label class="ph-fit-mat">
+          <span>Cola</span>
+          <input id="sel-prop-trail-tail" type="color" value="#5b7ea8" aria-label="Color de la cola" />
+        </label>
+        <label class="prop-lint">
+          <span>Contraste <output id="prop-trail-2d-con-val">1.3</output></span>
+          <input id="sel-prop-trail-2d-con" type="range" min="0.5" max="2.2" step="0.05" value="1.3" />
+        </label>
+        <p class="prop-trail-lab">Remate al objeto</p>
+        <div class="ph-styles" id="prop-trail-joins"></div>
+        <p class="hand-blurb" id="prop-trail-join-blurb">La estela estalla en el punto y deja el objeto.</p>
+        <label class="prop-lint">
+          <span>Estallido <output id="prop-trail-pop-val">1</output></span>
+          <input id="sel-prop-trail-pop" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <p class="prop-trail-lab">Entrada del objeto</p>
+        <div class="ph-styles" id="prop-trail-ins"></div>
+        <p class="hand-blurb" id="prop-trail-in-blurb">El objeto llega casi a tamaño real y se acomoda.</p>
+        <label class="prop-check">
+          <input id="sel-prop-trail-2d" type="checkbox" />
+          <span>Trazos 2D</span>
+        </label>
+      </div>
       <h3>Luces de color</h3>
       <div class="studio-extras" id="studio-extras"></div>
       <button type="button" class="prop-file-clear" id="studio-extra-add">Agregar luz</button>
@@ -2622,6 +2739,7 @@
       </label>
     </div>
     <div class="g-modal-actions">
+      <button type="button" id="btn-prop-save" disabled>Guardar en el play</button>
       <button type="button" class="primary" data-close-modal>Listo</button>
     </div>
   </dialog>
@@ -2743,8 +2861,8 @@
     } }
   </script>
   <script type="module">
-    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam25";
-    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop54";
+    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, propTrailById, PROP_TRAILS, PROP_TRAIL_JOINS, PROP_TRAIL_INS, normalizePropTrail2d, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailSpd, normalizePropTrailPop, normalizePropTrailChar, propTrailJoinById, propTrailInById, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, PROP_BG_STYLES, propBgStyleById, propBgShape, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam41";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop137";
     import {
       loadGalleryStore,
       saveGalleryStore,
@@ -2764,8 +2882,8 @@
       loadComboPropFiles,
       deleteComboPropFiles,
       resetGalleryCacheAndSettings,
-    } from "./ad-profile.js?v=poster42";
-    import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js";
+    } from "./ad-profile.js?v=trail1";
+    import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js?v=uni7";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
 
     const grid = document.getElementById("grid");
@@ -2855,6 +2973,7 @@
     const phChips = document.getElementById("ph-chips");
     const phColors = document.getElementById("ph-colors");
     const btnPhSave = document.getElementById("btn-ph-save");
+    const btnPropSave = document.getElementById("btn-prop-save");
     const selShowOff = document.getElementById("sel-show-off");
     const selSideDlg = document.getElementById("sel-side-dlg");
     const selClock = document.getElementById("sel-clock");
@@ -2883,6 +3002,7 @@
     } catch { /* optional */ }
     const assetPickClear = document.getElementById("asset-pick-clear");
     const studioPresets = document.getElementById("studio-presets");
+    const studioEnv = document.getElementById("studio-env");
     const studioWorld = document.getElementById("studio-world");
     const studioWorldCol = document.getElementById("studio-world-col");
     const studioKey = document.getElementById("studio-key");
@@ -3098,6 +3218,12 @@
       const on = Boolean(item);
       btnPhSave.disabled = !on;
       btnPhSave.title = on ? `Guardar este placeholder en ${comboShortTitle(item)}` : "Elegí un play para guardar el placeholder";
+    }
+
+    function syncPropSaveBtn(item) {
+      const on = Boolean(item) && playById(item.play).id === "prop";
+      btnPropSave.disabled = !on;
+      btnPropSave.title = on ? `Guardar este objeto en ${comboShortTitle(item)}` : "Elegí un play de objeto para guardar";
     }
 
     function hydratePlaceFromCombo(item) {
@@ -3337,6 +3463,19 @@
         pal: item.pal,
         ph: livePlace(),
         propAct: item.propAct,
+        propTrail: propTrailById(item.ptrail).id,
+        propTrail2d: normalizePropTrail2d(item.p2d, item.ptrail),
+        propTrail2dCol: normalizePropTrail2dCol(item.p2dcol),
+        propTrailGlow: normalizePropTrailGlow(item.pglo, item.p2dcol),
+        propTrailTail: normalizePropTrailTail(item.ptl, item.p2dcol),
+        propTrail2dCon: normalizePropTrail2dCon(item.p2dcon),
+        propTrailMark: normalizePropTrailMark(item.pmk),
+        propTrailSpread: normalizePropTrailSpread(item.psp),
+        propTrailSpd: normalizePropTrailSpd(item.pvel),
+        propTrailPop: normalizePropTrailPop(item.ppop),
+        propTrailJoin: propTrailJoinById(item.pjoin).id,
+        propTrailIn: propTrailInById(item.ptin).id,
+        propTrailChar: normalizePropTrailChar(item.pchar),
         propCam: normalizePropCam(item.pcam),
         propCamH: normalizePropCamH(item.pch),
         propCamV: normalizePropCamV(item.pcv),
@@ -3439,6 +3578,13 @@
 
     let palFieldsKey = "";
 
+    function manualSwatchCss(pal) {
+      const stops = `${pal.fogFrom}, ${pal.fogTo}`;
+      return propBgShape(pal.fogShape) === "radial"
+        ? `radial-gradient(circle, ${stops})`
+        : `linear-gradient(180deg, ${stops})`;
+    }
+
     function fillPlayColorFields(item) {
       const key = item ? `${item.id}:${playById(item.play).id}` : "";
       if (key === palFieldsKey && playColors.childElementCount) return;
@@ -3447,6 +3593,8 @@
       if (!item) return;
       const playId = playById(item.play).id;
       const current = resolvePalette(playId, item.pal);
+      const fogStyle = propBgStyleById(current.fogGrad).id;
+      const fogShape = propBgShape(current.fogShape);
       for (const field of playPaletteFields(playId)) {
         const label = document.createElement("label");
         label.append(field.label);
@@ -3454,8 +3602,64 @@
         input.type = "color";
         input.dataset.palKey = field.id;
         input.value = current[field.id];
+        if (field.id === "fog" && fogStyle !== "solid") label.classList.add("is-held");
         label.append(input);
         playColors.append(label);
+        if (field.id === "fog") {
+          const row = document.createElement("div");
+          row.className = "pal-grads";
+          for (const style of PROP_BG_STYLES) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `ph-style${style.id === fogStyle ? " is-on" : ""}`;
+            btn.dataset.fogGrad = style.id;
+            const swatch = document.createElement("span");
+            swatch.className = "pal-grad-swatch";
+            const stops = style.manual
+              ? [current.fogFrom, current.fogTo]
+              : (style.stops || [current.fog, current.fog]);
+            swatch.style.background = style.manual && fogShape === "radial"
+              ? `radial-gradient(circle, ${stops.join(", ")})`
+              : `linear-gradient(180deg, ${stops.join(", ")})`;
+            const name = document.createElement("span");
+            name.textContent = style.label;
+            btn.append(swatch, name);
+            row.append(btn);
+          }
+          playColors.append(row);
+          if (fogStyle === "manual") {
+            const shapes = document.createElement("div");
+            shapes.className = "pal-grad-shape";
+            for (const shape of [
+              { id: "linear", label: "Lineal" },
+              { id: "radial", label: "Circular" },
+            ]) {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = `ph-style${shape.id === fogShape ? " is-on" : ""}`;
+              btn.dataset.fogShape = shape.id;
+              btn.textContent = shape.label;
+              shapes.append(btn);
+            }
+            playColors.append(shapes);
+            const manual = document.createElement("div");
+            manual.className = "pal-manual";
+            for (const stop of [
+              { id: "fogFrom", label: fogShape === "radial" ? "Centro" : "Arriba" },
+              { id: "fogTo", label: fogShape === "radial" ? "Borde" : "Abajo" },
+            ]) {
+              const stopLabel = document.createElement("label");
+              stopLabel.append(stop.label);
+              const stopInput = document.createElement("input");
+              stopInput.type = "color";
+              stopInput.dataset.palKey = stop.id;
+              stopInput.value = current[stop.id];
+              stopLabel.append(stopInput);
+              manual.append(stopLabel);
+            }
+            playColors.append(manual);
+          }
+        }
       }
     }
 
@@ -3476,11 +3680,45 @@
       if (play) thumb.append(play);
     }
 
+    function persistFogStyle(styleId) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      const next = propBgStyleById(styleId).id;
+      const pal = { ...(item.pal && typeof item.pal === "object" ? item.pal : {}) };
+      if (next === "solid") delete pal.fogGrad;
+      else pal.fogGrad = next;
+      item.pal = pal;
+      saveGalleryStore(store);
+      palFieldsKey = "";
+      fillPlayColorFields(item);
+      applyPalLive(item);
+      paintComboPoster(item);
+      applyPlaceLive();
+    }
+
+    function persistFogShape(shapeId) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      const next = propBgShape(shapeId);
+      const pal = { ...(item.pal && typeof item.pal === "object" ? item.pal : {}) };
+      if (next === "linear") delete pal.fogShape;
+      else pal.fogShape = next;
+      item.pal = pal;
+      saveGalleryStore(store);
+      palFieldsKey = "";
+      fillPlayColorFields(item);
+      applyPalLive(item);
+    }
+
     function persistPlayColor(fieldId, hex, save) {
       const item = selectedCombo();
       if (!item) return;
       item.pal = { ...(item.pal && typeof item.pal === "object" ? item.pal : {}), [fieldId]: normHex(hex) };
       if (save) saveGalleryStore(store);
+      if (fieldId === "fogFrom" || fieldId === "fogTo") {
+        const swatch = playColors.querySelector('[data-fog-grad="manual"] .pal-grad-swatch');
+        if (swatch) swatch.style.background = manualSwatchCss(resolvePalette(item.play, item.pal));
+      }
       applyPalLive(item);
       paintComboPoster(item);
       applyPlaceLive();
@@ -3516,12 +3754,15 @@
       if (!isProp) {
         closePropPanel();
         closePreviewModal(assetPanel);
+        syncPropSaveBtn(item);
         return;
       }
       const studio = comboStudio(item);
       studioPresets.querySelectorAll(".ph-style").forEach((btn) => {
         btn.classList.toggle("is-on", btn.dataset.studio === studio.preset);
       });
+      studioEnv.value = String(studio.env);
+      document.getElementById("studio-env-val").textContent = Number(studio.env).toFixed(2);
       studioWorld.value = String(studio.world);
       document.getElementById("studio-world-val").textContent = Number(studio.world).toFixed(2);
       studioWorldCol.value = studio.worldCol;
@@ -3550,6 +3791,8 @@
       const rvrot = normalizePropSpin(item.prv);
       selPropRvrot.value = rvrot;
       propRvrotVal.textContent = `${rvrot}°`;
+      syncTrailUi(item);
+      syncPropSaveBtn(item);
     }
 
     function paintStudioExtras(studio) {
@@ -3606,6 +3849,22 @@
       applyPropLightLive(item);
     }
 
+    function savePropToPlay() {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      const charInput = document.getElementById("sel-prop-trail-char");
+      if (charInput && propTrailById(item.ptrail).id === "custom") {
+        item.pchar = normalizePropTrailChar(charInput.value);
+      }
+      saveGalleryStore(store);
+      applyPropLightLive(item);
+      const label = btnPropSave.textContent;
+      btnPropSave.textContent = "Guardado";
+      window.setTimeout(() => {
+        btnPropSave.textContent = label;
+      }, 1200);
+    }
+
     function applyPropLightLive(item) {
       if (!item) return;
       const packed = serializeStudioState(item.studio);
@@ -3622,8 +3881,108 @@
         el.dataset.propCamPy = normalizePropCamPan(item.ppy);
         el.dataset.propRhrot = normalizePropSpin(item.prh);
         el.dataset.propRvrot = normalizePropSpin(item.prv);
+        el.dataset.propTrail = propTrailById(item.ptrail).id;
+        el.dataset.propTrail2d = normalizePropTrail2d(item.p2d, item.ptrail);
+        el.dataset.propTrail2dCol = normalizePropTrail2dCol(item.p2dcol);
+        el.dataset.propTrailGlow = normalizePropTrailGlow(item.pglo, item.p2dcol);
+        el.dataset.propTrailTail = normalizePropTrailTail(item.ptl, item.p2dcol);
+        el.dataset.propTrail2dCon = normalizePropTrail2dCon(item.p2dcon);
+        el.dataset.propTrailMark = normalizePropTrailMark(item.pmk);
+        el.dataset.propTrailSpread = normalizePropTrailSpread(item.psp);
+        el.dataset.propTrailSpd = normalizePropTrailSpd(item.pvel);
+        el.dataset.propTrailPop = normalizePropTrailPop(item.ppop);
+        el.dataset.propTrailJoin = propTrailJoinById(item.pjoin).id;
+        el.dataset.propTrailIn = propTrailInById(item.ptin).id;
+        el.dataset.propTrailChar = normalizePropTrailChar(item.pchar);
       });
       nudgeAds();
+    }
+
+    function paintTrailChoices() {
+      const stroke = document.getElementById("prop-trails");
+      const nature = document.getElementById("prop-trails-nature");
+      if (!stroke || stroke.childElementCount) return;
+      const button = (item) => `
+        <button type="button" class="ph-style" data-trail="${item.id}">
+          <span class="ph-thumb"${item.thumb ? ` style="background-image:url('${item.thumb}')"` : ""}>${item.id === "custom" ? "✦" : ""}</span>
+          ${item.label}
+        </button>`;
+      stroke.innerHTML = PROP_TRAILS.filter((item) => item.group === "trazo").map(button).join("");
+      nature.innerHTML = PROP_TRAILS.filter((item) => item.group === "naturaleza").map(button).join("");
+      document.getElementById("prop-trail-joins").innerHTML = PROP_TRAIL_JOINS.map((item) => `
+        <button type="button" class="ph-style" data-trail-join="${item.id}">${item.label}</button>`).join("");
+      document.getElementById("prop-trail-ins").innerHTML = PROP_TRAIL_INS.map((item) => `
+        <button type="button" class="ph-style" data-trail-in="${item.id}">${item.label}</button>`).join("");
+    }
+
+    function syncTrailUi(item) {
+      paintTrailChoices();
+      const trail = propTrailById(item?.ptrail);
+      const tune = document.getElementById("prop-trail-tune");
+      const blurb = document.getElementById("prop-trail-blurb");
+      if (tune) tune.hidden = trail.id === "none";
+      if (blurb) blurb.textContent = trail.blurb;
+      const charRow = document.getElementById("prop-trail-char-row");
+      const charInput = document.getElementById("sel-prop-trail-char");
+      const char = normalizePropTrailChar(item?.pchar);
+      if (charRow) charRow.hidden = trail.id !== "custom";
+      if (charInput && document.activeElement !== charInput) charInput.value = char;
+      const customThumb = document.querySelector('#prop-trails [data-trail="custom"] .ph-thumb');
+      if (customThumb) customThumb.textContent = char;
+      document.querySelectorAll("#prop-trails [data-trail], #prop-trails-nature [data-trail]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.trail === trail.id);
+      });
+      const join = propTrailJoinById(item?.pjoin);
+      document.querySelectorAll("[data-trail-join]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.trailJoin === join.id);
+      });
+      const joinBlurb = document.getElementById("prop-trail-join-blurb");
+      if (joinBlurb) joinBlurb.textContent = join.blurb;
+      const enter = propTrailInById(item?.ptin);
+      document.querySelectorAll("[data-trail-in]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.trailIn === enter.id);
+      });
+      const enterBlurb = document.getElementById("prop-trail-in-blurb");
+      if (enterBlurb) enterBlurb.textContent = enter.blurb;
+      const mark = document.getElementById("sel-prop-trail-mark");
+      const spread = document.getElementById("sel-prop-trail-spread");
+      const spd = document.getElementById("sel-prop-trail-spd");
+      const pop = document.getElementById("sel-prop-trail-pop");
+      const con = document.getElementById("sel-prop-trail-2d-con");
+      const flat = document.getElementById("sel-prop-trail-2d");
+      if (mark) mark.value = normalizePropTrailMark(item?.pmk);
+      if (spread) spread.value = normalizePropTrailSpread(item?.psp);
+      if (spd) spd.value = normalizePropTrailSpd(item?.pvel);
+      if (pop) pop.value = normalizePropTrailPop(item?.ppop);
+      if (con) con.value = normalizePropTrail2dCon(item?.p2dcon);
+      if (flat) flat.checked = normalizePropTrail2d(item?.p2d, item?.ptrail) === "1";
+      const col = document.getElementById("sel-prop-trail-2d-col");
+      const glow = document.getElementById("sel-prop-trail-glow");
+      const tail = document.getElementById("sel-prop-trail-tail");
+      if (col) col.value = normalizePropTrail2dCol(item?.p2dcol);
+      if (glow) glow.value = normalizePropTrailGlow(item?.pglo, item?.p2dcol);
+      if (tail) tail.value = normalizePropTrailTail(item?.ptl, item?.p2dcol);
+      const markVal = document.getElementById("prop-trail-mark-val");
+      const spreadVal = document.getElementById("prop-trail-spread-val");
+      const spdVal = document.getElementById("prop-trail-spd-val");
+      const popVal = document.getElementById("prop-trail-pop-val");
+      const conVal = document.getElementById("prop-trail-2d-con-val");
+      if (markVal) markVal.textContent = Number(normalizePropTrailMark(item?.pmk)).toFixed(2);
+      if (spreadVal) spreadVal.textContent = Number(normalizePropTrailSpread(item?.psp)).toFixed(2);
+      if (spdVal) spdVal.textContent = Number(normalizePropTrailSpd(item?.pvel)).toFixed(2);
+      if (popVal) popVal.textContent = Number(normalizePropTrailPop(item?.ppop)).toFixed(2);
+      if (conVal) conVal.textContent = Number(normalizePropTrail2dCon(item?.p2dcon)).toFixed(2);
+    }
+
+    function writeTrail(item, patch, restart) {
+      Object.assign(item, patch);
+      saveGalleryStore(store);
+      syncTrailUi(item);
+      applyPropLightLive(item);
+      if (restart && playing) {
+        rewindAds();
+        startPlayProgress(item);
+      }
     }
 
     function persistPropRhrot(raw, save) {
@@ -3783,6 +4142,17 @@
       });
     }
 
+    function propTrailWarm(item) {
+      if (!item || playById(item.play).id !== "prop") return null;
+      const kind = propTrailById(item.ptrail).id;
+      if (!kind || kind === "none") return null;
+      return {
+        kind,
+        char: normalizePropTrailChar(item.pchar),
+        draw2d: normalizePropTrail2d(item.p2d, item.ptrail) === "1",
+      };
+    }
+
     async function preloadCombo(item) {
       if (!item) return;
       await Promise.all([
@@ -3790,7 +4160,8 @@
         applyComboPropModel(item),
         preloadAdImage(item),
       ]);
-      if (playById(item.play).id === "prop" && item.pmesh) await warmupPropGpu();
+      const trail = propTrailWarm(item);
+      if (playById(item.play).id === "prop" && (item.pmesh || trail)) await warmupPropGpu(undefined, trail);
     }
 
     async function preloadThenPlay() {
@@ -4673,6 +5044,87 @@
     selPropRhrot.addEventListener("change", () => persistPropRhrot(selPropRhrot.value, true));
     selPropRvrot.addEventListener("input", () => persistPropRvrot(selPropRvrot.value, false));
     selPropRvrot.addEventListener("change", () => persistPropRvrot(selPropRvrot.value, true));
+    propPanel.addEventListener("click", (event) => {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      const trail = event.target.closest("[data-trail]");
+      if (trail) {
+        writeTrail(item, { ptrail: propTrailById(trail.dataset.trail).id }, true);
+        return;
+      }
+      const join = event.target.closest("[data-trail-join]");
+      if (join) {
+        writeTrail(item, { pjoin: propTrailJoinById(join.dataset.trailJoin).id }, true);
+        return;
+      }
+      const enter = event.target.closest("[data-trail-in]");
+      if (enter) writeTrail(item, { ptin: propTrailInById(enter.dataset.trailIn).id }, true);
+    });
+    const trailLive = (read, assign) => {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      assign(item, read());
+      syncTrailUi(item);
+      applyPropLightLive(item);
+    };
+    const trailSave = () => {
+      const item = selectedCombo();
+      if (item) saveGalleryStore(store);
+    };
+    document.getElementById("sel-prop-trail-char")?.addEventListener("input", (event) => {
+      const raw = event.target.value;
+      if (!String(raw).trim()) return;
+      const next = normalizePropTrailChar(raw);
+      trailLive(() => next, (item, value) => { item.pchar = value; });
+    });
+    document.getElementById("sel-prop-trail-char")?.addEventListener("change", (event) => {
+      const next = normalizePropTrailChar(event.target.value);
+      event.target.value = next;
+      trailLive(() => next, (item, value) => { item.pchar = value; });
+      trailSave();
+    });
+    document.getElementById("sel-prop-trail-mark")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.pmk = normalizePropTrailMark(value); });
+    });
+    document.getElementById("sel-prop-trail-spread")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.psp = normalizePropTrailSpread(value); });
+    });
+    document.getElementById("sel-prop-trail-spd")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.pvel = normalizePropTrailSpd(value); });
+    });
+    document.getElementById("sel-prop-trail-pop")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.ppop = normalizePropTrailPop(value); });
+    });
+    document.getElementById("sel-prop-trail-2d-con")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.p2dcon = normalizePropTrail2dCon(value); });
+    });
+    for (const id of ["sel-prop-trail-mark", "sel-prop-trail-spread", "sel-prop-trail-spd", "sel-prop-trail-pop", "sel-prop-trail-2d-con"]) {
+      document.getElementById(id)?.addEventListener("change", () => {
+        trailSave();
+        if (id !== "sel-prop-trail-mark" && id !== "sel-prop-trail-spread") return;
+        const item = selectedCombo();
+        if (!item || !playing) return;
+        rewindAds();
+        startPlayProgress(item);
+      });
+    }
+    document.getElementById("sel-prop-trail-2d-col")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.p2dcol = normalizePropTrail2dCol(value); });
+    });
+    document.getElementById("sel-prop-trail-glow")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.pglo = normalizePropTrailGlow(value, item.p2dcol); });
+    });
+    document.getElementById("sel-prop-trail-tail")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.ptl = normalizePropTrailTail(value, item.p2dcol); });
+    });
+    for (const id of ["sel-prop-trail-2d-col", "sel-prop-trail-glow", "sel-prop-trail-tail"]) {
+      document.getElementById(id)?.addEventListener("change", trailSave);
+    }
+    document.getElementById("sel-prop-trail-2d")?.addEventListener("change", (event) => {
+      const item = selectedCombo();
+      if (!item) return;
+      writeTrail(item, { p2d: event.target.checked ? "1" : "0" }, true);
+    });
     btnResetWidth.addEventListener("click", restorePreviewWidth);
     split.addEventListener("pointerdown", (event) => {
       if (currentShelf() === "belt") return;
@@ -4752,6 +5204,16 @@
       if (!input) return;
       persistPlayColor(input.dataset.palKey, input.value, true);
     });
+    playColors.addEventListener("click", (event) => {
+      const shape = event.target.closest("[data-fog-shape]");
+      if (shape) {
+        persistFogShape(shape.dataset.fogShape);
+        return;
+      }
+      const btn = event.target.closest("[data-fog-grad]");
+      if (!btn) return;
+      persistFogStyle(btn.dataset.fogGrad);
+    });
     playColorsReset.addEventListener("click", resetPlayColors);
     btnHand.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -4794,6 +5256,7 @@
       setPlaceOpen(!phPanel.open);
     });
     btnPhSave.addEventListener("click", savePlaceToPlay);
+    btnPropSave.addEventListener("click", savePropToPlay);
     btnProp.addEventListener("click", (event) => {
       event.stopPropagation();
       setPropOpen(!propPanel.open);
@@ -4814,7 +5277,7 @@
       if (!btn) return;
       persistStudioPreset(btn.dataset.studio);
     });
-    for (const input of [studioWorld, studioKey, studioFill, studioRim, studioExposure]) {
+    for (const input of [studioEnv, studioWorld, studioKey, studioFill, studioRim, studioExposure]) {
       input.addEventListener("input", () => persistStudioChannel(input.dataset.ch, input.value, false));
       input.addEventListener("change", () => persistStudioChannel(input.dataset.ch, input.value, true));
     }
@@ -4958,6 +5421,6 @@
     fillHandStyles();
     renderGrid();
   </script>
-  <script src="app-nav.js?v=nav3"></script>
+  <script src="app-nav.js?v=nav11"></script>
 </body>
 </html>

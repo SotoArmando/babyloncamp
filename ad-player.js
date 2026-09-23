@@ -1,10 +1,11 @@
 import { loadBanner, applyWaveToDom, startShapePlayer, wavePathD, STORAGE_KEY } from "./ad4-banner.js";
-import { playById, resolvePalette, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam18";
+import { playById, resolvePalette, propBgStyleById, propBgShape, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, propTrailById, propTrailMs, propTrailJoinById, propTrailInById, propTrailFlyEnd, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailPop, normalizePropTrailChar, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam41";
 import { attachPlay2D, PLAY_2D_MS } from "./play-2d.js";
-import { attachStudioLighting, parseStudioState } from "./studio-lights.js";
+import { attachStudioLighting, parseStudioState } from "./studio-lights.js?v=uni7";
 import { writeClockLook, paintHostClock } from "./ad-clock.js";
 import { listFolderAssets, loadAssetFilesForMesh } from "./ad-assets.js";
-import { propActionMs, propPose } from "./prop-climax.js";
+import { propActionMs, propPose, isDriveAction } from "./prop-climax.js";
+import { attachPropTrail, warmPropTrail, warmPropTrailGpu, propTrailUsesGpu } from "./prop-trail.js?v=fx51";
 import { runHandoff } from "./handoff-run.js";
 
 export const CONFIG = {
@@ -438,7 +439,7 @@ function resetPlay(container, unit) {
   unit.adIn = false;
   unit.journeyAt = 0;
   unit.clockStarted = 0;
-  container.classList.remove("is-climax", "is-pre-exit", "is-ad-in", "is-handoff", "is-handoff-hold", "is-handoff-done");
+  container.classList.remove("is-climax", "is-pre-exit", "is-ad-in", "is-handoff", "is-handoff-hold", "is-handoff-done", "is-trail");
 }
 
 function attachTimedClimax(container, scene, ms) {
@@ -521,7 +522,9 @@ function span(t, a, b) {
 export function playDurationMs(play, propAct, hand, handOpts) {
   const reveal = CONFIG.adRevealMs + handoffRuntimeMs(hand, { ...handOpts, play });
   if (play === "pre-enter") return CONFIG.preEnterMs + CONFIG.preExitMs + reveal;
-  if (play === "prop") return propActionMs(propAct) + reveal;
+  if (play === "prop") {
+    return propTrailMs(handOpts?.ptrail ?? handOpts?.propTrail, handOpts?.pvel ?? handOpts?.propTrailSpd) + propActionMs(propAct) + reveal;
+  }
   if (play === "horizon" || play === "sundown") {
     return CONFIG.horizonDelayMs + CONFIG.horizonRiseMs + CONFIG.horizonHoldMs + reveal;
   }
@@ -549,6 +552,15 @@ function mixPose(a, b, u) {
     if (typeof b[key] === "number") out[key] = lerp(a[key] ?? b[key], b[key], u);
   }
   return out;
+}
+
+function setTreeVisibility(node, vis) {
+  const v = Math.min(1, Math.max(0, vis));
+  if (!node || node._propVis === v) return;
+  node._propVis = v;
+  if (typeof node.visibility === "number") node.visibility = v;
+  const meshes = node.getChildMeshes ? node.getChildMeshes() : [];
+  for (const mesh of meshes) mesh.visibility = v;
 }
 
 function mix3(a, b, t) {
@@ -928,6 +940,92 @@ function placeAimPolar(light, target, dist, hDeg, vDeg, from, dir) {
   light.range = dist * 2.6 + 2.4;
 }
 
+const SKY_GRAD_VERT = `
+precision highp float;
+attribute vec3 position;
+uniform mat4 worldViewProjection;
+varying vec3 vDir;
+void main(void) {
+  vDir = position;
+  gl_Position = worldViewProjection * vec4(position, 1.0);
+}
+`;
+
+const SKY_GRAD_FRAG = `
+precision highp float;
+varying vec3 vDir;
+uniform vec3 c0;
+uniform vec3 c1;
+uniform vec3 c2;
+uniform vec3 c3;
+uniform vec3 sunDir;
+uniform vec3 focusDir;
+uniform float sunGain;
+uniform float gradShape;
+uniform float manualGrad;
+void main(void) {
+  vec3 dir = normalize(vDir);
+  float h = dir.y;
+  vec3 col;
+  if (manualGrad > 0.5) {
+    if (gradShape > 0.5) {
+      float d = acos(clamp(dot(dir, normalize(focusDir)), -1.0, 1.0));
+      float t = clamp(d / 0.62, 0.0, 1.0);
+      col = mix(c0, c1, smoothstep(0.02, 0.92, t));
+    } else {
+      col = mix(c0, c1, smoothstep(-0.055, -0.2, h));
+    }
+  } else {
+    col = mix(c0, c1, smoothstep(-0.06, -0.105, h));
+    col = mix(col, c2, smoothstep(-0.09, -0.15, h));
+    col = mix(col, c3, smoothstep(-0.135, -0.21, h));
+    float glow = pow(max(dot(dir, normalize(sunDir)), 0.0), 1800.0);
+    col += vec3(1.0, 0.7, 0.32) * glow * sunGain;
+  }
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function skyGradMaterial(scene) {
+  if (scene.metadata.skyGrad) return scene.metadata.skyGrad;
+  if (!BABYLON.Effect.ShadersStore.skyGradVertexShader) {
+    BABYLON.Effect.ShadersStore.skyGradVertexShader = SKY_GRAD_VERT;
+    BABYLON.Effect.ShadersStore.skyGradFragmentShader = SKY_GRAD_FRAG;
+  }
+  const mat = new BABYLON.ShaderMaterial("skyGrad", scene, "skyGrad", {
+    attributes: ["position"],
+    uniforms: ["worldViewProjection", "c0", "c1", "c2", "c3", "sunDir", "focusDir", "sunGain", "gradShape", "manualGrad"],
+  });
+  mat.backFaceCulling = false;
+  mat.disableDepthWrite = true;
+  scene.metadata.skyGrad = mat;
+  return mat;
+}
+
+function paintSkyGradient(mat, style, camera, sun, pal) {
+  if (!mat.skyTones) mat.skyTones = [0, 1, 2, 3].map(() => new BABYLON.Color3());
+  if (!mat.skyFocus) mat.skyFocus = new BABYLON.Vector3();
+  const manual = Boolean(style.manual);
+  const stops = manual
+    ? [pal?.fogFrom || "#2a6cb8", pal?.fogTo || "#e7f3fb"]
+    : (style.stops || []);
+  for (let i = 0; i < 4; i += 1) {
+    const c = hexToColor4(stops[i] || stops[stops.length - 1] || "#000");
+    mat.skyTones[i].set(c.r, c.g, c.b);
+    mat.setColor3(`c${i}`, mat.skyTones[i]);
+  }
+  const len = Math.hypot(camera.position.x, camera.position.z) || 1;
+  const fx = -camera.position.x / len;
+  const fz = -camera.position.z / len;
+  sun.set(fx, -0.155, fz);
+  mat.skyFocus.set(fx, -0.11, fz);
+  mat.setVector3("sunDir", sun);
+  mat.setVector3("focusDir", mat.skyFocus);
+  mat.setFloat("sunGain", manual ? 0 : (style.sun || 0));
+  mat.setFloat("gradShape", manual && propBgShape(pal?.fogShape) === "radial" ? 1 : 0);
+  mat.setFloat("manualGrad", manual ? 1 : 0);
+}
+
 function buildPropScene(scene) {
   const id = scene.metadata.containerId;
   const host = scene.metadata.host || document.getElementById(id);
@@ -989,11 +1087,16 @@ function buildPropScene(scene) {
   }
   const ground = BABYLON.MeshBuilder.CreateGround("floor", { width: 10, height: 10 }, scene);
   const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
-  floorMat.diffuseColor = new BABYLON.Color3(0.16, 0.16, 0.17);
+  floorMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
   floorMat.specularColor = new BABYLON.Color3(0.06, 0.06, 0.06);
   floorMat.maxSimultaneousLights = 12;
+  const floorGrade = new BABYLON.ImageProcessingConfiguration();
+  floorGrade.toneMappingEnabled = false;
+  floorGrade.exposure = 1.25;
+  floorGrade.contrast = 1.08;
+  floorMat.imageProcessingConfiguration = floorGrade;
   ground.material = floorMat;
-  ground.receiveShadows = CONFIG.propShadow > 0 && !simpleLights;
+  ground.receiveShadows = CONFIG.propShadow > 0 && !simpleLights && !studioRig;
   const blob = BABYLON.MeshBuilder.CreateDisc("contact", { radius: 0.48, tessellation: 28 }, scene);
   blob.rotation.x = Math.PI / 2;
   blob.position.y = 0.01;
@@ -1012,21 +1115,6 @@ function buildPropScene(scene) {
   standMat.specularColor = new BABYLON.Color3(0.28, 0.28, 0.28);
   standMat.maxSimultaneousLights = 12;
   stand.material = standMat;
-  const floorLite = studioRig
-    ? studioLight(new BABYLON.HemisphericLight("floorLite", new BABYLON.Vector3(0.08, 1, 0.12), scene))
-    : null;
-  if (floorLite) {
-    floorLite.diffuse = new BABYLON.Color3(1, 1, 1);
-    floorLite.groundColor = new BABYLON.Color3(1, 1, 1);
-    floorLite.includedOnlyMeshes.push(ground, stand);
-  }
-  const keepFloorNeutral = (light) => {
-    if (!light || light === floorLite) return;
-    if (light.includedOnlyMeshes?.length) return;
-    if (!light.excludedMeshes.includes(ground)) {
-      light.excludedMeshes.push(ground, stand, blob);
-    }
-  };
   const trophy = BABYLON.MeshBuilder.CreatePolyhedron("starTrophy", { type: 1, size: 0.16 }, scene);
   const trophyMat = new BABYLON.StandardMaterial("starTrophyMat", scene);
   trophyMat.diffuseColor = new BABYLON.Color3(1, 0.88, 0.32);
@@ -1037,6 +1125,7 @@ function buildPropScene(scene) {
   const size = 0.72;
   const half = size * 0.5;
   const root = new BABYLON.TransformNode("propRoot", scene);
+  const fx = attachPropTrail(BABYLON, scene);
   const box = BABYLON.MeshBuilder.CreateBox("prop", { size }, scene);
   box.parent = root;
   const ball = BABYLON.MeshBuilder.CreateSphere("propBall", { diameter: size * 0.92, segments: 18 }, scene);
@@ -1153,6 +1242,7 @@ function buildPropScene(scene) {
     unit0.propTag = host?.dataset?.propTag || propSrc?.tag || "";
     unit0.waitProp = Boolean(propSrc?.file);
     unit0.propReady = !propSrc?.file;
+    unit0.trailFx = fx;
   }
   let logicAcc = 0;
   let logicT = 0;
@@ -1160,6 +1250,15 @@ function buildPropScene(scene) {
   let logicAction = "";
   let posePrev = null;
   let poseCurr = null;
+  let introT = 1;
+  let introPrev = 1;
+  let trailCfg = "";
+  let trailMotion = "";
+  let trailJoin = "burst";
+  let trailIn = "settle";
+  let trailPop = 1;
+  let trailClassOn = false;
+  let trailFault = false;
   loadPropImport(scene, root, shadows, propSrc).then((loaded) => {
     if (loaded) {
       if (scene.isDisposed) {
@@ -1177,13 +1276,17 @@ function buildPropScene(scene) {
       unit.journeyAt = 0;
     }
   });
+  const born = performance.now();
   setTimeout(() => {
     const unit = ads.get(id);
     if (unit?.waitProp && !unit.propReady) unit.propReady = true;
   }, 12000);
+  const skySun = new BABYLON.Vector3(0, 0.2, 1);
   scene.onBeforeRenderObservable.add(() => {
     const view = journeyView(scene);
     const action = host?.dataset.propAct || "drop";
+    const trailKind = propTrailById(host?.dataset.propTrail).id;
+    const trailSec = trailKind === "none" ? 0 : propTrailMs(trailKind, host?.dataset.propTrailSpd) / 1000;
     const torch = action === "torch" || action === "torch-front";
     const sphere = action === "ball";
     const useCustom = Boolean(custom);
@@ -1196,19 +1299,28 @@ function buildPropScene(scene) {
     const pal = hostPalette(host, "prop");
     const fogC = hexToColor4(pal.fog);
     const flatOn = host?.dataset.propFlat === "1";
+    const bgStyle = propBgStyleById(pal.fogGrad);
     if (studioRig) {
       studioRig.syncFromHost(host);
-      keepFloorNeutral(studioRig.world);
-      keepFloorNeutral(studioRig.key);
-      keepFloorNeutral(studioRig.fill);
-      keepFloorNeutral(studioRig.rim);
-      for (const extra of studioRig.extras || []) keepFloorNeutral(extra);
-      scene.clearColor = new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1);
       const skyMesh = studioRig.env?.skybox;
       const sky = studioRig.env?.skyboxMaterial;
-      if (skyMesh) skyMesh.setEnabled(!flatOn);
-      if (!flatOn && sky?.primaryColor) sky.primaryColor.set(fogC.r, fogC.g, fogC.b);
-      if (floorLite) floorLite.intensity = Math.max(0.45, (studioRig.getState().world || 0.7) * 0.95);
+      const graded = bgStyle.id !== "solid" && (bgStyle.stops || bgStyle.manual);
+      if (skyMesh) skyMesh.setEnabled(!flatOn || graded);
+      if (graded && skyMesh) {
+        try {
+          const mat = skyGradMaterial(scene);
+          if (skyMesh.material !== mat) skyMesh.material = mat;
+          paintSkyGradient(mat, bgStyle, camera, skySun, pal);
+          const hem = hexToColor4(bgStyle.manual ? pal.fogTo : (bgStyle.stops[2] || bgStyle.stops[0]));
+          scene.clearColor = new BABYLON.Color4(hem.r, hem.g, hem.b, 1);
+        } catch {
+          /* el sólido sigue si el degradado no compila */
+        }
+      } else {
+        if (skyMesh && sky && skyMesh.material !== sky) skyMesh.material = sky;
+        scene.clearColor = new BABYLON.Color4(fogC.r, fogC.g, fogC.b, 1);
+        if (!flatOn && sky?.primaryColor) sky.primaryColor.set(fogC.r, fogC.g, fogC.b);
+      }
     } else {
       const baseHemi = simpleLights ? 0.95 : 0.62;
       hemi.intensity = torch
@@ -1250,7 +1362,13 @@ function buildPropScene(scene) {
     const aimC = hexToColor4(normalizePropLcol(host?.dataset.propLcol));
     const starC = hexToColor4(pal.star || "#ffe566");
     const floorShade = studioRig ? 1 : aimOn ? 0.68 : 1;
-    floorMat.diffuseColor.set(floorC.r * floorShade, floorC.g * floorShade, floorC.b * floorShade);
+    const studioNow = studioRig?.getState?.();
+    const floorLit = studioNow ? 0.12 : floorShade;
+    floorMat.diffuseColor.set(floorC.r * floorLit, floorC.g * floorLit, floorC.b * floorLit);
+    const floorSun = studioNow
+      ? Math.min(1.15, studioNow.world * 0.45 + studioNow.key * 0.55 + studioNow.fill * 0.35 + studioNow.env * 0.2)
+      : 0;
+    floorMat.emissiveColor.set(floorC.r * floorSun, floorC.g * floorSun, floorC.b * floorSun);
     floorMat.specularColor.set(aimOn ? 0.02 : 0.06, aimOn ? 0.02 : 0.06, aimOn ? 0.02 : 0.06);
     standMat.diffuseColor.set(standC.r, standC.g, standC.b);
     standMat.emissiveColor.set(standC.r * 0.08, standC.g * 0.08, standC.b * 0.08);
@@ -1284,9 +1402,13 @@ function buildPropScene(scene) {
       logicAcc = 0;
       logicT = 0;
       logicNow = 0;
+      introT = trailSec > 0 ? 0 : 1;
+      introPrev = introT;
       posePrev = null;
       poseCurr = null;
+      fx.reset();
       unit.propT = 0;
+      unit.trailSettled = false;
       unit.journeyAt = 0;
     }
     const ms = propActionMs(action) / 1000;
@@ -1309,18 +1431,86 @@ function buildPropScene(scene) {
       }
     }
     const poseHalf = useCustom ? customHalf * (dim.y / size) : dim.y * 0.5;
+    if (trailKind === "none") {
+      if (trailCfg !== "none") {
+        fx.use("none");
+        trailCfg = "none";
+        trailMotion = "none";
+        trailJoin = "burst";
+        trailIn = "settle";
+        trailPop = 1;
+        introT = 1;
+        introPrev = 1;
+      }
+    } else {
+      const trail2d = host?.dataset.propTrail2d === "1";
+      const trailCol = normalizePropTrail2dCol(host?.dataset.propTrail2dCol);
+      const trailCon = Number(normalizePropTrail2dCon(host?.dataset.propTrail2dCon));
+      const trailMark = Number(normalizePropTrailMark(host?.dataset.propTrailMark));
+      const trailSpread = Number(normalizePropTrailSpread(host?.dataset.propTrailSpread));
+      trailPop = Number(normalizePropTrailPop(host?.dataset.propTrailPop));
+      trailJoin = propTrailJoinById(host?.dataset.propTrailJoin).id;
+      trailIn = propTrailInById(host?.dataset.propTrailIn).id;
+      const nextCfg = [
+        trailKind, trail2d, trailCol, trailCon, trailMark, trailSpread,
+        trailPop, trailJoin, trailIn, trailSec,
+        host?.dataset.propTrailGlow, host?.dataset.propTrailTail,
+      ].join("|");
+      const nextMotion = [trailKind, trailJoin, trailIn, trailSec].join("|");
+      if (nextCfg !== trailCfg) {
+        trailCfg = nextCfg;
+        try {
+          fx.use(
+            trailKind,
+            hexToColor4(trailCol),
+            trail2d,
+            trailCon,
+            trailMark,
+            trailSpread,
+            trailJoin,
+            hexToColor4(normalizePropTrailGlow(host?.dataset.propTrailGlow, trailCol)),
+            hexToColor4(normalizePropTrailTail(host?.dataset.propTrailTail, trailCol)),
+            trailSec * 1000,
+            trailPop
+          );
+          trailFault = false;
+        } catch (err) {
+          trailFault = true;
+          introT = 1;
+          introPrev = 1;
+          console.error(err);
+          try { fx.use("none"); } catch { /* the play keeps the motor pose */ }
+        }
+      }
+      if (nextMotion !== trailMotion) {
+        trailMotion = nextMotion;
+        logicAcc = 0;
+        logicT = 0;
+        logicNow = 0;
+        introT = 0;
+        introPrev = 0;
+        posePrev = null;
+        poseCurr = null;
+        fx.reset();
+        if (unit) unit.trailSettled = false;
+      }
+    }
     const step = 1 / CONFIG.logicHz;
+    if (unit?.waitProp && !unit.propReady && performance.now() - born > 12000) unit.propReady = true;
     const meshHold = Boolean(unit?.waitProp && !unit.propReady);
     const ready = (Boolean(unit?.visible) || hold) && !meshHold;
     if (!ready) {
       logicAcc = 0;
       logicT = 0;
       logicNow = 0;
+      introT = trailSec > 0 ? 0 : 1;
+      introPrev = introT;
       posePrev = null;
       poseCurr = null;
       if (unit) {
         unit.journeyAt = 0;
         unit.propT = 0;
+        unit.trailSettled = false;
       }
     } else {
       const now = performance.now();
@@ -1339,19 +1529,33 @@ function buildPropScene(scene) {
           logicAction = action;
           logicAcc = 0;
           logicT = 0;
+          introT = trailSec > 0 ? 0 : 1;
+          introPrev = introT;
           posePrev = null;
           poseCurr = null;
+          fx.reset();
+          if (unit) unit.trailSettled = false;
         }
         logicAcc += dt;
         let steps = 0;
         if (!poseCurr) {
           poseCurr = propPose(action, 0, poseHalf);
           posePrev = poseCurr;
+          introPrev = introT;
         }
+        const trailPlay = trailSec > 0 && !trailFault;
         while (logicAcc >= step && steps < CONFIG.logicMaxSteps) {
           posePrev = poseCurr;
-          logicT = Math.min(1, logicT + step / ms);
-          poseCurr = propPose(action, logicT, poseHalf);
+          if (trailPlay && introT < 1) {
+            introPrev = introT;
+            introT = Math.min(1, introT + step / trailSec);
+            if (introT >= 1) introPrev = 1;
+            logicT = 0;
+            poseCurr = propPose(action, 0, poseHalf);
+          } else {
+            logicT = Math.min(1, logicT + step / ms);
+            poseCurr = propPose(action, logicT, poseHalf);
+          }
           logicAcc -= step;
           steps += 1;
         }
@@ -1368,6 +1572,11 @@ function buildPropScene(scene) {
     const spinV = Number(normalizePropSpin(host?.dataset.propRvrot)) * Math.PI / 180;
     p.ry += spinH;
     p.rx += spinV;
+    if (isDriveAction(action)) {
+      const vis = propCamRadius(host, view) * (view.wide ? 0.5 : view.tall ? 0.22 : 0.4);
+      p.x *= vis;
+      p.z *= vis;
+    }
     const floor = supportY(p, sphere, useCustom
       ? { x: dim.x, y: poseHalf * 2, z: dim.z }
       : dim) + 0.012;
@@ -1398,6 +1607,12 @@ function buildPropScene(scene) {
     blob.position.x = p.x;
     blob.position.z = p.z;
     blob.scaling.setAll((sphere ? 0.48 : 0.7) + lift * 1.05);
+    if (isDriveAction(action) && logicT < 0.84) {
+      const blobS = (sphere ? 0.48 : 0.7) + lift * 1.05;
+      const spd = logicT < 0.4 ? 1 : 1 - easeOut((logicT - 0.4) / 0.44);
+      blob.rotation.y = p.ry;
+      blob.scaling.set(blobS * (1 + spd * 1.35), blobS, blobS * (1 - spd * 0.42));
+    }
     blobMat.alpha = 0.4 / (1 + lift * 2.6);
     if (torch) {
       const reach = 1.55;
@@ -1436,6 +1651,109 @@ function buildPropScene(scene) {
       camera.target.x = lookX;
       camera.target.y = lookY;
       camera.target.z = 0;
+    }
+    if (isDriveAction(action)) {
+      camera.beta = Math.min(Math.PI - 0.12, camera.beta + 0.16);
+      const driveY = Math.min(0.38, p.y * 0.32 + 0.1);
+      camera.target.x = camPan ? camera.target.x - lookX : 0;
+      camera.target.y = camPan ? camera.target.y + (driveY - lookY) : driveY;
+    }
+    if (trailSec > 0 && !trailFault && ready) {
+      try {
+        const introDraw = introT >= 1 ? 1 : introPrev + (introT - introPrev) * alpha;
+        const introDone = introDraw >= 1;
+        const target = { x: p.x, y: p.y, z: p.z };
+        fx.mark?.(normalizePropTrailChar(host?.dataset.propTrailChar));
+        const fly = introDone ? target : fx.tick(introDraw, target);
+        if (introDone) {
+          if (unit && !unit.trailSettled) {
+            fx.tick(1, target);
+            unit.trailSettled = true;
+          }
+        } else if (unit) {
+          unit.trailSettled = false;
+        }
+        const flyEnd = propTrailFlyEnd(trailPop);
+        const fadeSlide = trailIn === "fade" || trailIn === "slide";
+        const landT = introDraw <= flyEnd ? (introDone ? 1 : 0) : Math.min(1, (introDraw - flyEnd) / (1 - flyEnd));
+        const joinPop = landT < 1 && landT > 0;
+        let jx = 1;
+        let jy = 1;
+        let jz = 1;
+        let jry = 0;
+        let jyOff = 0;
+        let jxOff = 0;
+        let jVis = 1;
+        const hit = Math.min(1.45, 0.72 + trailPop * 0.28);
+        if (joinPop) {
+          const t = 1 - (1 - landT) ** (2.2 + trailPop * 0.6);
+          if (trailIn === "fade") {
+            jVis = t;
+          } else if (trailIn === "slide") {
+            jVis = Math.min(1, landT / 0.22);
+            jxOff = (1 - t) * 0.52;
+          } else if (trailIn === "pop") {
+            const punch = landT < 0.32 ? 0.95 + (landT / 0.32) * 0.12 * hit : 1.07 - ((landT - 0.32) / 0.68) * 0.07 * hit;
+            jx = jy = jz = punch;
+          } else if (trailIn === "twist") {
+            const swell = landT < 0.42 ? 0.96 + t * 0.06 * hit : 1.02 - ((landT - 0.42) / 0.58) * 0.02 * hit;
+            jx = jy = jz = swell;
+            jry = (1 - t) * 0.52 * hit;
+          } else if (trailIn === "rise") {
+            const swell = landT < 0.4 ? 0.97 + t * 0.05 * hit : 1.02 - ((landT - 0.4) / 0.6) * 0.02 * hit;
+            jx = jy = jz = swell;
+            jyOff = (1 - t) * 0.16 * hit;
+          } else if (trailIn !== "plain") {
+            const swell = landT < 0.42 ? 0.94 + t * 0.1 * hit : 1.04 - ((landT - 0.42) / 0.58) * 0.04 * hit;
+            jx = jy = jz = swell;
+            jry = (1 - t) * 0.12 * hit;
+          }
+        }
+        root.position.set(fly.x + jxOff, fly.y + jyOff, fly.z);
+        root.rotation.set(p.rx, p.ry + jry, p.rz);
+        root.scaling.set(p.sx * jx, p.sy * jy, p.sz * jz);
+        const showProp = introDone || (fadeSlide ? landT > 0 : landT >= 0.08);
+        setTreeVisibility(root, showProp ? jVis : 1);
+        if (!showProp) {
+          box.setEnabled(false);
+          ball.setEnabled(false);
+          custom?.setEnabled(false);
+          trophy.setEnabled(false);
+          cone.setEnabled(false);
+          blob.setEnabled(false);
+        }
+        const trailOn = landT < 0.55;
+        if (host && trailOn !== trailClassOn) {
+          trailClassOn = trailOn;
+          host.classList.toggle("is-trail", trailOn);
+        }
+        if (!introDone) {
+          camera.target.x = fly.x * (isDriveAction(action) ? 0 : 0.35);
+          camera.target.y = (action === "star" || action === "cheer" || action === "space")
+            ? 0.14 + fly.y * 0.55
+            : isDriveAction(action)
+              ? Math.min(0.38, fly.y * 0.32 + 0.1)
+              : Math.min(0.55, fly.y * 0.45 + 0.22);
+        }
+      } catch (err) {
+        trailFault = true;
+        introT = 1;
+        introPrev = 1;
+        console.error(err);
+        root.position.set(p.x, p.y, p.z);
+        root.rotation.set(p.rx, p.ry, p.rz);
+        root.scaling.set(p.sx, p.sy, p.sz);
+        setTreeVisibility(root, 1);
+        if (host && trailClassOn) {
+          trailClassOn = false;
+          host.classList.remove("is-trail");
+        }
+        try { fx.use("none"); } catch { /* the motor pose stays */ }
+      }
+    } else if (host && trailClassOn) {
+      trailClassOn = false;
+      host.classList.remove("is-trail");
+      setTreeVisibility(root, 1);
     }
   });
 }
@@ -1902,6 +2220,11 @@ function blitAdUnit(unit, now, gl, force = false) {
   }
   unit.scene.render();
   unit.ctx.drawImage(gl, 0, 0, gl.width || bw, gl.height || bh, 0, 0, bw, bh);
+  try {
+    unit.trailFx?.composite?.(unit.ctx);
+  } catch (err) {
+    console.error(err);
+  }
   return true;
 }
 
@@ -2054,15 +2377,49 @@ export async function preloadEngine() {
   await ensureEngine();
 }
 
-export async function warmupPropGpu(tag = propCurrent) {
+async function warmTrailScene(trail) {
+  if (!propTrailUsesGpu(trail)) return;
+  const scene = new BABYLON.Scene(engine);
+  const camera = new BABYLON.ArcRotateCamera(
+    "warmTrailCam",
+    CAM_HOME,
+    1.12,
+    4.1,
+    new BABYLON.Vector3(0, 0.38, 0),
+    scene
+  );
+  camera.minZ = 0.05;
+  scene.activeCamera = camera;
+  try {
+    await warmPropTrailGpu(BABYLON, scene, trail);
+  } catch (err) {
+    console.warn("No se pudo precalentar la estela", err);
+  } finally {
+    scene.dispose();
+  }
+}
+
+export async function warmupPropGpu(tag = propCurrent, trail = null) {
   await ensureEngine();
+  const paint = warmPropTrail(trail);
   const src = getPropSource(tag) || currentPropSource();
-  if (!src?.file) return;
+  if (!src?.file) {
+    await warmTrailScene(trail);
+    await paint;
+    return;
+  }
   const key = filesCacheKey(src.files);
-  if (src.warmed === key) return;
+  if (src.warmed === key) {
+    await warmTrailScene(trail);
+    await paint;
+    return;
+  }
   const token = ++src.warmToken;
   await preparePropSourceFor(src);
-  if (token !== src.warmToken) return;
+  if (token !== src.warmToken) {
+    await paint;
+    return;
+  }
   const scene = new BABYLON.Scene(engine);
   scene.autoClear = true;
   const camera = new BABYLON.ArcRotateCamera(
@@ -2082,6 +2439,7 @@ export async function warmupPropGpu(tag = propCurrent) {
     const loaded = await loadPropImport(scene, root, null, src);
     if (token !== src.warmToken) {
       scene.dispose();
+      await paint;
       return;
     }
     if (loaded?.wrap) {
@@ -2093,16 +2451,20 @@ export async function warmupPropGpu(tag = propCurrent) {
       }
       if (token !== src.warmToken) {
         scene.dispose();
+        await paint;
         return;
       }
       await compileMeshMaterials(loaded.wrap);
       for (let i = 0; i < 3; i += 1) scene.render();
+      await warmPropTrailGpu(BABYLON, scene, trail);
     }
     scene.dispose();
+    await paint;
     if (token !== src.warmToken) return;
     src.warmed = key;
   } catch (err) {
     scene.dispose();
+    await paint;
     console.warn("No se pudo precalentar el modelo 3D", err);
   }
 }
@@ -2224,6 +2586,8 @@ function teardownAdUnit(unit) {
   }
   const container = unit.container;
   if (container) observer?.unobserve(container);
+  unit.trailFx?.dispose?.();
+  unit.trailFx = null;
   unit.scene?.dispose();
   unit.scene = null;
   if (container?.id) ads.delete(container.id);

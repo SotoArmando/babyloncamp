@@ -121,6 +121,23 @@
       display: block;
       transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
     }
+    .ad-container canvas.ad-trail-2d {
+      z-index: 8;
+      pointer-events: none;
+      background: transparent;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+    .ad-container.is-trail .ad-creative,
+    .ad-container.is-trail .ad-hint {
+      opacity: 0 !important;
+      visibility: hidden;
+    }
+    .ad-container.is-climax canvas.ad-trail-2d,
+    .ad-container[data-play="prop"].is-climax canvas.ad-trail-2d {
+      opacity: 1;
+    }
     .ad-fallback { display: none; }
     .ad-hint {
       position: absolute; left: 8px; bottom: 6px; z-index: 3;

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ficha · Clímax</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav11" />
+  <link rel="stylesheet" href="browse.css?v=browse23" />
+  <link rel="stylesheet" href="review.css?v=review1" />
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+  </header>
+
+  <div id="wash"></div>
+
+  <main id="stage">
+    <section class="view on in" id="vReview">
+      <div class="headIn">
+        <p class="kicker" id="kicker">Ficha del clímax</p>
+        <h1 class="display" id="title">Clímax</h1>
+        <p class="lede" id="lede"></p>
+      </div>
+
+      <div class="browseBar" id="browseBar">
+        <div class="barIn barRow">
+          <a class="back" href="browse.html">Buscar</a>
+          <div class="chips" id="pick" role="group" aria-label="Clímax"></div>
+        </div>
+      </div>
+
+      <div class="wallIn dossier">
+        <div class="dossierMain">
+          <h2 id="stagesTitle">Etapas</h2>
+          <ol class="stages" id="stages" aria-labelledby="stagesTitle"></ol>
+          <h2 id="revsTitle">Revisiones</h2>
+          <ol class="revs" id="revs" aria-labelledby="revsTitle"></ol>
+        </div>
+        <aside class="side">
+          <section class="card" aria-labelledby="assetTitle">
+            <h2 id="assetTitle">Asset</h2>
+            <p class="origin" id="origin"></p>
+            <p class="originName" id="originName"></p>
+            <ul class="sources" id="sources"></ul>
+          </section>
+          <section class="card" aria-labelledby="moreTitle">
+            <h2 id="moreTitle">Usar más</h2>
+            <p class="hint">Otra pieza puede entrar por una integración o por el cliente.</p>
+            <div class="sideActs" id="more"></div>
+          </section>
+          <p class="note" id="note" aria-live="polite"></p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="app-nav.js?v=nav11"></script>
+  <script type="module" src="review.js?v=review3"></script>
+</body>
+</html>
