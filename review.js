@@ -314,8 +314,77 @@ function paint() {
   elOriginName.textContent = assetCopy(asset);
   paintSources(asset);
   paintActions(item, entry, asset);
+  paintProgress(stages);
+  loadPart();
   elNote.textContent = note;
 }
+
+const API = `${location.protocol}//${location.hostname}:8780`;
+let partLevel = "user";
+
+function paintProgress(stages) {
+  const label = document.getElementById("progressLabel");
+  const wait = document.getElementById("progressWait");
+  if (!label || !wait) return;
+  const done = stages.filter((row) => row.state === "done").length;
+  const now = stages.find((row) => row.state === "now");
+  const later = stages.filter((row) => row.state === "wait").length;
+  label.textContent = `${done} de ${stages.length} listas`;
+  wait.textContent = now
+    ? `Ahora: ${now.name}.${later ? ` ${later} todavía esperan.` : ""}`
+    : "La ficha está completa.";
+}
+
+async function loadPart() {
+  const log = document.getElementById("partLog");
+  const like = document.getElementById("likeBtn");
+  const id = selectedId();
+  if (!log || !id) return;
+  try {
+    const res = await fetch(`${API}/api/ficha/${encodeURIComponent(id)}`, { credentials: "include" });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (like) like.textContent = data.likes ? `Like · ${data.likes}` : "Like";
+    log.innerHTML = (data.events || []).map((row) => `
+      <li class="rev">
+        <span class="revWhen">${esc(row.actor)} · ${esc(row.level)} · ${esc(row.kind)}</span>
+        ${row.kind === "image" && row.body.startsWith("data:") ? `<img class="partImg" alt="" src="${esc(row.body)}">` : row.kind === "image" ? `<img class="partImg" alt="" src="${API}${row.body}">` : `<p class="revWhat">${esc(row.body)}</p>`}
+      </li>`).join("");
+  } catch { /* sin servicio de cuentas */ }
+}
+
+async function postPart(kind, body) {
+  await fetch(`${API}/api/ficha/${encodeURIComponent(selectedId())}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, body, level: partLevel }),
+  });
+  loadPart();
+}
+
+document.getElementById("partLevel")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-level]");
+  if (!button) return;
+  partLevel = button.dataset.level;
+  document.querySelectorAll("#partLevel .chip").forEach((chip) => chip.classList.toggle("on", chip === button));
+});
+document.getElementById("likeBtn")?.addEventListener("click", () => postPart("like", "Like"));
+document.getElementById("commentBtn")?.addEventListener("click", () => {
+  const text = document.getElementById("partComment")?.value.trim();
+  if (!text) return;
+  postPart("comment", text);
+  document.getElementById("partComment").value = "";
+});
+document.getElementById("partImage")?.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  await postPart("image", `data:${file.type || "image/jpeg"};base64,${btoa(binary)}`);
+});
 
 function syncBar() {
   const bar = document.querySelector(".app-bar");

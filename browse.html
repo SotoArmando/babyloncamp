@@ -6,13 +6,173 @@
   <title>Buscar · Clímax</title>
   <link rel="stylesheet" href="app-nav.css?v=nav10" />
   <link rel="stylesheet" href="ad-play.css?v=play2" />
-  <link rel="stylesheet" href="browse.css?v=browse23" />
+  <link rel="stylesheet" href="browse.css?v=browse46" />
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
+      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
 </head>
 <body>
+  <div id="createShell" class="createShell" aria-hidden="true" inert>
+    <a class="createShellScrim" href="#vBrowse" aria-label="Cerrar"></a>
+    <div class="createShellPanel" id="createShellPanel" role="dialog" aria-modal="true" aria-labelledby="createLookTitle">
+      <div class="createProgress" aria-hidden="true"><i></i></div>
+      <a class="xclose createShellClose" id="createShellClose" href="#vBrowse" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </a>
+      <div class="createStage" id="createStage">
+  <div id="createLookIndustry" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker">Paso 1 de 4</p>
+      <h2 id="createLookIndustryTitle" class="stepTitle" tabindex="-1">¿Para qué industria es?</h2>
+      <p class="createLookGuide">Elige a quién va dirigido el anuncio. El siguiente paso muestra los clímax de la galería asignados a esa industria.</p>
+      <div class="createLookIndustries" id="createLookIndustries"></div>
+    </div>
+  </div>
+
+  <div id="createLookProto" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker">Paso 2 de 4</p>
+      <h2 id="createLookProtoTitle" class="stepTitle" tabindex="-1">Clímax de esta industria</h2>
+      <p class="createLookGuide" id="createLookProtoGuide">Elige un prototipo de la galería como referencia. Puedes seguir sin elegir uno.</p>
+      <div class="createLookProtos" id="createLookProtos"></div>
+      <p class="createLookHint" id="createLookProtoEmpty" hidden>Esta industria todavía no tiene clímax asignados.</p>
+      <div class="createLookActions">
+        <button class="btn primary" id="createLookProtoNext" type="button">Seguir con la imagen</button>
+        <a class="btn quiet" href="#createLookIndustry">volver</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="createLook" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker">Paso 3 de 4</p>
+      <h2 id="createLookTitle" class="stepTitle" tabindex="-1">La imagen del anuncio</h2>
+      <p class="createLookGuide">Puedes subir una foto de este equipo y, a la vez, copiar el enlace para que otra persona suba la suya. Después seguimos con el formato y el clímax.</p>
+      <div class="createLookSplit">
+      <section class="createLookSection is-file">
+        <h3>Subir un archivo</h3>
+        <p class="createLookHint">JPG, PNG o WebP de este equipo.</p>
+        <label class="createLookDrop">
+          <input class="createLookFile" id="createLookFile" type="file" accept="image/*" aria-label="Subir imagen del anuncio">
+          <span class="createLookOptName">Elegir imagen</span>
+          <span class="createLookOptLine">La foto se queda en este equipo.</span>
+        </label>
+        <p class="createLookHint" id="createLookFileName" hidden></p>
+      </section>
+      <section class="createLookSection is-link">
+        <h3>Enlace para que otra persona suba la foto</h3>
+        <p class="createLookHint">Copia este enlace y envíaselo. En esa página puede elegir un JPG, PNG o WebP.</p>
+        <label class="createLookAsk" for="createLookAskText">
+          <span>Qué foto necesitas</span>
+          <textarea id="createLookAskText" rows="2" placeholder="Ejemplo: una taza de café sobre mármol, con luz de mañana."></textarea>
+        </label>
+        <p class="createLookHint">Este texto sale en su página. Si lo dejas vacío, igual puede enviar la foto.</p>
+        <label class="createLookAsk" for="createLookPass">
+          <span>Contraseña del enlace</span>
+          <input id="createLookPass" type="text" autocomplete="off" placeholder="Opcional. Quien abra el enlace la escribe primero.">
+        </label>
+        <div class="createLookShare">
+          <label for="createLookLink">Enlace</label>
+          <div class="createLookShareRow">
+            <input id="createLookLink" type="text" readonly>
+            <button class="btn" id="createLookCopy" type="button">Copiar enlace</button>
+          </div>
+          <p class="createLookHint" id="createLookCopyNote" hidden>Enlace copiado.</p>
+        </div>
+        <button class="btn" id="createLookPreview" type="button">Ver la página donde sube la foto</button>
+      </section>
+      </div>
+      <div class="createLookActions">
+        <button class="btn primary" id="createLookNext" type="button">Seguir con el creativo</button>
+        <a class="btn quiet" href="#createLookProto">volver</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="createLookReceive" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker">Página del enlace</p>
+      <h2 id="createLookReceiveTitle" class="stepTitle" tabindex="-1">Sube la foto del anuncio</h2>
+      <p class="createLookGuide" id="createLookReceiveLead">Elige un archivo JPG, PNG o WebP. Vas a ver la foto aquí antes de enviarla.</p>
+      <p class="createLookReceiveAsk" id="createLookReceiveAsk" hidden></p>
+      <div class="createLookSplit">
+        <div>
+          <ol class="createLookSteps" id="createLookReceiveSteps">
+            <li><strong>1. Elige el archivo</strong> en el botón de abajo.</li>
+            <li><strong>2. Revisa la foto</strong> en la vista previa.</li>
+            <li><strong>3. Pulsa Enviar esta imagen.</strong></li>
+          </ol>
+          <label class="createLookDrop" id="createLookReceiveDrop">
+            <input id="createLookReceiveFile" type="file" accept="image/*">
+            <span class="createLookOptName">Elegir la imagen</span>
+            <span class="createLookOptLine">JPG, PNG o WebP. La ves aquí antes de enviarla.</span>
+          </label>
+        </div>
+        <div class="createLookPreviewCol">
+          <p class="createLookPreviewHold" id="createLookPreviewHold">La foto se verá aquí.</p>
+          <img class="createLookReceivePreview" id="createLookReceivePreview" alt="Vista previa de la imagen que vas a enviar" hidden>
+          <p class="createLookHint" id="createLookReceiveName" hidden></p>
+        </div>
+      </div>
+      <div class="createLookActions">
+        <button class="btn primary" id="createLookReceiveSend" type="button" disabled>Enviar esta imagen</button>
+        <a class="btn quiet" href="#createLook">volver</a>
+      </div>
+      <p class="createLookDone" id="createLookReceiveDone" tabindex="-1" hidden>Foto enviada. Ya puedes cerrar esta página.</p>
+    </div>
+  </div>
+
+  <div id="createLookForm" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker">Paso 4 de 4</p>
+      <h2 id="createLookFormTitle" class="stepTitle" tabindex="-1">Arma el creativo</h2>
+      <p class="createLookGuide">Abre cada fila y elige una opción. Lo que elijas queda escrito a la derecha. Puedes cambiar cualquier paso.</p>
+      <p class="createLookChoiceNote" id="createLookChoiceNote" hidden></p>
+      <p class="createLookImageNote" id="createLookImageNote" hidden></p>
+      <div class="createLookRows" id="createLookRows"></div>
+
+      <div class="createLookActions">
+        <button class="btn primary" type="button">Crear</button>
+        <a class="btn quiet" href="#createLook">volver</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="createLookPick" class="createLook">
+    <div class="createLookPanel">
+      <p class="createLookKicker" id="createLookPickKicker">Este paso</p>
+      <h2 id="createLookPickTitle" class="stepTitle" tabindex="-1">Elegir</h2>
+      <p class="createLookHint" id="createLookPickHint" hidden></p>
+      <div class="createLookList" id="createLookPickList"></div>
+      <div class="createLookSwatches" id="createLookPickSwatches" hidden></div>
+      <div class="createLookActions">
+        <button class="btn quiet" id="createLookPickBack" type="button">volver</button>
+      </div>
+    </div>
+  </div>
+      </div>
+    </div>
+  </div>
+
   <header class="app-bar">
     <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
       <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
     </button>
+    <div class="app-bar-end">
+      <div class="app-user" id="app-user">
+        <button class="app-avatar" id="app-avatar" type="button" aria-expanded="false" aria-label="Cuenta"></button>
+        <div class="app-user-menu"></div>
+      </div>
+    </div>
   </header>
 
   <div id="wash"></div>
@@ -38,10 +198,27 @@
 
       <div class="wallIn">
         <div class="chips" id="indChips" role="group" aria-label="Industria"></div>
-        <div class="chips" id="casoChips" role="group" aria-label="Clímax"></div>
-        <div class="chips coverChips" id="coverChips" role="group" aria-label="Portada"></div>
-        <div class="chips colsChips" id="colsChips" role="group" aria-label="Columnas"></div>
-        <label class="blitRow" for="browseBlit">
+        <button class="chip industryEdit" id="industryEdit" type="button">Configurar industrias</button>
+        <dialog class="industryDlg" id="industryDlg" aria-labelledby="industryDlgTitle">
+          <h2 id="industryDlgTitle">Industrias</h2>
+          <p class="industryDlgLead">Elige qué clímax aparecen en cada industria. Buscar y Nuevo Creativo usan esta lista.</p>
+          <div class="industryDlgBody">
+            <div class="industryDlgNav" id="industryDlgNav" role="tablist" aria-label="Industria"></div>
+            <div class="industryDlgMain">
+              <input id="industryDlgSearch" type="search" placeholder="Buscar un clímax" aria-label="Buscar un clímax" autocomplete="off">
+              <div class="industryDlgItems" id="industryDlgItems"></div>
+            </div>
+          </div>
+          <div class="industryDlgActions">
+            <button class="btn quiet" id="industryDlgReset" type="button">Lista original</button>
+            <button class="btn" id="industryDlgClose" type="button">Cerrar</button>
+            <button class="btn primary" id="industryDlgSave" type="button">Guardar</button>
+          </div>
+        </dialog>
+        <div style="display: none;" class="chips" id="casoChips" role="group" aria-label="Clímax"></div>
+        <div style="display: none;" class="chips coverChips" id="coverChips" role="group" aria-label="Portada"></div>
+        <div style="display: none;" class="chips colsChips" id="colsChips" role="group" aria-label="Columnas"></div>
+        <label class="blitRow" for="browseBlit" style="display: none;">
           <span>Resolución <output id="browseBlitVal">0.8×</output></span>
           <input id="browseBlit" type="range" min="0.1" max="1.5" step="0.05" value="0.8" aria-label="Resolución de las capturas" />
         </label>
@@ -55,12 +232,22 @@
     </section>
   </main>
 
-  <button class="fab btn primary" id="createBtn" type="button">Crear Creativo</button>
+  <aside class="previewCol" id="previewCol" hidden aria-label="Vista previa">
+    <div class="previewWash" aria-hidden="true"></div>
+    <button class="xclose" id="previewClose" type="button" aria-label="Cerrar vista previa">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="heroStage previewStage" id="previewStage"><div class="fmtScale"></div></div>
+  </aside>
+
+  <div class="createDock">
+    <button class="fab btn primary" id="createBtn" type="button">Nuevo Creativo</button>
+  </div>
 
   <div class="scrim" id="scrim" hidden></div>
 
   <div class="modal" id="modal" hidden>
-    <div class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Crear Creativo">
+    <div class="panel" id="panel" role="dialog" aria-modal="true" aria-label="Nuevo Creativo">
       <button class="xclose" id="modalClose" type="button" aria-label="Cerrar">
         <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
@@ -78,19 +265,9 @@
     </div>
   </div>
 
-  <script src="app-nav.js?v=nav11"></script>
-  <script type="importmap">
-    { "imports": {
-      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
-      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
-      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
-      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
-      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
-      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
-      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
-      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
-    } }
-  </script>
-  <script type="module" src="browse.js?v=browse31"></script>
+  <script src="app-nav.js?v=nav13"></script>
+  <script type="module" src="account.js?v=acct1"></script>
+  <script type="module" src="browse.js?v=browse45"></script>
+  <script type="module" src="browse-create.js?v=create20"></script>
 </body>
 </html>

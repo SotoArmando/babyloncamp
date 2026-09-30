@@ -1,0 +1,287 @@
+[
+  {
+    "fn": "isGwdGalleryPage",
+    "soporte": "DOM API (document.body.dataset), Web API (location, URLSearchParams)",
+    "determina": "Evalúa si la página actual es una galería de GWD basándose en cuatro criterios: la presencia del atributo data-visor='gwd' en el body, la inclusión de '/gwd/' en la ruta del archivo, si el nombre del archivo es 'gallery-gwd', 'gwd-light' o 'gwd-light-ad', o si el parámetro 'visor=gwd' aparece en la query string o en el hash de la URL."
+  },
+  {
+    "fn": "galleryStorageKey",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Determina qué clave de almacenamiento (storage key) debe utilizarse basándose en el resultado de la función isGwdGalleryPage(); si es una página de galería GWD, devuelve PROFILE_KEY_GWD, de lo contrario, devuelve PROFILE_KEY."
+  },
+  {
+    "fn": "uid",
+    "soporte": "JavaScript (Date, Math, String.prototype.toString)",
+    "determina": "Genera un identificador único basado en el tiempo actual en base 36 y un segmento aleatorio de cuatro caracteres alfanuméricos para minimizar colisiones."
+  },
+  {
+    "fn": "defaultView",
+    "soporte": "JavaScript",
+    "determina": "Define y retorna un objeto de configuración predeterminada para la interfaz de usuario, estableciendo valores iniciales para el diseño (columnas, tamaño, espaciado), preferencias de visualización (zoom, formato, categoría), estados de componentes (diálogos laterales, reloj) y el resultado de una llamada externa para la ubicación de anuncios."
+  },
+  {
+    "fn": "comboTitle",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Determina el título a mostrar para un elemento: si la obra asociada no es una 'prop', devuelve el nombre de la obra; si lo es, devuelve una cadena concatenada con el nombre de la obra y la etiqueta de la acción de la propiedad asociada."
+  },
+  {
+    "fn": "comboShortTitle",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Determina el título corto de un elemento basándose en una jerarquía de prioridades: primero verifica si existe un alias; si no, comprueba si el elemento pertenece a una acción de propiedad ('prop') para devolver la etiqueta de dicha acción; en caso contrario, devuelve la etiqueta de la obra ('play') eliminando el prefijo 'Clímax · ' mediante una expresión regular."
+  },
+  {
+    "fn": "comboBlurb",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Determina el texto descriptivo (blurb) de un elemento basándose en el tipo de juego. Si el juego no es una 'prop', devuelve el blurb del juego directamente; de lo contrario, busca y devuelve el blurb asociado a la acción de la propiedad específica (propAct) del ítem."
+  },
+  {
+    "fn": "comboBookmark",
+    "soporte": "JavaScript (Optional Chaining)",
+    "determina": "Evalúa si la propiedad 'pin' del objeto 'partial' tiene un valor equivalente a verdadero, aceptando explícitamente el booleano true, el número 1 o las cadenas de texto '1' y 'true'."
+  },
+  {
+    "fn": "comboTrailIn",
+    "soporte": "JavaScript (ECMAScript 2020+)",
+    "determina": "Determina el identificador ('id') de un elemento de rastro basado en un pin de entrada. Primero evalúa si 'partial.pin' es un string válido (que no sea '1' ni 'true'); si no cumple estas condiciones, utiliza 'partial.ptin' como respaldo. Finalmente, pasa ese valor a la función 'propTrailInById' para extraer el atributo 'id' del objeto resultante."
+  },
+  {
+    "fn": "normalizePmesh",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "La función valida y normaliza un objeto de malla (pmesh). Verifica la existencia del objeto y su propiedad 'name'; si son válidos, procesa 'extras' convirtiéndolos en un array de strings filtrando valores falsos, convierte 'assetId' a string y devuelve un nuevo objeto con las propiedades 'name', 'extras' y 'assetId' debidamente tipificadas."
+  },
+  {
+    "fn": "makeCombo",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Construye y normaliza un objeto de configuración de 'combo' basándose en un objeto parcial. Dependiendo de si la propiedad 'play' es igual a 'prop', la función activa una serie de validaciones y transformaciones específicas para propiedades de objetos (como trails, cámaras, iluminación y físicas), mientras que para otros casos asigna valores vacíos. Además, gestiona la asignación de IDs únicos, el formateo de handoffs, parámetros de cámara y estados de estudio."
+  },
+  {
+    "fn": "seedCombos",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Genera una lista de combinaciones iniciales (seeds) basada en los modos de juego disponibles. Si el modo es 'prop', crea una combinación por cada acción de objeto asociada; para cualquier otro modo, crea una única combinación estándar por modo, asignando a todas un nivel de dificultad 'medium' y un estado de entrada 'none'."
+  },
+  {
+    "fn": "emptyStore",
+    "soporte": "JavaScript (ECMAScript), dependencias internas (uid, seedCombos, defaultView)",
+    "determina": "Genera el estado inicial de una tienda o aplicación, creando un objeto de configuración que incluye un perfil de usuario predeterminado con un ID único, fecha de creación y una lista de elementos semilla, estableciendo además la versión del esquema y la vista activa."
+  },
+  {
+    "fn": "syncClimaxScriptCombos",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "La función determina si ha habido cambios al sincronizar una lista de guiones de clímax ('climaxScripts') con una lista de ítems en un perfil. Específicamente, verifica si cada guion tiene un ítem correspondiente en 'profile.items'; si no existe, crea uno nuevo mediante 'makeCombo'; si ya existe, actualiza sus propiedades de acción ('propAct') y alias ('alias'). Retorna un booleano que indica si se realizó alguna modificación en el perfil."
+  },
+  {
+    "fn": "fillMissingSeedCombos",
+    "soporte": "JavaScript (ES6+), Set API",
+    "determina": "La función evalúa si existen combinaciones de semillas ('seedCombos') que no estén presentes en el arreglo 'items' del objeto 'profile'. Si faltan combinaciones, las agrega al arreglo y devuelve 'true' para indicar que hubo modificaciones; de lo contrario, o si el perfil es inválido, devuelve 'false'."
+  },
+  {
+    "fn": "galleryStorage",
+    "soporte": "Web Storage API (localStorage), Window API",
+    "determina": "Determina cuál instancia de localStorage debe utilizarse para el almacenamiento de la galería; prioriza el almacenamiento del objeto window.parent si la función se ejecuta dentro de un iframe con acceso al padre, devolviendo el localStorage del padre en caso positivo, o el localStorage local en caso contrario o ante un error de acceso."
+  },
+  {
+    "fn": "readStoredStore",
+    "soporte": "Web Storage API (localStorage/sessionStorage), JSON",
+    "determina": "Intenta recuperar un valor asociado a una clave específica desde un objeto de almacenamiento. Evalúa si el valor existe y es un JSON válido para deserializarlo; en caso de que la clave no exista o el parseo falle, determina que el resultado es null."
+  },
+  {
+    "fn": "profilesOnlyStore",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "La función transforma un objeto de datos bruto ('raw') en una estructura de estado simplificada y saneada. Específicamente, filtra y mapea la lista de perfiles para extraer solo propiedades permitidas (id, name, createdAt, file, packed, items, climaxScripts, industryShows), valida que el 'activeId' corresponda a un perfil existente en la lista (o asigna el primero disponible) y devuelve un objeto de estado que incluye la versión, la vista predeterminada y el arreglo de perfiles procesados."
+  },
+  {
+    "fn": "wipeStorageExcept",
+    "soporte": "Web Storage API (localStorage/sessionStorage)",
+    "determina": "Identifica todas las claves almacenadas en un objeto de storage que no estén presentes en un conjunto (Set) de elementos a conservar y procede a eliminarlas del almacenamiento, actuando como un filtro de limpieza selectiva."
+  },
+  {
+    "fn": "activeProfile",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Busca dentro de una colección de perfiles el objeto cuyo ID coincida con el ID activo del store; si no encuentra ninguna coincidencia, devuelve el primer perfil de la lista por defecto."
+  },
+  {
+    "fn": "createProfile",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Crea un objeto de perfil con un ID único, nombre normalizado, marca de tiempo de creación y elementos iniciales, lo añade a la colección de perfiles del almacén (store), establece dicho perfil como el activo y persiste el estado del almacén mediante la función saveGalleryStore."
+  },
+  {
+    "fn": "slugName",
+    "soporte": "JavaScript (ECMAScript), Unicode Normalization Form D (NFD)",
+    "determina": "Convierte una cadena de texto en un formato de 'slug' optimizado para URLs. El proceso incluye: asignar un valor por defecto ('galeria'), eliminar acentos y diacríticos mediante normalización Unicode, convertir el texto a minúsculas, sustituir cualquier carácter que no sea alfanumérico por guiones y eliminar guiones redundantes al inicio y al final de la cadena."
+  },
+  {
+    "fn": "profileExportFilename",
+    "soporte": "JavaScript (ES6+), Template Literals, Optional Chaining",
+    "determina": "Genera el nombre de un archivo de exportación en formato JSON basado en el nombre de un perfil, procesando dicho nombre a través de una función auxiliar 'slugName' para asegurar que el nombre sea válido para un sistema de archivos."
+  },
+  {
+    "fn": "serializeProfileExport",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Transforma un objeto de perfil en un formato de exportación estandarizado, asegurando la integridad de los datos mediante valores por defecto, registrando la marca temporal de la exportación y limpiando los identificadores únicos de los elementos procesados a través de la función auxiliar makeCombo."
+  },
+  {
+    "fn": "parseProfileExport",
+    "soporte": "JavaScript (ES6+), JSON API",
+    "determina": "Evalúa si el argumento proporcionado (ya sea un string JSON o un objeto) es un archivo de exportación de perfil válido, verificando que contenga la propiedad 'kind' con el valor de PROFILE_EXPORT_KIND y que posea una estructura de datos donde 'profile.items' sea un array."
+  },
+  {
+    "fn": "addProfileFromExport",
+    "soporte": "JavaScript (ESM), Date API",
+    "determina": "Procesa la importación de un perfil desde datos exportados (raw), genera un nuevo objeto de perfil con un ID único, nombre validado y elementos transformados mediante makeCombo, y finalmente actualiza el estado del store estableciendo este nuevo perfil como activo y persistiendo los cambios mediante saveGalleryStore."
+  },
+  {
+    "fn": "packedProfileId",
+    "soporte": "JavaScript (ES6+), Regular Expressions",
+    "determina": "Genera un identificador de perfil basado en el nombre de un archivo. Extrae el nombre del archivo eliminando la ruta y la extensión .json, sanitiza los caracteres no alfanuméricos sustituyéndolos por guiones y prefixa el resultado con 'pack-'. En caso de que el nombre esté vacío, asigna el valor por defecto 'pack-perfil'."
+  },
+  {
+    "fn": "profileFromPackedFile",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Transforma datos binarios o crudos provenientes de un archivo empaquetado en un objeto de perfil estructurado, extrayendo el ID del nombre del archivo, asignando un nombre y fecha de creación (con valores por defecto si no existen), y mapeando la lista de elementos del perfil a través de una función de conversión llamada makeCombo, asegurando que cada elemento tenga un ID único."
+  },
+  {
+    "fn": "useGwdPack",
+    "soporte": "JavaScript / Google Web Designer (GWD)",
+    "determina": "Determina si se debe utilizar el paquete GwdPack basándose en el parámetro 'kind'. Si 'kind' es 'gwd', devuelve true; si es 'live', devuelve false; en cualquier otro caso, delega la decisión a la función isGwdGalleryPage()."
+  },
+  {
+    "fn": "packedLocalUrl",
+    "soporte": "JavaScript (ES Modules), Web URL API, Browser BOM (location)",
+    "determina": "Construye una URL absoluta hacia un archivo local basado en un nombre de archivo y un flag de entorno. Prioriza la resolución mediante 'import.meta.url' para módulos ESM, recae en 'location.href' si se ejecuta en un navegador, o devuelve una ruta relativa si ninguno de los entornos globales está disponible, ajustando la carpeta raíz entre 'data-gwd' y 'data' según el parámetro 'gwd'."
+  },
+  {
+    "fn": "packedIndexUrl",
+    "soporte": "JavaScript, playerUrl, packedLocalUrl",
+    "determina": "Determina la URL final de un archivo de perfiles (profiles.json), seleccionando la carpeta de destino ('data-gwd' o 'data') basándose en el valor booleano del parámetro 'gwd' y resolviendo la ruta mediante las funciones auxiliares playerUrl y packedLocalUrl."
+  },
+  {
+    "fn": "packedFileUrl",
+    "soporte": "JavaScript",
+    "determina": "Determina la URL de un archivo empaquetado basándose en el nombre del archivo y una bandera booleana (gwd), seleccionando la carpeta de datos adecuada ('data-gwd' o 'data') y procesando la ruta final a través de las funciones auxiliares playerUrl y packedLocalUrl."
+  },
+  {
+    "fn": "fetchJson",
+    "soporte": "Fetch API, JavaScript Async/Await, JSON",
+    "determina": "Realiza una petición HTTP asíncrona a una URL específica desactivando la caché, valida que la respuesta sea exitosa (status 200-299) y parsea el cuerpo de la respuesta como un objeto JSON."
+  },
+  {
+    "fn": "listPackedFilenames",
+    "soporte": "JavaScript (async/await), Fetch API (via fetchJson), JSON",
+    "determina": "Obtiene una lista de nombres de archivos JSON desde una URL de índice dinámica basada en el parámetro gwd. Si la petición tiene éxito, limpia las rutas de los archivos para dejar solo el nombre final y filtra aquellos que terminan en '.json'; en caso de error o lista vacía, devuelve un valor de respaldo (fallback) predefinido según el estado de gwd."
+  },
+  {
+    "fn": "loadPackedProfiles",
+    "soporte": "JavaScript (ES Modules), Async/Await, Fetch API (vía fetchJson)",
+    "determina": "Carga una lista de perfiles empaquetados basándose en un tipo ('kind'). Primero obtiene los nombres de los archivos asociados a ese tipo, descarga el contenido JSON de cada archivo y transforma esos datos en objetos de perfil, filtrando y omitiendo aquellos archivos que resulten ausentes o inválidos durante el proceso."
+  },
+  {
+    "fn": "loadServeStore",
+    "soporte": "JavaScript (ES Modules, Async/Await), Sets, Spread Operator",
+    "determina": "Carga y consolida la configuración de la tienda de perfiles, fusionando los datos de una fuente 'live' con perfiles 'packed' adicionales. Evalúa si el ID activo es válido y, en caso contrario, asigna el primer perfil disponible como activo, almacenando el resultado final en un caché (`serveStoreOnce`) según el tipo de carga (`gwd` o `live`)."
+  },
+  {
+    "fn": "addComboToActive",
+    "soporte": "JavaScript (ES6+), Object.assign",
+    "determina": "Evalúa si un combo específico ya existe en la lista de items del perfil activo comparando las propiedades 'play', 'propAct' y 'ad'. Si existe, actualiza el item existente manteniendo su id y pin; si no, añade el nuevo combo a la lista. Finalmente, persiste los cambios en el store y devuelve el combo procesado."
+  },
+  {
+    "fn": "removeCombo",
+    "soporte": "JavaScript (ES6 modules)",
+    "determina": "Elimina un combo específico de la lista de ítems del perfil activo, ejecuta una función para borrar los archivos relacionados con dicho combo y finaliza persistiendo los cambios en la galería del store."
+  },
+  {
+    "fn": "nextCloneAlias",
+    "soporte": "JavaScript (ES6+), Set, Array.prototype.map",
+    "determina": "Calcula el siguiente nombre disponible para un clon basado en un nombre base, incrementando un contador numérico hasta encontrar un alias que no esté siendo utilizado en la lista de elementos del perfil proporcionado."
+  },
+  {
+    "fn": "setComboOff",
+    "soporte": "JavaScript (ES6+), State Management (Store pattern)",
+    "determina": "Busca un elemento específico dentro de los ítems del perfil activo utilizando el comboId proporcionado; si el elemento existe, actualiza su propiedad 'off' convirtiendo el valor recibido a un tipo booleano y, finalmente, persiste los cambios ejecutando la función de guardado del store."
+  },
+  {
+    "fn": "setComboAlias",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Asigna un alias normalizado (eliminando espacios en blanco) a un elemento específico dentro del perfil activo de un almacén de datos. Si el elemento posee un identificador de script asociado (csid), la función también actualiza el nombre de dicho script en la lista de climaxScripts para que coincida con el nuevo alias, finalizando con la persistencia de los cambios mediante saveGalleryStore."
+  },
+  {
+    "fn": "orderPinnedFirst",
+    "soporte": "JavaScript (ES6+), Array Prototype Methods (filter, concat, every, splice)",
+    "determina": "Evalúa si una lista de elementos requiere un reordenamiento basado en la propiedad 'pin'. Si existen elementos fijados (pin: true), la función reorganiza el array original moviendo todos los elementos fijados al principio y el resto al final. Retorna 'true' si se realizó un cambio en el orden de los elementos y 'false' si no hubo cambios, si la lista estaba vacía o si no había elementos fijados."
+  },
+  {
+    "fn": "setComboPin",
+    "soporte": "JavaScript (ES6+)",
+    "determina": "Actualiza el estado de fijación (pin) de un elemento específico dentro de una lista de ítems de un perfil. La función gestiona la reubicación del elemento en el array: si se fija, se mueve al principio (unshift); si se desfija, se desplaza a la primera posición disponible entre los elementos no fijados, manteniendo así el orden de prioridad de los elementos anclados."
+  },
+  {
+    "fn": "setComboPmesh",
+    "soporte": "JavaScript (ES6 Modules)",
+    "determina": "Busca un elemento específico dentro de una lista de items del perfil activo utilizando un comboId; si el elemento existe, actualiza su propiedad 'pmesh' con un valor normalizado y persiste los cambios guardando el estado del store de la galería."
+  },
+  {
+    "fn": "cloneCombo",
+    "soporte": "JavaScript (ES6+), Async/Await",
+    "determina": "La función clona un elemento de tipo 'combo' dentro de un perfil activo. Busca el item original por su ID, crea una copia con un alias generado automáticamente y restablece sus estados de 'off' y 'pin' a false. Posteriormente, calcula la posición de inserción en el array de items basándose en si el original estaba anclado (pin) o no, inserta la copia en dicha posición, guarda el estado del store y, si el item posee archivos de propiedad (pmesh), clona dichos archivos asynchronously."
+  },
+  {
+    "fn": "openPropFileDb",
+    "soporte": "IndexedDB API, JavaScript Promises",
+    "determina": "La función gestiona la apertura de una base de datos local en el navegador llamada PROP_FILE_DB. Evalúa si la base de datos requiere una actualización de esquema (versión 1) para crear el almacén de objetos PROP_FILE_STORE si este no existe, y determina el éxito o fallo de la conexión devolviendo una promesa que resuelve la instancia de la base de datos o rechaza el error ocurrido."
+  },
+  {
+    "fn": "idbReq",
+    "soporte": "IndexedDB API, JavaScript Promises",
+    "determina": "Convierte una solicitud asíncrona de IndexedDB (IDBRequest) en una Promesa, resolviéndose con el resultado de la operación si tiene éxito o rechazándose si ocurre un error."
+  },
+  {
+    "fn": "filesToRecords",
+    "soporte": "JavaScript (ES6+), Promise API, File API, ArrayBuffer",
+    "determina": "Convierte una colección de objetos File en una promesa que resuelve a un array de objetos personalizados, donde cada objeto contiene los metadatos del archivo (nombre, tipo, fecha de modificación) y el contenido binario del archivo extraído mediante la lectura asíncrona de su buffer."
+  },
+  {
+    "fn": "recordsToFiles",
+    "soporte": "Web File API",
+    "determina": "Transforma un array de objetos de datos (records) en un array de instancias de la clase File, mapeando el buffer de contenido, el nombre, el tipo MIME y la fecha de última modificación de cada registro."
+  },
+  {
+    "fn": "saveComboPropFiles",
+    "soporte": "IndexedDB (vía API de base de datos del navegador), JavaScript Async/Await",
+    "determina": "La persistencia de archivos de propiedades asociados a un identificador de combo específico, almacenándolos primero en una caché en memoria (propFileMem) y posteriormente en una base de datos local (IndexedDB) mediante una transacción de escritura."
+  },
+  {
+    "fn": "loadComboPropFiles",
+    "soporte": "IndexedDB (vía openPropFileDb e idbReq), JavaScript (Async/Await, Map/Cache local)",
+    "determina": "Busca y recupera una lista de archivos de propiedades asociados a un ID de combo específico. Primero intenta obtener los datos de una caché en memoria (propFileMem); si no existen, los consulta en una base de datos IndexedDB. Finalmente, transforma los registros obtenidos mediante la función recordsToFiles antes de retornarlos."
+  },
+  {
+    "fn": "copyComboPropFiles",
+    "soporte": "JavaScript (ES Modules, Async/Await)",
+    "determina": "La función coordina la transferencia de archivos de propiedades de un identificador de origen (fromId) a uno de destino (toId). Primero verifica si existen archivos asociados al origen mediante loadComboPropFiles; si no hay archivos, retorna un estado de éxito inmediato; de lo contrario, persiste los archivos obtenidos en el destino utilizando saveComboPropFiles."
+  },
+  {
+    "fn": "deleteComboPropFiles",
+    "soporte": "IndexedDB API (vía openPropFileDb e idbReq) y JavaScript ES6+ (async/await)",
+    "determina": "Elimina la persistencia de los archivos de propiedades asociados a un combo específico, borrando primero el dato de la memoria volátil (propFileMem) y posteriormente el registro correspondiente en la base de datos local IndexedDB utilizando el comboId como clave."
+  },
+  {
+    "fn": "comboPosterMarkup",
+    "soporte": "JavaScript, SVG (Scalable Vector Graphics), DOM (via attributes like aria-hidden)",
+    "determina": "Genera el código HTML de un elemento SVG que representa visualmente un 'póster' basado en el tipo de escenario ('play') y una paleta de colores asociada. Dependiendo del valor de 'play' (ej. 'horizon', 'storm', 'aurora', 'erupt', 'migrate', 'breaker', 'calve', 'prop'), la función calcula la posición de elementos como el sol, el mar, nubes o figuras geométricas y aplica colores específicos de la paleta para renderizar diferentes escenas atmosféricas o conceptuales."
+  },
+  {
+    "fn": "comboToLabHref",
+    "soporte": "JavaScript, URLSearchParams API",
+    "determina": "Genera una URL de redirección hacia 'lab.html' construyendo una cadena de parámetros de consulta (query string) basada en el estado de un objeto 'item' y un ID de anuncio. La función mapea propiedades del ítem a claves específicas de la URL, aplicando transformaciones mediante funciones auxiliares de normalización y búsqueda (como playById, formatById, etc.), con una lógica extensiva de parámetros adicionales cuando el tipo de reproducción es 'prop'."
+  },
+  {
+    "fn": "g",
+    "soporte": "JavaScript (ES6 Template Literals)",
+    "determina": "Recibe un parámetro llamado 'name' y devuelve una cadena de texto que consiste en el valor de dicho parámetro seguido de un salto de línea, utilizando la sintaxis de plantillas de cadena."
+  },
+  {
+    "fn": "svg",
+    "soporte": "SVG (Scalable Vector Graphics), Template Literals de JavaScript",
+    "determina": "Genera una cadena de texto que representa la etiqueta de apertura de un elemento SVG con atributos específicos de vista y accesibilidad, encapsulando un contenido interno proporcionado como argumento."
+  }
+]

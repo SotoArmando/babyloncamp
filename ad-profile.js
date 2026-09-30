@@ -192,6 +192,7 @@ export function makeCombo(partial = {}) {
     prv: play.id === "prop" ? normalizePropSpin(partial.prv) : "",
     studio: play.id === "prop" ? normalizeStudioState(partial.studio) : null,
     alias: String(partial.alias || "").trim(),
+    csid: play.id === "prop" ? String(partial.csid || "").trim() : "",
     off: Boolean(partial.off),
     pin: comboBookmark(partial),
     pmesh: normalizePmesh(partial.pmesh),
@@ -225,6 +226,38 @@ function emptyStore() {
     view: defaultView(),
     profiles: [profile],
   };
+}
+
+function syncClimaxScriptCombos(profile) {
+  if (!Array.isArray(profile?.climaxScripts) || !Array.isArray(profile.items)) return false;
+  let changed = false;
+  for (const script of profile.climaxScripts) {
+    if (!script || typeof script.id !== "string" || !script.id || typeof script.source !== "string") continue;
+    const name = String(script.name || "Clímax").trim() || "Clímax";
+    const act = propActionById(script.act || "drop").id;
+    let item = profile.items.find((entry) => entry.csid === script.id);
+    if (!item) {
+      profile.items.push(makeCombo({
+        id: script.id,
+        play: "prop",
+        propAct: act,
+        ptrail: "none",
+        alias: name,
+        csid: script.id,
+      }));
+      changed = true;
+      continue;
+    }
+    if (item.propAct !== act) {
+      item.propAct = act;
+      changed = true;
+    }
+    if (item.alias !== name) {
+      item.alias = name;
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function fillMissingSeedCombos(profile) {
@@ -274,6 +307,7 @@ export function loadGalleryStore(storage = galleryStorage(), key = galleryStorag
       const before = JSON.stringify(profile.items);
       profile.items = profile.items.map((item) => makeCombo(item));
       if (!gwd && fillMissingSeedCombos(profile)) dirty = true;
+      if (!gwd && syncClimaxScriptCombos(profile)) dirty = true;
       if (orderPinnedFirst(profile.items)) dirty = true;
       if (JSON.stringify(profile.items) !== before) dirty = true;
     }
@@ -308,6 +342,10 @@ function profilesOnlyStore(raw) {
       ...(profile.file ? { file: profile.file } : {}),
       ...(profile.packed ? { packed: true } : {}),
       items: Array.isArray(profile.items) ? profile.items : [],
+      ...(Array.isArray(profile.climaxScripts) ? { climaxScripts: profile.climaxScripts } : {}),
+      ...(profile.industryShows && typeof profile.industryShows === "object" && !Array.isArray(profile.industryShows)
+        ? { industryShows: profile.industryShows }
+        : {}),
     }))
     : [];
   const activeId = profiles.some((profile) => profile.id === raw?.activeId)
@@ -601,8 +639,15 @@ export function setComboOff(store, comboId, off) {
 }
 
 export function setComboAlias(store, comboId, alias) {
-  const item = activeProfile(store).items.find((entry) => entry.id === comboId);
-  if (item) item.alias = String(alias || "").trim();
+  const profile = activeProfile(store);
+  const item = profile.items.find((entry) => entry.id === comboId);
+  if (item) {
+    item.alias = String(alias || "").trim();
+    if (item.csid && item.alias && Array.isArray(profile.climaxScripts)) {
+      const script = profile.climaxScripts.find((entry) => entry.id === item.csid);
+      if (script) script.name = item.alias;
+    }
+  }
   return saveGalleryStore(store);
 }
 

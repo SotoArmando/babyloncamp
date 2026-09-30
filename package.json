@@ -22,6 +22,7 @@
   "scripts": {
     "build:player": "node scripts/build-player.mjs",
     "publish:gwd": "node scripts/publish-gwd-kit.mjs",
-    "start": "node scripts/dev-server.mjs"
+    "start": "node scripts/dev-server.mjs",
+    "start:account": "node server/account.mjs"
   }
 }

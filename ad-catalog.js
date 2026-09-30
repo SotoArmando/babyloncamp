@@ -398,13 +398,23 @@ export function normalizePropTrailPop(value) {
   return normalizeTrailGain(value, DEFAULT_PROP_TRAIL_POP);
 }
 
+export function normalizePropTrailGlyph(value) {
+  return normalizeTrailGain(value, "1");
+}
+
+export function normalizePropTrailSharp(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "1.5";
+  return String(Math.min(2.5, Math.max(1, Math.round(n * 4) / 4)));
+}
+
 export function normalizePropTrailChar(value) {
   const text = String(value ?? "").trim().replace(/\s+/g, " ");
-  if (!text) return "✦";
+  if (!text) return "";
   const parts = typeof Intl !== "undefined" && Intl.Segmenter
     ? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].map((part) => part.segment)
     : [...text];
-  return parts.slice(0, 16).join("") || "✦";
+  return parts.slice(0, 16).join("") || "";
 }
 
 export function propTrailFlyEnd(pop) {
@@ -1113,6 +1123,8 @@ export function adMarkup(format, adId = "lab-ad", inId = "fade-up", playId = "cl
   const propTrail2dCon = normalizePropTrail2dCon(extras.propTrail2dCon ?? extras.p2dcon);
   const propTrailMark = normalizePropTrailMark(extras.propTrailMark ?? extras.pmk);
   const propTrailSpread = normalizePropTrailSpread(extras.propTrailSpread ?? extras.psp);
+  const propTrailGlyph = normalizePropTrailGlyph(extras.propTrailGlyph ?? extras.pgly);
+  const propTrailSharp = normalizePropTrailSharp(extras.propTrailSharp ?? extras.psharp);
   const propTrailSpd = normalizePropTrailSpd(extras.propTrailSpd ?? extras.pvel);
   const propTrailPop = normalizePropTrailPop(extras.propTrailPop ?? extras.ppop);
   const propTrailJoin = propTrailJoinById(extras.propTrailJoin ?? extras.pjoin).id;
@@ -1134,7 +1146,7 @@ export function adMarkup(format, adId = "lab-ad", inId = "fade-up", playId = "cl
     ? ` data-studio-lights="${String(studioLights).replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`
     : "";
   const propAttrs = play.id === "prop"
-    ? ` data-prop-act="${propAct.id}" data-prop-trail="${propTrail.id}" data-prop-trail-2d="${propTrail2d}" data-prop-trail-2d-col="${propTrail2dCol}" data-prop-trail-glow="${propTrailGlow}" data-prop-trail-tail="${propTrailTail}" data-prop-trail-2d-con="${propTrail2dCon}" data-prop-trail-mark="${propTrailMark}" data-prop-trail-spread="${propTrailSpread}" data-prop-trail-spd="${propTrailSpd}" data-prop-trail-pop="${propTrailPop}" data-prop-trail-join="${propTrailJoin}" data-prop-trail-in="${propTrailIn}" data-prop-trail-char="${propTrailChar}" data-prop-cam="${propCam}" data-prop-cam-h="${propCamH}" data-prop-cam-v="${propCamV}" data-prop-cam-mode="${propCamMode}" data-prop-cam-px="${propCamPx}" data-prop-cam-py="${propCamPy}" data-prop-cog="${propCog}" data-prop-sx="${propSx}" data-prop-sy="${propSy}" data-prop-sz="${propSz}" data-prop-light="${propLight}" data-prop-lint="${propLint}" data-prop-floor="${propFloor}" data-prop-flat="${propFlat}" data-prop-lcol="${propLcol}" data-prop-ldist="${propLdist}" data-prop-lpos="${propLpos}" data-prop-lhrot="${propLhrot}" data-prop-lvrot="${propLvrot}" data-prop-rhrot="${propRhrot}" data-prop-rvrot="${propRvrot}"${studioAttr}`
+    ? ` data-prop-act="${propAct.id}" data-prop-trail="${propTrail.id}" data-prop-trail-2d="${propTrail2d}" data-prop-trail-2d-col="${propTrail2dCol}" data-prop-trail-glow="${propTrailGlow}" data-prop-trail-tail="${propTrailTail}" data-prop-trail-2d-con="${propTrail2dCon}" data-prop-trail-mark="${propTrailMark}" data-prop-trail-spread="${propTrailSpread}" data-prop-trail-glyph="${propTrailGlyph}" data-prop-trail-sharp="${propTrailSharp}" data-prop-trail-spd="${propTrailSpd}" data-prop-trail-pop="${propTrailPop}" data-prop-trail-join="${propTrailJoin}" data-prop-trail-in="${propTrailIn}" data-prop-trail-char="${propTrailChar}" data-prop-cam="${propCam}" data-prop-cam-h="${propCamH}" data-prop-cam-v="${propCamV}" data-prop-cam-mode="${propCamMode}" data-prop-cam-px="${propCamPx}" data-prop-cam-py="${propCamPy}" data-prop-cog="${propCog}" data-prop-sx="${propSx}" data-prop-sy="${propSy}" data-prop-sz="${propSz}" data-prop-light="${propLight}" data-prop-lint="${propLint}" data-prop-floor="${propFloor}" data-prop-flat="${propFlat}" data-prop-lcol="${propLcol}" data-prop-ldist="${propLdist}" data-prop-lpos="${propLpos}" data-prop-lhrot="${propLhrot}" data-prop-lvrot="${propLvrot}" data-prop-rhrot="${propRhrot}" data-prop-rvrot="${propRvrot}"${studioAttr}`
     : "";
   const handoff = handoffById(extras.handoff ?? extras.hand).id;
   const handSet = handoffSettingsFrom(extras);

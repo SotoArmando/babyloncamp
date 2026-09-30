@@ -1,7 +1,7 @@
 import { adMarkup, adPlaceFromPlay, formatById, handoffById, resolveAdPlace } from "./ad-catalog.js?v=cam23";
-import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=trail1";
+import { loadGalleryStore, loadServeStore, activeProfile, comboShortTitle, makeCombo } from "./ad-profile.js?v=script2";
 import { serializeStudioState } from "./studio-lights.js";
-import { bootContainers, comboPropTag, disposeAds, prepareComboMesh } from "./ad-player.js?v=prop137";
+import { bootContainers, comboPropTag, disposeAds, prepareComboMesh, startAd } from "./ad-player.js?v=prop145";
 import { setPlayerOrigin, getPlayerOrigin } from "./player-origin.js";
 
 export { setPlayerOrigin, getPlayerOrigin };
@@ -126,6 +126,8 @@ export function comboPlayExtras(item, phRaw) {
     propTrail2dCon: item.p2dcon,
     propTrailMark: item.pmk,
     propTrailSpread: item.psp,
+    propTrailGlyph: item.pgly,
+    propTrailSharp: item.psharp,
     propTrailSpd: item.pvel,
     propTrailPop: item.ppop,
     propTrailJoin: item.pjoin,
@@ -196,6 +198,16 @@ export function profileName(profileId, store = loadGalleryStore()) {
   return profileById(profileId, store)?.name || "Galería";
 }
 
+function climaxSourceFor(item, profileId) {
+  if (!item?.csid) return "";
+  const store = loadGalleryStore();
+  const profile = profileById(profileId, store) || activeProfile(store);
+  const list = profile?.climaxScripts;
+  if (!Array.isArray(list)) return "";
+  const script = list.find((entry) => entry.id === item.csid);
+  return typeof script?.source === "string" ? script.source : "";
+}
+
 export async function mountPlay(host, { profileId, playId, slotId, origin, item: given } = {}) {
   if (!host) return null;
   if (origin != null) setPlayerOrigin(origin);
@@ -209,8 +221,11 @@ export async function mountPlay(host, { profileId, playId, slotId, origin, item:
   host.innerHTML = adMarkup(format, id, item.in || "none", item.play, comboPlayExtras(item));
   host.querySelector(".ad-slot")?.classList.add("is-in");
   const box = host.querySelector(".ad-container");
+  const source = climaxSourceFor(item, profileId);
+  if (box && source) box.climaxScript = source;
   if (box && (propTag || comboPropTag(item))) box.dataset.propTag = propTag || comboPropTag(item);
   await bootContainers(host);
+  if (box) await startAd(box);
   return { item, slotId: id };
 }
 

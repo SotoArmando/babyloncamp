@@ -1,11 +1,12 @@
 import { loadBanner, applyWaveToDom, startShapePlayer, wavePathD, STORAGE_KEY } from "./ad4-banner.js";
-import { playById, resolvePalette, propBgStyleById, propBgShape, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, propTrailById, propTrailMs, propTrailJoinById, propTrailInById, propTrailFlyEnd, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailPop, normalizePropTrailChar, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam41";
+import { playById, resolvePalette, propBgStyleById, propBgShape, normalizePropLcol, normalizePropLdist, normalizePropLhrot, normalizePropLvrot, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizePropCog, propAimPlaceById, propTrailById, propTrailMs, propTrailJoinById, propTrailInById, propTrailFlyEnd, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailPop, normalizePropTrailGlyph, normalizePropTrailSharp, normalizePropTrailChar, handoffById, handoffRuntimeMs, applyHandoffSettings, resolveHandoffTempo, veilHandoffTiming } from "./ad-catalog.js?v=cam42";
 import { attachPlay2D, PLAY_2D_MS } from "./play-2d.js";
 import { attachStudioLighting, parseStudioState } from "./studio-lights.js?v=uni7";
 import { writeClockLook, paintHostClock } from "./ad-clock.js";
 import { listFolderAssets, loadAssetFilesForMesh } from "./ad-assets.js";
 import { propActionMs, propPose, isDriveAction } from "./prop-climax.js";
-import { attachPropTrail, warmPropTrail, warmPropTrailGpu, propTrailUsesGpu } from "./prop-trail.js?v=fx51";
+import { compileClimaxSource } from "./climax-script.js?v=hold1";
+import { attachPropTrail, warmPropTrail, warmPropTrailGpu, propTrailUsesGpu } from "./prop-trail.js?v=fx52";
 import { runHandoff } from "./handoff-run.js";
 
 export const CONFIG = {
@@ -1248,6 +1249,8 @@ function buildPropScene(scene) {
   let logicT = 0;
   let logicNow = 0;
   let logicAction = "";
+  let scriptKey = "";
+  let scriptPlay = null;
   let posePrev = null;
   let poseCurr = null;
   let introT = 1;
@@ -1512,21 +1515,39 @@ function buildPropScene(scene) {
         unit.propT = 0;
         unit.trailSettled = false;
       }
+      if (trailSec > 0) {
+        setTreeVisibility(root, 0);
+        box.setEnabled(false);
+        ball.setEnabled(false);
+        custom?.setEnabled(false);
+        trophy.setEnabled(false);
+        cone.setEnabled(false);
+        blob.setEnabled(false);
+      }
     } else {
       const now = performance.now();
       if (!logicNow) logicNow = now;
       if (hold) {
         logicNow = now;
         if (!poseCurr) {
-          poseCurr = propPose(action, logicT, poseHalf);
+          poseCurr = (scriptPlay ? scriptPlay(logicT, poseHalf) : propPose(action, logicT, poseHalf));
           posePrev = poseCurr;
         }
       } else {
         let dt = (now - logicNow) / 1000;
         logicNow = now;
         if (dt > 0.25) dt = 0.25;
-        if (action !== logicAction) {
+        const nextScript = typeof host?.climaxScript === "string" ? host.climaxScript : "";
+        if (action !== logicAction || nextScript !== scriptKey) {
           logicAction = action;
+          if (nextScript !== scriptKey) {
+            scriptKey = nextScript;
+            try {
+              scriptPlay = nextScript ? compileClimaxSource(nextScript) : null;
+            } catch {
+              scriptPlay = null;
+            }
+          }
           logicAcc = 0;
           logicT = 0;
           introT = trailSec > 0 ? 0 : 1;
@@ -1539,7 +1560,7 @@ function buildPropScene(scene) {
         logicAcc += dt;
         let steps = 0;
         if (!poseCurr) {
-          poseCurr = propPose(action, 0, poseHalf);
+          poseCurr = (scriptPlay ? scriptPlay(0, poseHalf) : propPose(action, 0, poseHalf));
           posePrev = poseCurr;
           introPrev = introT;
         }
@@ -1551,10 +1572,15 @@ function buildPropScene(scene) {
             introT = Math.min(1, introT + step / trailSec);
             if (introT >= 1) introPrev = 1;
             logicT = 0;
-            poseCurr = propPose(action, 0, poseHalf);
+            poseCurr = (scriptPlay ? scriptPlay(0, poseHalf) : propPose(action, 0, poseHalf));
+            posePrev = poseCurr;
+            if (introT >= 1) {
+              logicAcc = 0;
+              break;
+            }
           } else {
             logicT = Math.min(1, logicT + step / ms);
-            poseCurr = propPose(action, logicT, poseHalf);
+            poseCurr = (scriptPlay ? scriptPlay(logicT, poseHalf) : propPose(action, logicT, poseHalf));
           }
           logicAcc -= step;
           steps += 1;
@@ -1567,7 +1593,7 @@ function buildPropScene(scene) {
       }
     }
     const alpha = !ready || !poseCurr || logicT >= 1 ? 1 : logicAcc / step;
-    const p = mixPose(posePrev, poseCurr || propPose(action, 0, poseHalf), alpha);
+    const p = mixPose(posePrev, poseCurr || (scriptPlay ? scriptPlay(0, poseHalf) : propPose(action, 0, poseHalf)), alpha);
     const spinH = Number(normalizePropSpin(host?.dataset.propRhrot)) * Math.PI / 180;
     const spinV = Number(normalizePropSpin(host?.dataset.propRvrot)) * Math.PI / 180;
     p.ry += spinH;
@@ -1664,18 +1690,13 @@ function buildPropScene(scene) {
         const introDone = introDraw >= 1;
         const target = { x: p.x, y: p.y, z: p.z };
         fx.mark?.(normalizePropTrailChar(host?.dataset.propTrailChar));
-        const fly = introDone ? target : fx.tick(introDraw, target);
-        if (introDone) {
-          if (unit && !unit.trailSettled) {
-            fx.tick(1, target);
-            unit.trailSettled = true;
-          }
-        } else if (unit) {
-          unit.trailSettled = false;
-        }
+        fx.glyph?.(Number(normalizePropTrailGlyph(host?.dataset.propTrailGlyph)));
+        fx.sharp?.(Number(normalizePropTrailSharp(host?.dataset.propTrailSharp)));
         const flyEnd = propTrailFlyEnd(trailPop);
+        fx.tick(introDone ? 1 : introDraw, target);
+        if (unit) unit.trailSettled = introDone;
         const fadeSlide = trailIn === "fade" || trailIn === "slide";
-        const landT = introDraw <= flyEnd ? (introDone ? 1 : 0) : Math.min(1, (introDraw - flyEnd) / (1 - flyEnd));
+        const landT = introDraw <= flyEnd ? 0 : Math.min(1, (introDraw - flyEnd) / (1 - flyEnd));
         const joinPop = landT < 1 && landT > 0;
         let jx = 1;
         let jy = 1;
@@ -1709,11 +1730,11 @@ function buildPropScene(scene) {
             jry = (1 - t) * 0.12 * hit;
           }
         }
-        root.position.set(fly.x + jxOff, fly.y + jyOff, fly.z);
+        root.position.set(p.x + jxOff, p.y + jyOff, p.z);
         root.rotation.set(p.rx, p.ry + jry, p.rz);
         root.scaling.set(p.sx * jx, p.sy * jy, p.sz * jz);
         const showProp = introDone || (fadeSlide ? landT > 0 : landT >= 0.08);
-        setTreeVisibility(root, showProp ? jVis : 1);
+        setTreeVisibility(root, showProp ? jVis : 0);
         if (!showProp) {
           box.setEnabled(false);
           ball.setEnabled(false);
@@ -1722,18 +1743,10 @@ function buildPropScene(scene) {
           cone.setEnabled(false);
           blob.setEnabled(false);
         }
-        const trailOn = landT < 0.55;
+        const trailOn = !introDone;
         if (host && trailOn !== trailClassOn) {
           trailClassOn = trailOn;
           host.classList.toggle("is-trail", trailOn);
-        }
-        if (!introDone) {
-          camera.target.x = fly.x * (isDriveAction(action) ? 0 : 0.35);
-          camera.target.y = (action === "star" || action === "cheer" || action === "space")
-            ? 0.14 + fly.y * 0.55
-            : isDriveAction(action)
-              ? Math.min(0.38, fly.y * 0.32 + 0.1)
-              : Math.min(0.55, fly.y * 0.45 + 0.22);
         }
       } catch (err) {
         trailFault = true;

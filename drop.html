@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subir imagen · Clímax</title>
+  <link rel="stylesheet" href="browse.css?v=browse45" />
+  <link rel="stylesheet" href="account.css?v=acct1" />
+</head>
+<body>
+  <main id="stage">
+    <section class="view on in">
+      <div class="headIn">
+        <h1 class="display">La imagen del anuncio</h1>
+        <p class="lede" id="dropLede">Sube la foto y sigue a la ficha.</p>
+      </div>
+      <form class="wallIn card accountCard" id="dropForm">
+        <label id="passLabel" hidden>Contraseña del enlace<input name="password" type="password" autocomplete="off"></label>
+        <p class="hint" id="dropNote" hidden></p>
+        <label id="fileLabel" hidden>Imagen<input name="file" type="file" accept="image/*"></label>
+        <p class="formError" id="dropError" hidden></p>
+        <button class="btn primary" type="submit">Continuar</button>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { api } from "./account.js?v=acct1";
+    const id = new URLSearchParams(location.search).get("id");
+    const passLabel = document.getElementById("passLabel");
+    const fileLabel = document.getElementById("fileLabel");
+    const note = document.getElementById("dropNote");
+    const error = document.getElementById("dropError");
+    let locked = true;
+    const res = await api(`/api/drops/${id}`);
+    const drop = await res.json();
+    if (!res.ok) {
+      error.hidden = false;
+      error.textContent = drop.error || "Enlace inexistente.";
+    } else {
+      locked = drop.locked;
+      passLabel.hidden = !locked;
+      fileLabel.hidden = locked;
+      if (drop.note) {
+        note.hidden = false;
+        note.textContent = drop.note;
+      }
+    }
+    document.getElementById("dropForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      error.hidden = true;
+      if (locked) {
+        const password = new FormData(event.target).get("password");
+        const opened = await api(`/api/drops/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+        const body = await opened.json();
+        if (!opened.ok) {
+          error.hidden = false;
+          error.textContent = body.error || "No se abrió.";
+          return;
+        }
+        locked = false;
+        passLabel.hidden = true;
+        fileLabel.hidden = false;
+        if (body.note) {
+          note.hidden = false;
+          note.textContent = body.note;
+        }
+        return;
+      }
+      const file = event.target.file.files?.[0];
+      if (!file) return;
+      const sent = await api(`/api/drops/${id}/image`, { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
+      const body = await sent.json();
+      if (!sent.ok) {
+        error.hidden = false;
+        error.textContent = body.error || "No se subió.";
+        return;
+      }
+      location.href = body.review || "review.html";
+    });
+  </script>
+</body>
+</html>

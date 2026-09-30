@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inicio · Clímax</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav12" />
+  <link rel="stylesheet" href="browse.css?v=browse45" />
+  <link rel="stylesheet" href="account.css?v=acct1" />
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <div class="app-bar-end">
+      <div class="app-user" id="app-user">
+        <button class="app-avatar" id="app-avatar" type="button" aria-expanded="false" aria-label="Cuenta"></button>
+        <div class="app-user-menu"></div>
+      </div>
+    </div>
+  </header>
+  <main id="stage">
+    <section class="view on in">
+      <div class="headIn">
+        <h1 class="display" id="homeTitle">Tu espacio</h1>
+        <p class="lede" id="homeLede">Entra para guardar preferencias, perfiles y enlaces.</p>
+      </div>
+      <div class="wallIn accountGrid">
+        <form class="card accountCard" id="authForm">
+          <h2 id="authTitle">Entrar</h2>
+          <label>Nombre<input name="name" type="text" autocomplete="name" hidden></label>
+          <label>Correo<input name="email" type="email" autocomplete="username" required></label>
+          <label>Contraseña<input name="password" type="password" autocomplete="current-password" required minlength="4"></label>
+          <p class="formError" id="authError" hidden></p>
+          <div class="accountActs">
+            <button class="btn primary" type="submit">Entrar</button>
+            <button class="btn quiet" id="authSwitch" type="button">Crear cuenta</button>
+          </div>
+        </form>
+        <div id="homeIn" hidden>
+          <section class="card">
+            <h2>Espacio</h2>
+            <p class="originName" id="orgName"></p>
+            <a class="btn" href="browse.html">Ir a Buscar</a>
+          </section>
+          <section class="card" id="preferencias">
+            <h2>Preferencias</h2>
+            <p class="hint">Quedan en tu espacio. La organización y el nivel global se leen si existen.</p>
+            <label>Resolución de capturas <output id="blitOut">0.8×</output>
+              <input id="blit" type="range" min="0.1" max="1.5" step="0.05" value="0.8">
+            </label>
+            <label>Portada
+              <select id="cover">
+                <option value="obj">Objeto</option>
+                <option value="ad">Anuncio</option>
+                <option value="hover">Al pasar</option>
+              </select>
+            </label>
+            <label>Columnas
+              <select id="cols">
+                <option value="auto">Auto</option>
+                <option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+              </select>
+            </label>
+          </section>
+          <section class="card">
+            <h2>Personas</h2>
+            <ul class="members" id="members"></ul>
+            <form id="inviteForm" class="stackForm">
+              <input name="name" type="text" placeholder="Nombre" required>
+              <input name="email" type="email" placeholder="Correo" required>
+              <input name="password" type="text" placeholder="Contraseña inicial" required minlength="4">
+              <button class="btn" type="submit">Invitar al espacio</button>
+            </form>
+          </section>
+          <section class="card">
+            <h2>Token externo</h2>
+            <p class="hint">Sirve para leer perfiles y ajustes. No administra cuentas.</p>
+            <button class="btn" id="tokenBtn" type="button">Crear token</button>
+            <p class="tokenOut" id="tokenOut" hidden></p>
+          </section>
+          <section class="card">
+            <h2>Perfiles ligados</h2>
+            <ul class="members" id="profiles"></ul>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="app-nav.js?v=nav13"></script>
+  <script type="module" src="home.js?v=home1"></script>
+</body>
+</html>

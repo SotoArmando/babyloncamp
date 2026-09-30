@@ -13,6 +13,12 @@
     <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
       <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
     </button>
+    <div class="app-bar-end">
+      <div class="app-user" id="app-user">
+        <button class="app-avatar" id="app-avatar" type="button" aria-expanded="false" aria-label="Cuenta"></button>
+        <div class="app-user-menu"></div>
+      </div>
+    </div>
   </header>
 
   <div id="wash"></div>
@@ -46,6 +52,27 @@
             <p class="originName" id="originName"></p>
             <ul class="sources" id="sources"></ul>
           </section>
+          <section class="card" aria-labelledby="progressTitle">
+            <h2 id="progressTitle">Progreso</h2>
+            <p class="origin" id="progressLabel"></p>
+            <p class="originName" id="progressWait"></p>
+          </section>
+          <section class="card" aria-labelledby="partTitle">
+            <h2 id="partTitle">Participar</h2>
+            <p class="hint">Un like, una imagen o un comentario. Queda en la ficha con la persona y el nivel.</p>
+            <div class="chips" id="partLevel" role="group" aria-label="Nivel">
+              <button type="button" class="chip on" data-level="user">Tu espacio</button>
+              <button type="button" class="chip" data-level="org">Organización</button>
+              <button type="button" class="chip" data-level="global">Global</button>
+            </div>
+            <div class="sideActs">
+              <button class="btn" id="likeBtn" type="button">Like</button>
+              <label class="btn">Subir imagen<input id="partImage" type="file" accept="image/*" hidden></label>
+              <textarea id="partComment" rows="3" placeholder="Comentario"></textarea>
+              <button class="btn primary" id="commentBtn" type="button">Comentar</button>
+            </div>
+            <ol class="revs" id="partLog"></ol>
+          </section>
           <section class="card" aria-labelledby="moreTitle">
             <h2 id="moreTitle">Usar más</h2>
             <p class="hint">Otra pieza puede entrar por una integración o por el cliente.</p>
@@ -57,7 +84,8 @@
     </section>
   </main>
 
-  <script src="app-nav.js?v=nav11"></script>
-  <script type="module" src="review.js?v=review3"></script>
+  <script src="app-nav.js?v=nav13"></script>
+  <script type="module" src="account.js?v=acct1"></script>
+  <script type="module" src="review.js?v=review4"></script>
 </body>
 </html>

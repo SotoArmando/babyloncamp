@@ -1,0 +1,16 @@
+.lede{margin:12px 0 0; color:var(--ink-2); max-width:40rem}
+.accountGrid{display:grid; gap:14px; max-width:720px; padding-bottom:48px}
+.accountCard,.card h2{margin:0 0 12px; font-size:.78rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-3)}
+.accountCard label,.card label{display:flex; flex-direction:column; gap:6px; margin:0 0 12px; font-size:.84rem; color:var(--ink-2)}
+.accountCard input,.card input,.card select,.card textarea{
+  font:inherit; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+}
+.accountActs{display:flex; gap:8px; align-items:center}
+.formError{color:#8a3b32; margin:0 0 10px}
+.members{list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:8px}
+.members li{display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid rgba(26,25,22,.08)}
+.stackForm{display:flex; flex-direction:column; gap:8px}
+.tokenOut{margin:12px 0 0; padding:10px 12px; border-radius:12px; background:rgba(26,25,22,.04); word-break:break-all; font-size:.84rem}
+#homeIn{display:grid; gap:14px}
+#homeIn[hidden]{display:none}
+.accountCard[hidden]{display:none}

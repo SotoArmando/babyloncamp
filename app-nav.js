@@ -1,7 +1,9 @@
 (function () {
   const ROUTES = [
     { id: "gallery", href: "gallery.html", label: "Galería" },
+    { id: "climax", href: "climax.html", label: "Clímax" },
     { id: "gallery-gwd", href: "gallery-gwd.html", label: "Galería GWD" },
+    { id: "home", href: "home.html", label: "Inicio" },
     { id: "browse", href: "browse.html", label: "Buscar" },
     { id: "review", href: "review.html", label: "Ficha" },
     { id: "ads", href: "ads.html", label: "Anuncios" },

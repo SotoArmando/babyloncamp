@@ -1319,6 +1319,7 @@
       gap: 0.3rem;
       margin: 0.7rem 0 0;
     }
+    .prop-lint[hidden] { display: none; }
     .prop-lint span {
       display: flex;
       justify-content: space-between;
@@ -2615,6 +2616,11 @@
   <dialog class="g-modal g-modal-wide" id="prop-panel" aria-labelledby="prop-panel-title">
     <h2 id="prop-panel-title">Objeto</h2>
     <div class="g-modal-body ph-panel">
+      <h3>Tamaño</h3>
+      <label class="prop-lint">
+        <span>Escala <output id="prop-scale-val">0.72</output></span>
+        <input id="sel-prop-scale" type="range" min="0.2" max="2.4" step="0.02" value="0.72" aria-label="Escala del mesh" />
+      </label>
       <h3>Cámara</h3>
       <label class="prop-lint">
         <span>Distancia <output id="prop-cam-val">4.1</output></span>
@@ -2685,6 +2691,14 @@
         <label class="prop-lint">
           <span>Esparcir <output id="prop-trail-spread-val">1</output></span>
           <input id="sel-prop-trail-spread" type="range" min="0.6" max="2.6" step="0.05" value="1" />
+        </label>
+        <label class="prop-lint">
+          <span>Tamaño <output id="prop-trail-glyph-val">1</output></span>
+          <input id="sel-prop-trail-glyph" type="range" min="0.6" max="2.6" step="0.05" value="1" aria-label="Tamaño de los caracteres" />
+        </label>
+        <label class="prop-lint" id="prop-trail-sharp-row" hidden>
+          <span>Nitidez <output id="prop-trail-sharp-val">1.50</output></span>
+          <input id="sel-prop-trail-sharp" type="range" min="1" max="2.5" step="0.25" value="1.5" aria-label="Nitidez de la estela" />
         </label>
         <label class="prop-lint">
           <span>Velocidad <output id="prop-trail-spd-val">1</output>×</span>
@@ -2861,8 +2875,8 @@
     } }
   </script>
   <script type="module">
-    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, propTrailById, PROP_TRAILS, PROP_TRAIL_JOINS, PROP_TRAIL_INS, normalizePropTrail2d, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailSpd, normalizePropTrailPop, normalizePropTrailChar, propTrailJoinById, propTrailInById, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, PROP_BG_STYLES, propBgStyleById, propBgShape, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam41";
-    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop137";
+    import { FORMATS, formatById, adMarkup, playById, handoffById, HANDOFF_TRANSITIONS, normalizePropFloor, normalizePropFlat, normalizePropCog, propTrailById, PROP_TRAILS, PROP_TRAIL_JOINS, PROP_TRAIL_INS, normalizePropTrail2d, normalizePropTrail2dCol, normalizePropTrail2dCon, normalizePropTrailGlow, normalizePropTrailTail, normalizePropTrailMark, normalizePropTrailSpread, normalizePropTrailSpd, normalizePropTrailPop, normalizePropTrailGlyph, normalizePropTrailSharp, normalizePropTrailChar, propTrailJoinById, propTrailInById, normalizePropSpin, normalizePropCam, normalizePropCamH, normalizePropCamV, normalizePropCamMode, normalizePropCamPan, normalizeViewFps, normalizeViewBlit, normalizeViewShelf, normalizeViewSideDlg, normalizeViewZoom, normalizeViewClock, normalizeViewClockStyle, normalizeViewClockTone, normalizeViewClockSize, CLOCK_STYLES, CLOCK_TONES, applyClockLook, playPaletteFields, resolvePalette, PROP_BG_STYLES, propBgStyleById, propBgShape, AD_PLACE_PALETTES, AD_PLACE_FIELDS, AD_PLACE_STYLES, AD_PLACE_FITS, resolveAdPlace, matchAdPlaceId, adPlaceInnerMarkup, adPlaceFitStyle, adPlaceVars, adPlaceById, adPlaceFromPlay, adImageSrc, listAdImages, normalizeAdImg, normalizeAdFit, normalizeAdFitAxis, normalizeAdFitZoom, normalizeAdFitMat, normHex, normalizeHandoffMs, normalizeHandoffBands, normalizeHandoffStagger, normalizeHandoffHold, normalizeHandoffIn, normalizeHandoffBeats, normalizeHandoffTempo, normalizeHandoffText, normalizeHandoffEmpty, resolveHandoffClaim, handoffUsesClaim, resolveHandoffTempo, applyHandoffSettings } from "./ad-catalog.js?v=cam42";
+    import { bootContainers, startAd, disposeAds, restAds, rewindAds, pauseAds, resumeAds, nudgeAds, applyAnimCost, getDrawFps, playDurationMs, setPropModelFile, setPropModelFiles, preparePropSource, prepareComboMesh, preloadEngine, warmupPropGpu, syncAdSize, setAdClockLook, setAdClockT } from "./ad-player.js?v=prop145";
     import {
       loadGalleryStore,
       saveGalleryStore,
@@ -2882,7 +2896,7 @@
       loadComboPropFiles,
       deleteComboPropFiles,
       resetGalleryCacheAndSettings,
-    } from "./ad-profile.js?v=trail1";
+    } from "./ad-profile.js?v=script3";
     import { STUDIO_PRESET_LIST, STUDIO_EXTRA_PLACE_LIST, MAX_STUDIO_EXTRAS, MAX_STUDIO_EXTRA_INTENSITY, serializeStudioState, normalizeStudioState, studioStateFromPreset, addStudioExtra, updateStudioExtra, removeStudioExtra } from "./studio-lights.js?v=uni7";
     import { listAllAssets, loadAssetThumbs, isMeshFile, formatBytes } from "./ad-assets.js?v=thumb6";
 
@@ -3017,6 +3031,8 @@
     const selPropFloor = document.getElementById("sel-prop-floor");
     const selPropFlat = document.getElementById("sel-prop-flat");
     const selPropCog = document.getElementById("sel-prop-cog");
+    const selPropScale = document.getElementById("sel-prop-scale");
+    const propScaleVal = document.getElementById("prop-scale-val");
     const selPropCam = document.getElementById("sel-prop-cam");
     const propCamVal = document.getElementById("prop-cam-val");
     const selPropCamPan = document.getElementById("sel-prop-campan");
@@ -3471,6 +3487,8 @@
         propTrail2dCon: normalizePropTrail2dCon(item.p2dcon),
         propTrailMark: normalizePropTrailMark(item.pmk),
         propTrailSpread: normalizePropTrailSpread(item.psp),
+        propTrailGlyph: normalizePropTrailGlyph(item.pgly),
+        propTrailSharp: normalizePropTrailSharp(item.psharp),
         propTrailSpd: normalizePropTrailSpd(item.pvel),
         propTrailPop: normalizePropTrailPop(item.ppop),
         propTrailJoin: propTrailJoinById(item.pjoin).id,
@@ -3781,6 +3799,9 @@
       selPropFloor.checked = normalizePropFloor(item.pfloor) === "1";
       selPropFlat.checked = normalizePropFlat(item.pflat) === "1";
       selPropCog.checked = normalizePropCog(item.pcog) === "1";
+      const scale = propScaleOf(item);
+      selPropScale.value = scale;
+      propScaleVal.textContent = Number(scale).toFixed(2);
       const cam = normalizePropCam(item.pcam);
       selPropCam.value = cam;
       propCamVal.textContent = Number(cam).toFixed(1);
@@ -3873,6 +3894,9 @@
         el.dataset.propFloor = normalizePropFloor(item.pfloor);
         el.dataset.propFlat = normalizePropFlat(item.pflat);
         el.dataset.propCog = normalizePropCog(item.pcog);
+        el.dataset.propSx = item.psx || "0.72";
+        el.dataset.propSy = item.psy || "0.72";
+        el.dataset.propSz = item.psz || "0.72";
         el.dataset.propCam = normalizePropCam(item.pcam);
         el.dataset.propCamH = normalizePropCamH(item.pch);
         el.dataset.propCamV = normalizePropCamV(item.pcv);
@@ -3889,6 +3913,8 @@
         el.dataset.propTrail2dCon = normalizePropTrail2dCon(item.p2dcon);
         el.dataset.propTrailMark = normalizePropTrailMark(item.pmk);
         el.dataset.propTrailSpread = normalizePropTrailSpread(item.psp);
+        el.dataset.propTrailGlyph = normalizePropTrailGlyph(item.pgly);
+        el.dataset.propTrailSharp = normalizePropTrailSharp(item.psharp);
         el.dataset.propTrailSpd = normalizePropTrailSpd(item.pvel);
         el.dataset.propTrailPop = normalizePropTrailPop(item.ppop);
         el.dataset.propTrailJoin = propTrailJoinById(item.pjoin).id;
@@ -3946,12 +3972,16 @@
       if (enterBlurb) enterBlurb.textContent = enter.blurb;
       const mark = document.getElementById("sel-prop-trail-mark");
       const spread = document.getElementById("sel-prop-trail-spread");
+      const glyph = document.getElementById("sel-prop-trail-glyph");
+      const sharp = document.getElementById("sel-prop-trail-sharp");
       const spd = document.getElementById("sel-prop-trail-spd");
       const pop = document.getElementById("sel-prop-trail-pop");
       const con = document.getElementById("sel-prop-trail-2d-con");
       const flat = document.getElementById("sel-prop-trail-2d");
       if (mark) mark.value = normalizePropTrailMark(item?.pmk);
       if (spread) spread.value = normalizePropTrailSpread(item?.psp);
+      if (glyph) glyph.value = normalizePropTrailGlyph(item?.pgly);
+      if (sharp) sharp.value = normalizePropTrailSharp(item?.psharp);
       if (spd) spd.value = normalizePropTrailSpd(item?.pvel);
       if (pop) pop.value = normalizePropTrailPop(item?.ppop);
       if (con) con.value = normalizePropTrail2dCon(item?.p2dcon);
@@ -3964,11 +3994,17 @@
       if (tail) tail.value = normalizePropTrailTail(item?.ptl, item?.p2dcol);
       const markVal = document.getElementById("prop-trail-mark-val");
       const spreadVal = document.getElementById("prop-trail-spread-val");
+      const glyphVal = document.getElementById("prop-trail-glyph-val");
+      const sharpVal = document.getElementById("prop-trail-sharp-val");
       const spdVal = document.getElementById("prop-trail-spd-val");
       const popVal = document.getElementById("prop-trail-pop-val");
       const conVal = document.getElementById("prop-trail-2d-con-val");
       if (markVal) markVal.textContent = Number(normalizePropTrailMark(item?.pmk)).toFixed(2);
       if (spreadVal) spreadVal.textContent = Number(normalizePropTrailSpread(item?.psp)).toFixed(2);
+      if (glyphVal) glyphVal.textContent = Number(normalizePropTrailGlyph(item?.pgly)).toFixed(2);
+      if (sharpVal) sharpVal.textContent = Number(normalizePropTrailSharp(item?.psharp)).toFixed(2);
+      const sharpRow = document.getElementById("prop-trail-sharp-row");
+      if (sharpRow) sharpRow.hidden = !/firefox/i.test(navigator.userAgent);
       if (spdVal) spdVal.textContent = Number(normalizePropTrailSpd(item?.pvel)).toFixed(2);
       if (popVal) popVal.textContent = Number(normalizePropTrailPop(item?.ppop)).toFixed(2);
       if (conVal) conVal.textContent = Number(normalizePropTrail2dCon(item?.p2dcon)).toFixed(2);
@@ -4001,6 +4037,33 @@
       item.prv = normalizePropSpin(raw);
       selPropRvrot.value = item.prv;
       propRvrotVal.textContent = `${item.prv}°`;
+      if (save) saveGalleryStore(store);
+      applyPropLightLive(item);
+    }
+
+    function normalizePropScale(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "0.72";
+      return (Math.round(Math.min(2.4, Math.max(0.2, n)) * 100) / 100).toFixed(2);
+    }
+
+    function propScaleOf(item) {
+      const axes = [item?.psx, item?.psy, item?.psz].map((value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0.72;
+      });
+      return normalizePropScale(Math.max(...axes));
+    }
+
+    function persistPropScale(raw, save) {
+      const item = selectedCombo();
+      if (!item || playById(item.play).id !== "prop") return;
+      const scale = normalizePropScale(raw);
+      item.psx = scale;
+      item.psy = scale;
+      item.psz = scale;
+      selPropScale.value = scale;
+      propScaleVal.textContent = scale;
       if (save) saveGalleryStore(store);
       applyPropLightLive(item);
     }
@@ -4188,9 +4251,17 @@
       return item.pmesh.assetId ? `asset:${item.pmesh.assetId}` : `idb:${item.id}:${item.pmesh.name}`;
     }
 
+    function climaxSource(item) {
+      if (!item?.csid) return "";
+      const list = activeProfile(store).climaxScripts;
+      if (!Array.isArray(list)) return "";
+      const script = list.find((entry) => entry.id === item.csid);
+      return typeof script?.source === "string" ? script.source : "";
+    }
+
     function playKey(item) {
       if (!item) return "";
-      return [item.id, formatId, item.play, item.hand || "", item.in || "", item.propAct || "", comboPropTag(item)].join("|");
+      return [item.id, formatId, item.play, item.hand || "", item.in || "", item.propAct || "", item.csid || "", climaxSource(item), comboPropTag(item)].join("|");
     }
 
     async function applyComboPropModel(item) {
@@ -4860,6 +4931,9 @@
       livePlayKey = "";
       applyAdBox(format);
       slot.innerHTML = adMarkup(format, "gal-play", item.in || "none", item.play, propMarkupExtras(item));
+      const playHost = slot.querySelector(".ad-container");
+      const source = climaxSource(item);
+      if (playHost && source) playHost.climaxScript = source;
       applyPropLightLive(item);
       const ad = slot.querySelector(".ad-slot");
       if (ad) ad.classList.add("is-in");
@@ -5033,6 +5107,8 @@
     });
     selAfps.addEventListener("change", persistView);
     selBlit.addEventListener("input", persistView);
+    selPropScale.addEventListener("input", () => persistPropScale(selPropScale.value, false));
+    selPropScale.addEventListener("change", () => persistPropScale(selPropScale.value, true));
     selPropCam.addEventListener("input", () => persistPropCam(selPropCam.value, false));
     selPropCam.addEventListener("change", () => persistPropCam(selPropCam.value, true));
     selPropCamPan.addEventListener("change", () => persistPropCamPan(selPropCamPan.checked));
@@ -5089,6 +5165,12 @@
     document.getElementById("sel-prop-trail-spread")?.addEventListener("input", (event) => {
       trailLive(() => event.target.value, (item, value) => { item.psp = normalizePropTrailSpread(value); });
     });
+    document.getElementById("sel-prop-trail-glyph")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.pgly = normalizePropTrailGlyph(value); });
+    });
+    document.getElementById("sel-prop-trail-sharp")?.addEventListener("input", (event) => {
+      trailLive(() => event.target.value, (item, value) => { item.psharp = normalizePropTrailSharp(value); });
+    });
     document.getElementById("sel-prop-trail-spd")?.addEventListener("input", (event) => {
       trailLive(() => event.target.value, (item, value) => { item.pvel = normalizePropTrailSpd(value); });
     });
@@ -5098,7 +5180,7 @@
     document.getElementById("sel-prop-trail-2d-con")?.addEventListener("input", (event) => {
       trailLive(() => event.target.value, (item, value) => { item.p2dcon = normalizePropTrail2dCon(value); });
     });
-    for (const id of ["sel-prop-trail-mark", "sel-prop-trail-spread", "sel-prop-trail-spd", "sel-prop-trail-pop", "sel-prop-trail-2d-con"]) {
+    for (const id of ["sel-prop-trail-mark", "sel-prop-trail-spread", "sel-prop-trail-glyph", "sel-prop-trail-sharp", "sel-prop-trail-spd", "sel-prop-trail-pop", "sel-prop-trail-2d-con"]) {
       document.getElementById(id)?.addEventListener("change", () => {
         trailSave();
         if (id !== "sel-prop-trail-mark" && id !== "sel-prop-trail-spread") return;
@@ -5421,6 +5503,6 @@
     fillHandStyles();
     renderGrid();
   </script>
-  <script src="app-nav.js?v=nav11"></script>
+  <script src="app-nav.js?v=nav12"></script>
 </body>
 </html>

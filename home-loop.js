@@ -87,7 +87,7 @@ function homeState() {
 }
 
 export function mountHomeLoops(root = document) {
-  const nodes = [...root.querySelectorAll(".loop")];
+  const nodes = [...root.querySelectorAll(".loop")].filter((el) => !el.closest("#createShell"));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const prev = homeState();
   if (prev) {

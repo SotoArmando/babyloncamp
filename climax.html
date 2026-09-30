@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clímax · script</title>
+  <link rel="stylesheet" href="app-nav.css?v=nav12" />
+  <link rel="stylesheet" href="ad-play.css?v=play2" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --paper: #ffffff;
+      --ink: #1a2330;
+      --muted: #5c6b7a;
+      --line: #d8e0e8;
+      --neon: #0b8f78;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .desk {
+      display: grid;
+      grid-template-columns: 240px minmax(280px, 1fr) 360px;
+      min-height: 0;
+    }
+    .col {
+      min-height: 0;
+      overflow: auto;
+      padding: 0.9rem;
+    }
+    .col-list, .col-edit { border-right: 1px solid var(--line); background: var(--paper); }
+    .col h2 {
+      margin: 0.85rem 0 0.4rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .col h2:first-child { margin-top: 0; }
+    label { display: grid; gap: 0.25rem; font-size: 0.82rem; color: var(--muted); }
+    select, input, textarea, button {
+      font: inherit;
+      color: var(--ink);
+    }
+    select, input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 0.45rem 0.55rem;
+    }
+    textarea {
+      min-height: 280px;
+      resize: vertical;
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .picks { display: grid; gap: 0.3rem; }
+    .picks button, .row button {
+      text-align: left;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.4rem 0.55rem;
+      cursor: pointer;
+    }
+    .picks button.is-on, .row button.primary {
+      border-color: var(--neon);
+      background: #e7f6f2;
+    }
+    .row { display: flex; gap: 0.45rem; margin-top: 0.7rem; }
+    .row button { flex: 1; }
+    .note { min-height: 1.2rem; margin: 0.55rem 0 0; font-size: 0.82rem; color: var(--muted); }
+    .note.is-bad { color: #9d2c3a; }
+    .stage {
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+    }
+    .stage .ad-slot { margin: 0; }
+    @media (max-width: 980px) {
+      .desk { grid-template-columns: 1fr; }
+      .col-list, .col-edit { border-right: none; border-bottom: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <button type="button" class="app-burger" id="app-burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="app-drawer">
+      <span class="app-burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <a class="app-brand" href="index.html">Nexus Daily</a>
+    <h1 class="app-page-title">Clímax</h1>
+    <div class="app-bar-end">
+      <a class="app-quiet" href="gallery.html">Galería</a>
+    </div>
+  </header>
+  <div class="desk">
+    <aside class="col col-list">
+      <label>Perfil
+        <select id="sel-profile"></select>
+      </label>
+      <h2>Traídos</h2>
+      <div class="picks" id="brought"></div>
+      <h2>Del perfil</h2>
+      <div class="picks" id="saved"></div>
+    </aside>
+    <section class="col col-edit">
+      <label>Nombre
+        <input id="script-name" type="text" maxlength="48" />
+      </label>
+      <label style="margin-top:0.7rem">Script
+        <textarea id="script-source" spellcheck="false" aria-label="Script del clímax"></textarea>
+      </label>
+      <p class="note" id="script-note"></p>
+      <div class="row">
+        <button type="button" id="btn-new">Nuevo</button>
+        <button type="button" id="btn-preview" class="primary">Previsualizar</button>
+        <button type="button" class="primary" id="btn-save">Guardar en el perfil</button>
+      </div>
+    </section>
+    <section class="col stage" id="stage"></section>
+  </div>
+  <script type="importmap">
+    { "imports": {
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3?external=@babylonjs/core",
+      "@babylonjs/loaders/": "https://esm.sh/@babylonjs/loaders@7.54.3/",
+      "@babylonjs/loaders/OBJ": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ?external=@babylonjs/core",
+      "@babylonjs/loaders/OBJ/": "https://esm.sh/@babylonjs/loaders@7.54.3/OBJ/",
+      "@babylonjs/loaders/glTF": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF?external=@babylonjs/core",
+      "@babylonjs/loaders/glTF/": "https://esm.sh/@babylonjs/loaders@7.54.3/glTF/"
+    } }
+  </script>
+  <script type="module">
+    import { adMarkup, formatById } from "./ad-catalog.js?v=cam42";
+    import { bootContainers, startAd, disposeAds, setAdVisible, nudgeAds } from "./ad-player.js?v=prop145";
+    import { loadGalleryStore, saveGalleryStore } from "./ad-profile.js?v=script2";
+    import { defaultStudioState } from "./studio-lights.js?v=uni7";
+    import { CLIMAX_SCRIPT_COPIES, compileClimaxSource } from "./climax-script.js?v=hold1";
+
+    const BLANK = "y = half\nry = 0.28\n";
+    const selProfile = document.getElementById("sel-profile");
+    const brought = document.getElementById("brought");
+    const saved = document.getElementById("saved");
+    const nameInput = document.getElementById("script-name");
+    const sourceInput = document.getElementById("script-source");
+    const note = document.getElementById("script-note");
+    const stage = document.getElementById("stage");
+    let store = loadGalleryStore();
+    let editingId = "";
+    let act = "drop";
+
+    function profile() {
+      return store.profiles.find((entry) => entry.id === store.activeId) || store.profiles[0];
+    }
+
+    function scriptsOf(entry) {
+      if (!Array.isArray(entry.climaxScripts)) entry.climaxScripts = [];
+      return entry.climaxScripts;
+    }
+
+    function say(text, bad) {
+      note.textContent = text;
+      note.classList.toggle("is-bad", Boolean(bad));
+    }
+
+    function compileNow() {
+      try {
+        compileClimaxSource(sourceInput.value);
+        say("El script compila.");
+        return true;
+      } catch (err) {
+        say(err.message || "El script no compila.", true);
+        return false;
+      }
+    }
+
+    function paintProfiles() {
+      selProfile.innerHTML = store.profiles.map((entry) => `<option value="${entry.id}">${entry.name}</option>`).join("");
+      selProfile.value = profile()?.id || "";
+    }
+
+    function paintLists() {
+      const current = profile();
+      brought.innerHTML = CLIMAX_SCRIPT_COPIES.map((copy) => `
+        <button type="button" data-brought="${copy.id}">${copy.label}</button>
+      `).join("");
+      saved.innerHTML = scriptsOf(current).map((item) => `
+        <button type="button" data-saved="${item.id}"${item.id === editingId ? ' class="is-on"' : ""}>${item.name}</button>
+      `).join("") || `<p class="note">Todavía no hay clímax escritos en este perfil.</p>`;
+    }
+
+    function openBrought(id) {
+      const copy = CLIMAX_SCRIPT_COPIES.find((item) => item.id === id);
+      if (!copy) return;
+      editingId = "";
+      act = copy.source;
+      nameInput.value = copy.label;
+      sourceInput.value = copy.sourceText.trim();
+      say(`Script de ${copy.label}. Es una copia del clímax original.`);
+      paintLists();
+    }
+
+    function openSaved(id) {
+      const item = scriptsOf(profile()).find((entry) => entry.id === id);
+      if (!item) return;
+      editingId = item.id;
+      act = item.act || "drop";
+      nameInput.value = item.name;
+      sourceInput.value = item.source;
+      say(compileNow() ? "Clímax del perfil." : note.textContent, note.classList.contains("is-bad"));
+      paintLists();
+    }
+
+    async function preview() {
+      if (!compileNow()) return;
+      disposeAds();
+      const format = formatById("medium");
+      stage.innerHTML = adMarkup(format, "climax-play", "none", "prop", {
+        propAct: act,
+        propTrail: "none",
+        pal: { fogGrad: "day" },
+        studioLights: defaultStudioState(),
+      });
+      stage.querySelector(".ad-slot")?.classList.add("is-in");
+      const host = document.getElementById("climax-play");
+      host.climaxScript = sourceInput.value;
+      await bootContainers(stage);
+      await startAd(host);
+      const show = () => {
+        setAdVisible(host, true);
+        nudgeAds();
+      };
+      show();
+      requestAnimationFrame(show);
+      setTimeout(show, 60);
+    }
+
+    function save() {
+      if (!compileNow()) return;
+      const entry = profile();
+      const list = scriptsOf(entry);
+      const name = nameInput.value.trim() || "Clímax";
+      const found = list.find((item) => item.id === editingId);
+      if (found) {
+        found.name = name;
+        found.source = sourceInput.value;
+        found.act = act;
+      } else {
+        editingId = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        list.push({ id: editingId, name, source: sourceInput.value, act });
+      }
+      saveGalleryStore(store);
+      say(`Guardado en ${entry.name}.`);
+      paintLists();
+    }
+
+    selProfile.addEventListener("change", () => {
+      store.activeId = selProfile.value;
+      saveGalleryStore(store);
+      editingId = "";
+      paintLists();
+    });
+    brought.addEventListener("click", (ev) => {
+      const id = ev.target.closest("button")?.dataset.brought;
+      if (id) openBrought(id);
+    });
+    saved.addEventListener("click", (ev) => {
+      const id = ev.target.closest("button")?.dataset.saved;
+      if (id) openSaved(id);
+    });
+    document.getElementById("btn-new").addEventListener("click", () => {
+      editingId = "";
+      act = "drop";
+      nameInput.value = "Nuevo clímax";
+      sourceInput.value = BLANK;
+      say("Borrador nuevo. Guárdalo en el perfil cuando compile.");
+      paintLists();
+    });
+    document.getElementById("btn-preview").addEventListener("click", () => { preview(); });
+    document.getElementById("btn-save").addEventListener("click", save);
+    sourceInput.addEventListener("input", () => {
+      if (note.classList.contains("is-bad")) compileNow();
+    });
+
+    paintProfiles();
+    openBrought("drop");
+  </script>
+  <script src="app-nav.js?v=nav12"></script>
+</body>
+</html>

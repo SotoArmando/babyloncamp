@@ -1,23 +1,23 @@
-function easeOut(t) {
+export function easeOut(t) {
   return 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
 }
 
-function easeIn(t, p = 3) {
+export function easeIn(t, p = 3) {
   const k = Math.min(1, Math.max(0, t));
   return k ** p;
 }
 
-function easeInOut(t) {
+export function easeInOut(t) {
   const k = Math.min(1, Math.max(0, t));
   return k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2;
 }
 
-function span(t, a, b) {
+export function span(t, a, b) {
   if (b <= a) return t >= b ? 1 : 0;
   return Math.min(1, Math.max(0, (t - a) / (b - a)));
 }
 
-function lerp(a, b, t) {
+export function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
@@ -61,7 +61,7 @@ function alignQuat(prev, next) {
   return next;
 }
 
-function propBallFlight(t, h0, g, e) {
+export function propBallFlight(t, h0, g, e) {
   const tDrop = Math.sqrt((2 * h0) / g);
   if (t <= tDrop) {
     return { y: Math.max(0, h0 - 0.5 * g * t * t), squash: t > tDrop - 0.045 ? 0.2 : 0, spin: t * 3.2 };

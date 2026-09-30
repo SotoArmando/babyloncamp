@@ -19,31 +19,16 @@ import {
   comboShortTitle,
   loadGalleryStore,
   makeCombo,
+  saveGalleryStore,
   seedCombos,
-} from "./ad-profile.js?v=trail1";
+} from "./ad-profile.js?v=script3";
 import { STUDIO_PRESETS, normalizeStudioState } from "./studio-lights.js";
-import { loopMarkup, mountHomeLoops } from "./home-loop.js?v=home4";
-import { mountPlay, unmountPlay } from "./play-route.js?v=still14";
+import { loopMarkup, mountHomeLoops } from "./home-loop.js?v=home5";
+import { mountPlay, unmountPlay } from "./play-route.js?v=still17";
 import { captureComboStill, applyBrowseBlit, normalizeBrowseBlit } from "./browse-still.js?v=still2";
 import { loadStoredStill, saveStoredStill } from "./browse-still-store.js?v=store1";
 import { mountPinOrbit, unmountPinOrbit } from "./browse-orbit.js?v=orbit5";
-
-const INDUSTRIES = [
-  { id: "bebidas", name: "Bebidas", hue: 198, sat: 58, light: 46, keys: ["climax", "pre-enter", "breaker"], icon: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>' },
-  { id: "comida", name: "Comida", hue: 28, sat: 62, light: 48, keys: ["prop:drop", "prop:ball"], icon: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>' },
-  { id: "moda", name: "Moda", hue: 332, sat: 42, light: 52, keys: ["prop:turn", "prop:cheer"], icon: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>' },
-  { id: "auto", name: "Automotriz", hue: 214, sat: 52, light: 46, keys: ["prop:drive", "prop:drive-plain"], icon: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>' },
-  { id: "tech", name: "Tecnología", hue: 228, sat: 48, light: 52, keys: ["prop:torch", "prop:torch-front", "prop:space"], icon: '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>' },
-  { id: "retail", name: "Retail", hue: 16, sat: 58, light: 48, keys: ["prop:toy", "prop:star"], icon: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>' },
-  { id: "salud", name: "Salud", hue: 350, sat: 52, light: 50, keys: ["aurora", "calve"], icon: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>' },
-  { id: "educacion", name: "Educación", hue: 262, sat: 40, light: 50, keys: ["migrate", "erupt"], icon: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>' },
-  { id: "viajes", name: "Viajes", hue: 200, sat: 46, light: 46, keys: ["horizon", "sundown", "storm"], icon: '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>' },
-];
-
-const INDUSTRY_BY_KEY = new Map();
-for (const industry of INDUSTRIES) {
-  for (const key of industry.keys) INDUSTRY_BY_KEY.set(key, industry);
-}
+import { INDUSTRIES, industriesForItem, industryById, industryShowMap, itemsForIndustry } from "./industry-catalog.js?v=ind5";
 
 const FORMAT_ES = {
   billboard: { label: "Franja", size: "970 × 250" },
@@ -72,6 +57,10 @@ function norm(value) {
 function hslOf(h, s, l) {
   return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
 }
+
+INDUSTRIES.forEach((industry, index) => {
+  document.documentElement.style.setProperty(`--pal-${index}`, hslOf(industry.hue, industry.sat, industry.light));
+});
 
 function hslaOf(h, s, l, a) {
   return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}% / ${a})`;
@@ -104,13 +93,28 @@ function itemKey(item) {
   return item?.play === "prop" ? `prop:${item.propAct || "drop"}` : String(item?.play || "");
 }
 
+function showMap() {
+  try {
+    return industryShowMap(activeProfile(loadGalleryStore()));
+  } catch {
+    return null;
+  }
+}
+
+function industriesOf(item) {
+  return industriesForItem(item, ITEMS, showMap());
+}
+
 function industryOf(item) {
-  return INDUSTRY_BY_KEY.get(itemKey(item)) || null;
+  if (browse.ind) {
+    const current = industriesOf(item).find((industry) => industry.id === browse.ind);
+    if (current) return current;
+  }
+  return industriesOf(item)[0] || null;
 }
 
 function itemsOfIndustry(industry) {
-  if (!industry) return ITEMS.slice();
-  return ITEMS.filter((item) => industryOf(item)?.id === industry.id);
+  return itemsForIndustry(ITEMS, industry, showMap());
 }
 
 function loopHtml(item) {
@@ -223,8 +227,9 @@ function normalizeCover(value) {
 }
 
 function loadCover() {
-  try { return normalizeCover(localStorage.getItem(COVER_KEY)); }
-  catch { return "obj"; }
+  return "ad";
+  // try { return normalizeCover(localStorage.getItem(COVER_KEY)); }
+  // catch { return "obj"; }
 }
 
 function normalizeCols(value) {
@@ -235,8 +240,9 @@ function normalizeCols(value) {
 }
 
 function loadCols() {
-  try { return normalizeCols(localStorage.getItem(COLS_KEY)); }
-  catch { return "auto"; }
+  return 4;
+  // try { return normalizeCols(localStorage.getItem(COLS_KEY)); }
+  // catch { return "auto"; }
 }
 
 function loadBlit() {
@@ -257,6 +263,9 @@ const elColsChips = document.getElementById("colsChips");
 const elBlit = document.getElementById("browseBlit");
 const elBlitVal = document.getElementById("browseBlitVal");
 const elPinGrid = document.getElementById("pinGrid");
+const elPreviewCol = document.getElementById("previewCol");
+const elPreviewStage = document.getElementById("previewStage");
+const elPreviewClose = document.getElementById("previewClose");
 const elWallCount = document.getElementById("wallCount");
 const elWallEmpty = document.getElementById("wallEmpty");
 const elWallReset = document.getElementById("wallReset");
@@ -352,7 +361,7 @@ function mkChip(label, dotHsl, on, run, total) {
   if (total != null) {
     const badge = document.createElement("span");
     badge.className = "chipCount";
-    badge.textContent = String(total);
+    badge.textContent = String(`(${total})`);
     text.appendChild(badge);
   }
   const name = document.createElement("span");
@@ -377,26 +386,26 @@ function buildChips() {
     ));
   }
   elCasoChips.innerHTML = "";
-  elCasoChips.appendChild(mkChip("Todos los clímax", null, !browse.caso, () => setCaso("")));
-  for (const caso of CASOS) {
-    elCasoChips.appendChild(mkChip(caso.name, null, browse.caso === caso.id, () => setCaso(caso.id)));
-  }
+  // elCasoChips.appendChild(mkChip("Todos los clímax", null, !browse.caso, () => setCaso("")));
+  // for (const caso of CASOS) {
+  //   elCasoChips.appendChild(mkChip(caso.name, null, browse.caso === caso.id, () => setCaso(caso.id)));
+  // }
   elCoverChips.innerHTML = "";
-  const lab = document.createElement("span");
-  lab.className = "chip chipLab";
-  lab.textContent = "Portada";
-  elCoverChips.appendChild(lab);
-  for (const mode of COVER_MODES) {
-    elCoverChips.appendChild(mkChip(mode.label, null, browse.cover === mode.id, () => setCover(mode.id)));
-  }
+  // const lab = document.createElement("span");
+  // lab.className = "chip chipLab";
+  // lab.textContent = "Portada";
+  // elCoverChips.appendChild(lab);
+  // for (const mode of COVER_MODES) {
+  //   elCoverChips.appendChild(mkChip(mode.label, null, browse.cover === mode.id, () => setCover(mode.id)));
+  // }
   elColsChips.innerHTML = "";
-  const colsLab = document.createElement("span");
-  colsLab.className = "chip chipLab";
-  colsLab.textContent = "Columnas";
-  elColsChips.appendChild(colsLab);
-  for (const mode of COLS_MODES) {
-    elColsChips.appendChild(mkChip(mode.label, null, browse.cols === mode.id, () => setCols(mode.id)));
-  }
+  // const colsLab = document.createElement("span");
+  // colsLab.className = "chip chipLab";
+  // colsLab.textContent = "Columnas";
+  // elColsChips.appendChild(colsLab);
+  // for (const mode of COLS_MODES) {
+    // elColsChips.appendChild(mkChip(mode.label, null, browse.cols === mode.id, () => setCols(mode.id)));
+  // }
 }
 
 function setInd(id) {
@@ -417,6 +426,7 @@ function setCols(id) {
   const next = normalizeCols(id);
   if (next === browse.cols) return;
   browse.cols = next;
+  rememberAccount("cols", next);
   try { localStorage.setItem(COLS_KEY, next); } catch { /* optional */ }
   buildChips();
   wallLayout();
@@ -426,6 +436,7 @@ function setCover(id) {
   const next = normalizeCover(id);
   if (next === browse.cover) return;
   browse.cover = next;
+  rememberAccount("cover", next);
   try { localStorage.setItem(COVER_KEY, next); } catch { /* optional */ }
   stopPinPlay();
   stillHide = false;
@@ -443,10 +454,15 @@ function paintBlit(value = browse.blit) {
   return blit;
 }
 
+function rememberAccount(key, value) {
+  window.dispatchEvent(new CustomEvent("account-save", { detail: { key, value } }));
+}
+
 function setBlit(value) {
   const blit = applyBrowseBlit(value);
   browse.blit = blit;
   paintBlit(blit);
+  rememberAccount("blit", blit);
   try { localStorage.setItem(BLIT_KEY, String(blit)); } catch { /* optional */ }
   STILL_CACHE.clear();
   stillGen += 1;
@@ -752,14 +768,16 @@ function buildWall() {
     const open = document.createElement("button");
     open.type = "button";
     open.className = "pinOpen";
+    open.setAttribute("aria-pressed", "false");
     const stage = document.createElement("div");
     stage.className = "pinStage";
     stage.style.aspectRatio = `${format.w} / ${format.h}`;
     fillPinStage(stage, item);
     const body = document.createElement("div");
     body.className = "pinBody";
+    const names = industriesOf(item).map((entry) => entry.name);
     body.innerHTML = `<div class="pinName">${esc(comboShortTitle(item))}</div>
-      <div class="pinTags"><span class="pdot"></span><span>${esc(industry ? `${casoLabel(item)} · ${industry.name}` : casoLabel(item))}</span></div>`;
+      <div class="pinTags"><span class="pdot"></span><span>${esc(names.length ? `${casoLabel(item)} · ${names.join(" · ")}` : casoLabel(item))}</span></div>`;
     open.append(stage, body);
     const ficha = document.createElement("a");
     ficha.className = "pinFicha";
@@ -777,11 +795,17 @@ function buildWall() {
         ev.preventDefault();
         return;
       }
-      openAd(item, industry);
+      openPreview(item, industry);
     });
     elPinGrid.appendChild(card);
     return pin;
   });
+  if (previewItem) {
+    const next = PINS.find((pin) => pin.item.id === previewItem.id);
+    previewItem = next ? next.item : null;
+    if (!previewItem) setPreviewOpen(false);
+    markPreviewPins();
+  }
   wallLayout();
   refreshLoops();
   watchPinStills();
@@ -791,7 +815,7 @@ function applyBrowse() {
   const query = norm(browse.q);
   let shown = 0;
   for (const pin of PINS) {
-    const ok = (!browse.ind || pin.industry?.id === browse.ind)
+    const ok = (!browse.ind || industriesOf(pin.item).some((industry) => industry.id === browse.ind))
       && (!browse.caso || casoKey(pin.item) === browse.caso)
       && (!query || pin.hay.includes(query));
     if (pin.el) pin.el.hidden = !ok;
@@ -930,7 +954,7 @@ function fitScale(inner) {
 
 async function showPlay(inner, item) {
   const host = inner.querySelector(".fmtScale");
-  if (!host) return;
+  if (!host) return null;
   const format = formatById(item.ad);
   inner.style.setProperty("--fw", format.w);
   inner.style.setProperty("--fh", format.h);
@@ -941,8 +965,105 @@ async function showPlay(inner, item) {
   const slotId = `browse-${Date.now()}`;
   state.liveSlot = slotId;
   await mountPlay(host, { item, slotId, origin: location.origin });
-  if (state.liveSlot !== slotId) return;
+  if (state.liveSlot !== slotId) return slotId;
   fitScale(inner);
+  return slotId;
+}
+
+let previewItem = null;
+let previewToken = 0;
+let previewPlay = Promise.resolve();
+
+function markPreviewPins() {
+  const id = previewItem?.id;
+  for (const pin of PINS) {
+    const on = pin.item.id === id;
+    pin.el.classList.toggle("is-on", on);
+    pin.el.querySelector(".pinOpen")?.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+}
+
+let previewHideTimer = 0;
+
+function replayPreviewPlayer() {
+  if (!elPreviewCol || !elPreviewStage) return;
+  elPreviewCol.classList.remove("is-player");
+  elPreviewStage.style.transition = "none";
+  void elPreviewStage.offsetWidth;
+  elPreviewStage.style.transition = "";
+  requestAnimationFrame(() => elPreviewCol.classList.add("is-player"));
+}
+
+function setPreviewOpen(on) {
+  if (!elPreviewCol) return;
+  window.clearTimeout(previewHideTimer);
+  if (on) {
+    elPreviewCol.hidden = false;
+    elPreviewCol.classList.remove("is-open", "is-player");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => elPreviewCol.classList.add("is-open", "is-player"));
+    });
+    return;
+  }
+  elPreviewCol.classList.remove("is-player", "is-open");
+  previewHideTimer = window.setTimeout(() => {
+    if (previewItem || elPreviewCol.classList.contains("is-open")) return;
+    if (!state.open) clearLivePlay();
+    elPreviewCol.hidden = true;
+  }, 560);
+}
+
+function paintPreview(item) {
+  const format = formatById(item.ad);
+  elPreviewStage.style.setProperty("--fw", format.w);
+  elPreviewStage.style.setProperty("--fh", format.h);
+  elPreviewStage.dataset.fw = String(format.w);
+  elPreviewStage.dataset.fh = String(format.h);
+}
+
+function showPreviewPlay() {
+  const token = ++previewToken;
+  const item = previewItem;
+  previewPlay = previewPlay.then(async () => {
+    if (token !== previewToken || !item || state.open || elPreviewCol.hidden) return;
+    const slotId = await showPlay(elPreviewStage, item);
+    if (token !== previewToken || previewItem !== item || state.open) {
+      if (slotId) {
+        unmountPlay(slotId);
+        if (state.liveSlot === slotId) state.liveSlot = null;
+      }
+      return;
+    }
+    fitScale(elPreviewStage);
+  }).catch((err) => {
+    console.warn("vista previa", err);
+  });
+}
+
+function openPreview(item, industry) {
+  stopPinPlay();
+  const visible = elPreviewCol && !elPreviewCol.hidden && elPreviewCol.classList.contains("is-open");
+  const same = previewItem?.id === item.id && visible;
+  previewItem = item;
+  state.ind = industry || industryOf(item);
+  state.base = item;
+  setAmbience(state.ind);
+  paintPreview(item);
+  if (!visible) setPreviewOpen(true);
+  else if (!same) replayPreviewPlayer();
+  markPreviewPins();
+  requestAnimationFrame(() => {
+    if (same) fitScale(elPreviewStage);
+    else showPreviewPlay();
+  });
+}
+
+function closePreview() {
+  if (!previewItem && (elPreviewCol?.hidden || !elPreviewCol?.classList.contains("is-open"))) return;
+  previewItem = null;
+  previewToken += 1;
+  setPreviewOpen(false);
+  markPreviewPins();
 }
 
 function openModal() {
@@ -972,6 +1093,7 @@ function closeModal() {
     elBody.innerHTML = "";
     elPanel.classList.remove("wide");
     refreshLoops();
+    if (previewItem) showPreviewPlay();
   }, 320);
 }
 
@@ -1286,12 +1408,7 @@ async function stepReady(item) {
 }
 
 function openAd(item, industry) {
-  stopPinPlay();
-  state.ind = industry;
-  state.base = item;
-  setAmbience(industry);
-  stepBase();
-  openModal();
+  openPreview(item, industry);
 }
 
 elSearch.addEventListener("input", () => {
@@ -1314,10 +1431,8 @@ elWallReset.addEventListener("click", () => {
   setInd("");
 });
 elFab.addEventListener("click", () => {
-  state.base = null;
-  if (state.ind) stepAds();
-  else stepIndustry();
-  openModal();
+  if (state.open) closeModal();
+  location.hash = "createLookIndustry";
 });
 elStillClose?.addEventListener("click", () => {
   stillHide = true;
@@ -1326,6 +1441,7 @@ elStillClose?.addEventListener("click", () => {
 elBlit?.addEventListener("input", () => paintBlit(elBlit.value));
 elBlit?.addEventListener("change", () => setBlit(elBlit.value));
 elClose.addEventListener("click", closeModal);
+elPreviewClose?.addEventListener("click", closePreview);
 elModal.addEventListener("click", (event) => {
   if (event.target === elModal) closeModal();
 });
@@ -1333,6 +1449,10 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (state.open) {
     closeModal();
+    return;
+  }
+  if (previewItem) {
+    closePreview();
     return;
   }
   if (elStillDlg && !elStillDlg.hidden) {
@@ -1345,6 +1465,10 @@ function syncBrowseBar() {
   if (!bar) return;
   const height = Math.max(0, bar.getBoundingClientRect().height - 1);
   document.documentElement.style.setProperty("--app-bar-h", `${height}px`);
+  const browseBar = document.getElementById("browseBar");
+  if (browseBar) {
+    document.documentElement.style.setProperty("--browse-bar-h", `${Math.round(browseBar.getBoundingClientRect().height)}px`);
+  }
 }
 
 window.addEventListener("resize", () => {
@@ -1353,6 +1477,139 @@ window.addEventListener("resize", () => {
   document.querySelectorAll(".fmtHeroInner, .heroStage, .pin.is-live .pinStage").forEach(fitScale);
 });
 
+window.addEventListener("account-settings", (event) => {
+  const settings = event.detail || {};
+  let dirty = false;
+  if (settings.cover && settings.cover !== browse.cover) {
+    browse.cover = settings.cover;
+    dirty = true;
+  }
+  if (settings.cols && String(settings.cols) !== String(browse.cols)) {
+    browse.cols = String(settings.cols);
+    dirty = true;
+  }
+  if (settings.blit != null && Number(settings.blit) !== browse.blit) {
+    browse.blit = applyBrowseBlit(settings.blit);
+    paintBlit(browse.blit);
+    dirty = true;
+  }
+  if (dirty) {
+    buildChips();
+    buildWall();
+    applyBrowse();
+  }
+  const profile = activeProfile(loadGalleryStore());
+  if (profile?.id) {
+    fetch(`${location.protocol}//${location.hostname}:8780/api/profiles`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ galleryId: profile.id, title: profile.name || "" }),
+    }).catch(() => {});
+  }
+});
+
+function mountIndustryDialog() {
+  const dlg = document.getElementById("industryDlg");
+  const nav = document.getElementById("industryDlgNav");
+  const list = document.getElementById("industryDlgItems");
+  const search = document.getElementById("industryDlgSearch");
+  const openBtn = document.getElementById("industryEdit");
+  if (!dlg || !nav || !list || !search || !openBtn) return;
+  let draft = {};
+  let current = INDUSTRIES[0].id;
+
+  function idsFor(industryId) {
+    const map = { ...(showMap() || {}) };
+    if (Object.prototype.hasOwnProperty.call(draft, industryId)) {
+      if (draft[industryId] == null) delete map[industryId];
+      else return draft[industryId];
+    }
+    return itemsForIndustry(ITEMS, industryById(industryId), map).map((item) => item.id);
+  }
+
+  function paintNav() {
+    nav.replaceChildren(...INDUSTRIES.map((industry) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `industryDlgInd${industry.id === current ? " is-on" : ""}`;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", industry.id === current ? "true" : "false");
+      button.textContent = `${industry.name} (${idsFor(industry.id).length})`;
+      button.addEventListener("click", () => {
+        current = industry.id;
+        paintNav();
+        paintItems();
+      });
+      return button;
+    }));
+  }
+
+  function paintItems() {
+    const query = norm(search.value);
+    const chosen = new Set(idsFor(current));
+    const rows = ITEMS.filter((item) => {
+      const hay = norm(`${comboShortTitle(item)} ${casoLabel(item)}`);
+      return !query || hay.includes(query);
+    });
+    list.replaceChildren(...rows.map((item) => {
+      const row = document.createElement("label");
+      row.className = "industryDlgRow";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = chosen.has(item.id);
+      input.addEventListener("change", () => {
+        const next = new Set(idsFor(current));
+        if (input.checked) next.add(item.id);
+        else next.delete(item.id);
+        draft[current] = ITEMS.map((entry) => entry.id).filter((id) => next.has(id));
+        paintNav();
+      });
+      const name = document.createElement("span");
+      name.textContent = `${comboShortTitle(item)} · ${casoLabel(item)}`;
+      row.append(input, name);
+      return row;
+    }));
+  }
+
+  openBtn.addEventListener("click", () => {
+    draft = {};
+    current = browse.ind && industryById(browse.ind) ? browse.ind : INDUSTRIES[0].id;
+    search.value = "";
+    paintNav();
+    paintItems();
+    dlg.showModal();
+  });
+  search.addEventListener("input", paintItems);
+  document.getElementById("industryDlgClose")?.addEventListener("click", () => dlg.close());
+  document.getElementById("industryDlgReset")?.addEventListener("click", () => {
+    draft[current] = null;
+    paintNav();
+    paintItems();
+  });
+  document.getElementById("industryDlgSave")?.addEventListener("click", () => {
+    const store = loadGalleryStore();
+    const profile = activeProfile(store);
+    if (!profile) return;
+    const next = { ...(profile.industryShows || {}) };
+    for (const [id, value] of Object.entries(draft)) {
+      if (value == null) delete next[id];
+      else next[id] = value;
+    }
+    profile.industryShows = next;
+    saveGalleryStore(store);
+    draft = {};
+    dlg.close();
+    buildChips();
+    buildWall();
+    applyBrowse();
+  });
+  dlg.addEventListener("click", (event) => {
+    if (event.target === dlg) dlg.close();
+  });
+}
+
+mountIndustryDialog();
 syncBrowseBar();
 setAmbience(null);
 buildChips();

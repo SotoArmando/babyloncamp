@@ -51,6 +51,7 @@ function glyphChar(kind, mark) {
 const TRAIL_FONT = '"DejaVu Sans","Noto Sans Symbols 2","Segoe UI Symbol",sans-serif';
 const FAST_CANVAS = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent);
 const glyphSprites = new Map();
+let foxGain = 1.5;
 let glowLayer = null;
 let glowCtx = null;
 let trailPaintWarmed = "";
@@ -63,11 +64,12 @@ function stampGlyph(ctx, text, px, color) {
     ctx.fillText(text, 0, 0);
     return;
   }
-  const key = `${text}|${color}`;
+  const canon = Math.round(64 * foxGain);
+  const key = `${text}|${color}|${canon}`;
   let sprite = glyphSprites.get(key);
   if (!sprite) {
     if (glyphSprites.size > 64) glyphSprites.clear();
-    const canon = 64;
+    const canon = Math.round(64 * foxGain);
     const side = canon * 3;
     const canvas = document.createElement("canvas");
     canvas.width = side;
@@ -82,6 +84,8 @@ function stampGlyph(ctx, text, px, color) {
     glyphSprites.set(key, sprite);
   }
   const dest = size * 3;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(sprite, -dest / 2, -dest / 2, dest, dest);
 }
 
@@ -319,6 +323,7 @@ export function attachPropTrail(BABYLON, scene) {
   let inkCon = 1.3;
   let inkMark = 1;
   let inkSpread = 1;
+  let inkGlyph = 1;
   let inkJoin = "burst";
   let inkPop = 1;
   let draw2d = false;
@@ -1529,14 +1534,14 @@ export function attachPropTrail(BABYLON, scene) {
     const phase = cometPhase(u);
     const headNow = Math.min(1, Math.max(0, (u - 0.008) / 0.2));
     if (headNow < 0.02) return;
-    const ink = cssTint();
+    const ink = kind === "custom" ? mixInk() : cssTint();
     const h = ctx.canvas.height;
     holdWand(ctx);
     ctx.save();
     if (phase && phase.head - phase.from > 0.012 && phase.head >= 0.02) {
     const from = phase.from;
     const span = Math.max(0.001, phase.head - from);
-    const steps = FAST_CANVAS ? 32 : 48;
+    const steps = FAST_CANVAS ? Math.max(32, Math.round(32 * foxGain)) : 48;
     const pts = [];
     for (let i = 0; i <= steps; i += 1) {
       const t = from + span * (i / steps);
@@ -1643,14 +1648,21 @@ export function attachPropTrail(BABYLON, scene) {
       const dirx = bud.nx * Math.cos(angOff) - bud.ny * Math.sin(angOff);
       const diry = bud.nx * Math.sin(angOff) + bud.ny * Math.cos(angOff);
       const reach = h * (0.16 + hash(i * 8.2 + 0.3) * 0.06);
-      const ripe = h * (0.145 + hash(i * 6.4 + 1.1) * 0.04);
+      const ripe = h * (0.145 + hash(i * 6.4 + 1.1) * 0.04) * inkGlyph;
       const x = bud.x + dirx * side * reach * lift;
       const y = bud.y + diry * side * reach * lift;
       const tone = toneOf[i];
       let tr = ink.r;
       let tg = ink.g;
       let tb = ink.b;
-      if (tone > 0.4) {
+      if (kind === "custom") {
+        const toward = tone > 0.4 ? [ink.dr, ink.dg, ink.db] : tone < -0.4 ? [ink.tr, ink.tg, ink.tb] : null;
+        if (toward) {
+          tr = Math.round(ink.r + (toward[0] - ink.r) * 0.7);
+          tg = Math.round(ink.g + (toward[1] - ink.g) * 0.7);
+          tb = Math.round(ink.b + (toward[2] - ink.b) * 0.7);
+        }
+      } else if (tone > 0.4) {
         tr = Math.round(ink.r + (255 - ink.r) * 0.18);
         tg = Math.round(ink.g + (170 - ink.g) * 0.32);
         tb = Math.round(ink.b + (190 - ink.b) * 0.28);
@@ -1721,7 +1733,7 @@ export function attachPropTrail(BABYLON, scene) {
       const dist = boom * h * 0.12 * pop * (0.55 + hash(i * 1.7) * 0.5);
       const x = tip.x + Math.cos(ang) * dist;
       const y = tip.y + Math.sin(ang) * dist * 0.7;
-      const size = h * 0.055 * (1 - boom * 0.3);
+      const size = h * 0.055 * (1 - boom * 0.3) * inkGlyph;
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ang * 0.35);
@@ -1922,6 +1934,14 @@ export function attachPropTrail(BABYLON, scene) {
     kind() { return kind; },
     mark(ch) {
       if (typeof ch === "string" && ch) glyphMark = ch;
+    },
+    glyph(n) {
+      const v = Number(n);
+      if (Number.isFinite(v)) inkGlyph = Math.min(2.6, Math.max(0.6, v));
+    },
+    sharp(n) {
+      const v = Number(n);
+      if (Number.isFinite(v)) foxGain = Math.min(2.5, Math.max(1, v));
     },
     use(next, color, as2d, con, mark, spread, join, glow, tail, ms, pop) {
       const id = next || "none";
